@@ -8,3 +8,14 @@ _pre-sync-backup-*/
 
 # stale git lock files moved aside when delete permission lapsed mid-session
 _git-stale-locks/
+
+# Pressbooks publishing internals — not for the public repo
+cover-image.pxd
+.publish-state.json
+publish_to_pressbooks.py
+
+# Import scratch / tooling / local config — not book content
+mis340-import/
+.claude/
+CLAUDE.md
+.env.example
