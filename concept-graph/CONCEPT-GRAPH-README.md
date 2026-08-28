@@ -1,8 +1,17 @@
 # Concept dependency graph — *Relational Thinking*
 
 Machine-readable map of every concept in the book and where each is introduced,
-assumed, and re-defined. Built 28 Aug 2026 from the **published Pressbooks text**
-(`pressbooks.marshall.edu/mis340`), not the local drafts.
+assumed, and re-defined.
+
+**Synced to the local chapter markdown at commit `ed07dfe` (28 Aug 2026).** Local
+markdown is the source of truth; the Pressbooks site is a build output and is
+currently *behind* these files. Chapters 1, 2, 4, 5, 7, 8, 9, 10 and 11 were
+re-extracted after the fix pass. Chapters 3, 6, 12, 13 and 14 carry forward the
+earlier extraction — their local and published text were compared and differ only
+typographically, with identical bolded-term sets.
+
+**Current state: zero open prerequisite violations.** Six dependencies are closed
+by an inline gloss, eight were checked and dismissed during verification.
 
 Audit report: https://claude.ai/code/artifact/e2875e1c-ca91-4cc5-858c-a9c1ca482682
 
@@ -10,7 +19,7 @@ Audit report: https://claude.ai/code/artifact/e2875e1c-ca91-4cc5-858c-a9c1ca4826
 
 | File | What it is |
 |---|---|
-| `knowledge-graph.json` | The graph: 372 concept nodes, 146 cross-references, verified findings |
+| `knowledge-graph.json` | The graph: 366 concept nodes, cross-references, verified findings |
 | `CONCEPT-GRAPH-README.md` | This file |
 
 ## Graph shape
@@ -47,7 +56,14 @@ unintelligible without the concept; `soft` means it merely helps.
 
 A prerequisite violation is any `hard` entry in `assumed_in` for chapter *N*
 where the concept's earliest `introduced_in` chapter is greater than *N* — or
-where `introduced_in` is empty.
+where `introduced_in` is empty — **and** which is not marked `glossed_in_place`
+and not already adjudicated.
+
+`glossed_in_place: true` means the chapter relies on a concept it doesn't own but
+explains it well enough on the spot, with a pointer to the owning chapter. The
+dependency is real and stays in the graph; it just isn't a defect. That is the
+house pattern the fix pass used, so treat it as the target shape rather than a
+thing to eliminate.
 
 ```python
 import json
@@ -83,8 +99,8 @@ existing node before adding a new one.
 
 ## Known limits
 
-- Coverage is the published text only. Chapters still being drafted locally
-  aren't represented until they're published.
+- Coverage is the local chapter markdown, which is ahead of the published site.
+  Republishing will bring the two back in line.
 - `hard` vs `soft` is a pedagogical judgment, not a fact. Every finding in the
   report was re-verified against the source, but the underlying edges in the
   graph were not all individually re-checked — treat an unverified edge as a
@@ -92,3 +108,52 @@ existing node before adding a new one.
 - 19 of 23 candidate violations and 57 of 61 cross-reference flags were false
   positives before verification. Do not act on a raw query result without
   reading the quote.
+
+## Re-running after you edit a chapter
+
+This is the loop that caught two regressions the fix pass introduced, so it is
+worth actually running rather than trusting an edit.
+
+1. Copy the edited chapter to `current/chapter-NN.md`.
+2. Re-extract it against `EXTRACTION_SPEC_LOCAL.md` into `extractions_v2/`.
+3. `python3 build_graph_v2.py` and read the OPEN violations count.
+
+`aliases.json` merges surface variants onto one concept (`joining` → `join`,
+`FK` → `foreign key`). Check it when a new chapter names something the book
+already teaches under another word — a missing alias produces a violation that
+isn't real.
+
+`adjudications.json` records candidates already verified against the source and
+dismissed, keyed `concept@chapter`. It exists so a rebuild doesn't resurface
+settled questions. Remove an entry if the chapter changes enough to reopen it.
+
+## What the rebuild caught
+
+Removing a duplicate definition can turn it into a gap. Both regressions had
+that shape:
+
+- `HAVING` was correctly dropped from ch8's Key Terms (ch9 owns it) — but it
+  appears in ch8's *first* SQL example and Activity 8.1 quizzes it. Now glossed
+  in place.
+- Standardizing "destructive change" → "breaking change" updated the body prose
+  but missed Activity 10.1 and a line in ch14.
+
+The lesson for the next de-duplication: after removing a definition, check
+whether the concept is still *used* earlier than its new owner — including
+inside activity prompts.
+
+## Still open
+
+Three imprecise cross-references, none of which block a reader:
+
+- ch6 §6.4 calls one-table design "the anti-pattern we've been fighting since
+  Chapter 2" — ch2 only points forward to ch3; the fight starts in ch3.
+- ch7 §7.4 cites "the campus music system from Chapter 6" but its first join path
+  uses Stream/Song/Artist, which belong to ch8's streaming schema.
+- ch10 §10.3 says "exactly the design we'd produce after running through the
+  end-to-end walk-through in section 10.1" attached to the *messy* denormalized
+  table; 10.1 produces the normalized one. Reads like an editing slip.
+
+Four vocabulary-drift items also remain — the most substantive being `schema`,
+used from ch1's course outcomes onward but only ever defined in ch6's Key Terms
+as "relational schema".
