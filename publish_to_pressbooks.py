@@ -46,6 +46,8 @@ Pressbooks book URL: https://pressbooks.marshall.edu/mis340/
 import os
 import re
 import sys
+import json
+import argparse
 import time
 import html
 import base64
@@ -64,24 +66,58 @@ MERMAID_INK_BASE = "https://mermaid.ink/img"  # public rendering service, no aut
 
 load_dotenv(os.path.join(SCRIPT_DIR, ".env"))
 
-# Each chapter's home part and its 1-based position *within that part*
-# (Pressbooks' menu_order is relative to the part, not global across the book).
+# Each chapter is pinned to its Pressbooks chapter ID. Matching by *title* (as
+# an earlier version did) is unsafe: renaming a chapter on either side makes the
+# lookup miss, and the script then CREATES A DUPLICATE instead of updating. The
+# ID is stable across renames, so it is the only safe identity.
+#
+# Fields: (filename, chapter_id, title, part_title, order_within_part, wip)
+#   wip=True prefixes the published title with "WIP: " — the book's front matter
+#   tells readers that prefix means the chapter is still in progress. Flip it to
+#   False when a chapter is finalized; that is the one place the marker lives.
+# Pressbooks' menu_order is relative to the part, not global across the book.
 CHAPTERS = [
-    ("chapter-01.md", "Data as a Way of Seeing",                       "How We Think About Data",           1),
-    ("chapter-02.md", "Entities, Attributes, and the World as Tables", "How We Think About Data",           2),
-    ("chapter-03.md", "Relationships: How Things Connect",             "How We Think About Data",           3),
-    ("chapter-04.md", "The Relational Model",                          "Relational Thinking",               1),
-    ("chapter-05.md", "Normalization as a Design Philosophy",          "Relational Thinking",               2),
-    ("chapter-06.md", "Data Modeling in Practice",                     "Relational Thinking",               3),
-    ("chapter-07.md", "Query Thinking: What Do You Want to Know?",     "Asking Questions of Data",           1),
-    ("chapter-08.md", "Introduction to SQL with AI Assistance",        "Asking Questions of Data",           2),
-    ("chapter-09.md", "Joins and Aggregation",                         "Asking Questions of Data",           3),
-    ("chapter-10.md", "Designing for a Business Domain",                "Database Design for Real Problems", 1),
-    ("chapter-11.md", "Data Integrity and Constraints",                 "Database Design for Real Problems", 2),
-    ("chapter-12.md", "When Relational Isn't Enough",                   "Beyond the Relational Model",       1),
-    ("chapter-13.md", "Data at Scale and the Modern Data Stack",        "Beyond the Relational Model",       2),
-    ("chapter-14.md", "Capstone and the Future of Data Work",           "Putting It Together",               1),
+    ("chapter-01.md",  21, "Data as a Way of Seeing",                    "How We Think About Data",           1, False),
+    ("chapter-02.md",  24, "Entities, Attributes, and Identity: The World as Tables",
+                                                                         "How We Think About Data",           2, False),
+    ("chapter-03.md",  26, "Relationships: How Things Connect",          "How We Think About Data",           3, True),
+    ("chapter-04.md",  28, "The Relational Model",                       "Relational Thinking",               1, True),
+    ("chapter-05.md",  30, "Normalization as a Design Philosophy",       "Relational Thinking",               2, True),
+    ("chapter-06.md",  32, "Data Modeling in Practice",                  "Relational Thinking",               3, True),
+    ("chapter-07.md",  34, "Query Thinking: What Do You Want to Know?",  "Asking Questions of Data",          1, True),
+    ("chapter-08.md",  36, "Introduction to SQL with AI Assistance",     "Asking Questions of Data",          2, True),
+    ("chapter-09.md",  38, "Joins and Aggregation",                      "Asking Questions of Data",          3, True),
+    ("chapter-10.md",  40, "Designing for a Business Domain",            "Database Design for Real Problems", 1, True),
+    ("chapter-11.md",  42, "Data Integrity and Constraints",             "Database Design for Real Problems", 2, True),
+    ("chapter-12.md", 114, "When Relational Isn't Enough",               "Beyond the Relational Model",       1, True),
+    ("chapter-13.md",  46, "Data at Scale and the Modern Data Stack",    "Beyond the Relational Model",       2, True),
+    ("chapter-14.md",  48, "Capstone and the Future of Data Work",       "Putting It Together",               1, True),
 ]
+
+WIP_PREFIX = "WIP: "
+
+# Records each chapter's server-side modified timestamp as of the last successful
+# publish, so the next run can tell whether the live page was edited in Pressbooks
+# in the meantime. Committed to git on purpose — it is shared state, not a cache.
+STATE_FILE = os.path.join(SCRIPT_DIR, ".publish-state.json")
+
+
+def published_title(title: str, wip: bool) -> str:
+    return (WIP_PREFIX + title) if wip else title
+
+
+def load_state() -> dict:
+    try:
+        with open(STATE_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, ValueError):
+        return {}
+
+
+def save_state(state: dict) -> None:
+    with open(STATE_FILE, "w", encoding="utf-8") as f:
+        json.dump(state, f, indent=2, sort_keys=True)
+        f.write("\n")
 
 # ── Table fix: normalize blank lines around markdown tables ──────────────────
 
@@ -328,6 +364,14 @@ def list_existing_chapters(session: requests.Session, endpoint: str) -> list:
 
 def create_chapter(session: requests.Session, endpoint: str,
                    title: str, html: str, menu_order: int, part_id: int) -> dict:
+    """Create a brand-new chapter. DELIBERATELY NOT CALLED by the publish loop.
+
+    Every chapter in CHAPTERS is pinned to an existing Pressbooks ID, and the
+    loop refuses to proceed when an ID is missing rather than falling back to
+    creation. That fallback is exactly what produced duplicate chapters before.
+    Call this by hand when genuinely adding a chapter, then record its new ID in
+    CHAPTERS and run once with --accept-current.
+    """
     payload = {
         "title":      title,
         "content":    html,
@@ -354,9 +398,49 @@ def update_chapter(session: requests.Session, endpoint: str,
     return r.json()
 
 
+def fetch_chapter(session: requests.Session, endpoint: str, chapter_id: int) -> dict:
+    """Current server state for one chapter, or {} if it no longer exists."""
+    r = session.get(f"{endpoint}/{chapter_id}", params={"context": "edit"})
+    if r.status_code == 404:
+        return {}
+    r.raise_for_status()
+    return r.json()
+
+
+def drift_check(chapter: dict, recorded: dict) -> str:
+    """Return a human-readable reason to STOP, or "" if it is safe to publish.
+
+    The live page is safe to overwrite only if it has not been modified since we
+    last published it. Anything else means someone edited in Pressbooks and that
+    work would be destroyed by a blind update.
+    """
+    if not recorded:
+        return ("no record of a previous publish for this chapter — "
+                "publish once with --accept-current to adopt the live version")
+    live = chapter.get("modified_gmt")
+    if live and live != recorded.get("modified_gmt"):
+        return (f"live page changed since last publish "
+                f"(was {recorded.get('modified_gmt')}, now {live})")
+    return ""
+
+
 # ── Main publish flow ─────────────────────────────────────────────────────────
 
+def parse_args():
+    p = argparse.ArgumentParser(description="Publish Relational Thinking to Pressbooks.")
+    p.add_argument("--only", nargs="+", metavar="FILE",
+                   help="publish only these chapter files (e.g. chapter-02.md)")
+    p.add_argument("--force", action="store_true",
+                   help="overwrite even if the live page changed since last publish")
+    p.add_argument("--accept-current", action="store_true",
+                   help="record the live version as the baseline without writing content")
+    p.add_argument("--dry-run", action="store_true",
+                   help="show what would be published without writing anything")
+    return p.parse_args()
+
+
 def main():
+    args = parse_args()
     print("=" * 60)
     print("Pressbooks Publisher")
     print(f"Book: {BOOK_URL}")
@@ -394,28 +478,17 @@ def main():
         print(f"✗ {e}")
         sys.exit(1)
 
-    # Load existing chapters (to support re-runs without duplication)
-    print("Loading existing chapters…")
-    existing = list_existing_chapters(session, endpoint)
-    # WordPress's title.rendered is HTML (wptexturize turns straight quotes into
-    # curly ones and HTML-encodes them), so unescape + normalize curly quotes back
-    # to straight ones before matching against our plain-text CHAPTERS titles.
-    def normalize_title(t: str) -> str:
-        t = html.unescape(t).strip()
-        return t.replace("’", "'").replace("‘", "'")
+    state = load_state()
 
-    existing_by_title = {
-        normalize_title(ch["title"]["rendered"]): ch["id"]
-        for ch in existing
-    }
-    print(f"  Found {len(existing)} existing chapter(s).")
-
-    # Publish each chapter
     print()
-    success, skipped, failed = 0, 0, 0
+    success, skipped, failed, blocked = 0, 0, 0, 0
 
-    for i, (filename, title, part_title, order) in enumerate(CHAPTERS, start=1):
+    for i, (filename, chapter_id, title, part_title, order, wip) in enumerate(CHAPTERS, start=1):
+        if args.only and filename not in args.only:
+            continue
+
         filepath = os.path.join(SCRIPT_DIR, filename)
+        live_title = published_title(title, wip)
 
         if not os.path.exists(filepath):
             print(f"  [SKIP] {filename} not found — skipping.")
@@ -423,28 +496,72 @@ def main():
             continue
 
         if part_title not in parts_by_title:
-            print(f"  [{i:02d}] {title} … ✗ part {part_title!r} not found on the book "
+            print(f"  [{i:02d}] {live_title} … ✗ part {part_title!r} not found on the book "
                   f"(available: {', '.join(parts_by_title)})")
             failed += 1
             continue
         part_id = parts_by_title[part_title]
 
-        print(f"  [{i:02d}] {title} … ({part_title} #{order})")
+        print(f"  [{i:02d}] {live_title} … (id={chapter_id}, {part_title} #{order})")
+
+        try:
+            current = fetch_chapter(session, endpoint, chapter_id)
+        except requests.HTTPError as e:
+            print(f"       FAILED ✗ could not read live chapter: {e}")
+            failed += 1
+            continue
+
+        if not current:
+            print(f"       ✗ chapter id {chapter_id} does not exist on the book. "
+                  f"Fix the id in CHAPTERS — this script never creates chapters, "
+                  f"because a wrong id would silently duplicate one.")
+            failed += 1
+            continue
+
+        # Refuse to clobber edits made in Pressbooks since our last publish.
+        if not (args.force or args.accept_current):
+            reason = drift_check(current, state.get(str(chapter_id)))
+            if reason:
+                print(f"       BLOCKED — {reason}")
+                print(f"       Review {BOOK_URL}/chapter/{current.get('slug','')}/ then re-run with")
+                print(f"         --only {filename} --force            (overwrite the live page)")
+                print(f"         --only {filename} --accept-current   (adopt live as the baseline)")
+                blocked += 1
+                continue
+
+        if args.accept_current:
+            state[str(chapter_id)] = {"file": filename, "slug": current.get("slug"),
+                                      "modified_gmt": current.get("modified_gmt")}
+            print("       baseline adopted (no content written) ✓")
+            save_state(state)
+            success += 1
+            continue
 
         with open(filepath, "r", encoding="utf-8") as f:
             raw = f.read()
 
-        chapter_slug = os.path.splitext(filename)[0]  # e.g. "chapter-06"
+        # Check this BEFORE converting: markdown_to_html renders every Mermaid
+        # block and uploads the PNG to the media library, so converting during a
+        # dry run would litter the library with orphan images on every run.
+        if args.dry_run:
+            diagrams = raw.count("```mermaid")
+            print(f"       dry run — would update from {filename} "
+                  f"({len(raw):,} chars of markdown"
+                  + (f", {diagrams} diagram(s) to render" if diagrams else "")
+                  + f"), title {live_title!r}")
+            success += 1
+            continue
+
+        chapter_slug = os.path.splitext(filename)[0]
         chapter_html = markdown_to_html(raw, session, chapter_slug)
 
         try:
-            if title in existing_by_title:
-                chapter_id = existing_by_title[title]
-                update_chapter(session, endpoint, chapter_id, title, chapter_html, order, part_id)
-                print("       updated ✓")
-            else:
-                result = create_chapter(session, endpoint, title, chapter_html, order, part_id)
-                print(f"       created (id={result['id']}) ✓")
+            result = update_chapter(session, endpoint, chapter_id, live_title,
+                                    chapter_html, order, part_id)
+            state[str(chapter_id)] = {"file": filename, "slug": result.get("slug"),
+                                      "modified_gmt": result.get("modified_gmt")}
+            save_state(state)
+            print("       updated ✓")
             success += 1
         except requests.HTTPError as e:
             print(f"       FAILED ✗\n       {e.response.status_code}: {e.response.text[:200]}")
@@ -453,7 +570,12 @@ def main():
     # Summary
     print()
     print("=" * 60)
-    print(f"Done.  {success} published,  {skipped} skipped,  {failed} failed.")
+    verb = "would publish" if args.dry_run else "published"
+    print(f"Done.  {success} {verb},  {skipped} skipped,  {blocked} blocked,  {failed} failed.")
+    if blocked:
+        print("\n  Blocked chapters were edited in Pressbooks since the last publish.")
+        print("  Nothing was overwritten. Pull those edits into the .md first,")
+        print("  or re-run with --force if the live version is disposable.")
     if success > 0:
         print(f"\nView your book: {BOOK_URL}")
     print("=" * 60)
