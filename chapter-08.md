@@ -52,7 +52,7 @@ GROUP BY artist_id
 HAVING COUNT(*) > 50;
 ```
 
-The SQL says *what* you want: artist IDs grouped by artist, where the count exceeds 50. It says nothing about *how* to find them — no loops, no counters, no manual reading. The database engine figures out the most efficient way to execute it.
+The SQL says *what* you want: artist IDs grouped by artist, where the count exceeds 50. (`GROUP BY` collapses rows into one row per artist; `HAVING` then filters those groups — it's `WHERE` for grouped results. Chapter 9 covers both properly; here they're just showing what declarative looks like.) It says nothing about *how* to find them — no loops, no counters, no manual reading. The database engine figures out the most efficient way to execute it.
 
 This is liberating. You don't need to think about file structures, indexes, or execution order. You just need to express your question correctly, and the database handles the rest.
 
@@ -522,13 +522,9 @@ Verifying AI-generated SQL requires conceptual fluency — understanding what th
 
 **Table alias** — A short name given to a table in FROM or JOIN (`FROM User u`), used to qualify column references elsewhere in the same query.
 
-
-
-
 **Aggregate functions** — Functions that compute a single value from a set of rows: COUNT, SUM, AVG, MIN, MAX.
 
 **Schema context** — The table and column information provided to an AI assistant so it can write SQL for your specific database.
-
 
 ---
 

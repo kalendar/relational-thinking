@@ -163,7 +163,7 @@ None of these problems require the report author to be dishonest. They're often 
 
 One of the most immediately practical skills from this course is the ability to communicate clearly with the technical people who build and maintain data systems.
 
-You now speak enough of the language. When a developer says "the report is wrong because the JOIN is dropping rows where the student has no enrollment record," you understand what that means. When a data engineer says "the discrepancy is because we changed the grain of the fact table last week," you know what grain means and why changing it would cause a discrepancy. When a database administrator says "we can't add that feature because it would require a destructive schema change," you understand the risk.
+You now speak enough of the language. When a developer says "the report is wrong because the JOIN is dropping rows where the student has no enrollment record," you understand what that means. When a data engineer says "the discrepancy is because we changed the grain of the fact table last week," you know what grain means and why changing it would cause a discrepancy. When a database administrator says "we can't add that feature because it would require a breaking schema change," you understand the risk.
 
 This bidirectional understanding — enough technical knowledge to communicate accurately with technical teams, combined with business knowledge technical teams often lack — is genuinely rare and genuinely valuable.
 

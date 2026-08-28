@@ -442,8 +442,6 @@ Communicating design decisions means translating technical choices into business
 
 **Design failure** — A schema structure that prevents recording real-world facts, produces incorrect query results, or allows data to get out of sync.
 
-
-
 **Design review** — A collaborative session where one or more people examine a schema design to find gaps, ambiguities, edge cases, and questions the design can't answer.
 
 ---
@@ -471,7 +469,7 @@ The activities below are designed to be completed with a generative AI tool such
 > - A ticket is sold for $25 today. Tomorrow, the concert changes its price to $30. Where should the $25 price be stored, and why?
 > - What are audit columns? Name the four most common ones and explain what each records.
 > - What is the difference between a "design smell" and a "design failure"? Give an example of each.
-> - What is the difference between an additive schema change and a destructive one? Which is safer to deploy, and why?
+> - What is the difference between an additive schema change and a breaking one? Which is safer to deploy, and why?
 > - Why might a column named "misc_info" or "extra_data" be a warning sign in an existing schema?
 > - When should you show an ER diagram to a stakeholder, and when should you not? What's the alternative when the diagram isn't the right tool?
 > - The chapter says normalization and event logs solve different problems. What's the difference between a "current state" table and an "event log" table?
