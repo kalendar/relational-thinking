@@ -1,0 +1,7 @@
+.venv/
+.env
+__pycache__/
+*.pyc
+
+# scraped/derived working copies — regenerate rather than edit
+_pre-sync-backup-*/
