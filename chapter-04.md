@@ -215,7 +215,7 @@ This rule is what makes the web of relationships in a database trustworthy. If t
 
 ### Orphaned records and the problems they cause
 
-When referential integrity is violated, you get **orphaned records** — rows whose foreign keys point to rows that no longer exist.
+When referential integrity is violated, you get orphaned records (introduced in Chapter 3) — rows whose foreign keys point to rows that no longer exist.
 
 Imagine you delete an artist from the Artist table without first handling their songs. Now the Song table has rows with `artist_id = 42`, but artist 42 no longer exists. Those songs are orphaned. They're in the database, but they can't be fully displayed (you'd have no artist name to show), can't be filtered by artist, and can't be reasoned about correctly.
 
@@ -290,15 +290,12 @@ These rules aren't arbitrary. They follow from the mathematics of the model, and
 
 **Candidate key** — Any attribute or combination of attributes that could uniquely identify a tuple in a relation.
 
-**Natural key** — A candidate key drawn from a real-world identifier (e.g., ISBN, email address). Meaningful but potentially unstable, and not necessarily the key you choose as primary.
 
-**Surrogate key** — A system-generated identifier with no real-world meaning, typically chosen as the primary key. Stable and compact.
 
 **Domain** — The set of valid values an attribute can hold. Enforced through data types and constraints.
 
 **Entity integrity** — The rule that no primary key value can be null.
 
-**Referential integrity** — The rule that every foreign key value must correspond to an existing primary key in the referenced table.
 
 **Domain integrity** — The rule that every value in a table must be a valid member of its attribute's domain.
 

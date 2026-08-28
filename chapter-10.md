@@ -289,11 +289,11 @@ When evaluating a schema, ask: "Does this design prevent us from storing somethi
 
 Changing an existing database schema is much harder than designing a new one, because real data already lives in the existing structure. You have to migrate it — extract it, transform it into the new shape, and load it into the new structure — without losing anything.
 
-The general rule: **additive changes first, destructive changes last (or never).**
+The general rule: **additive changes first, breaking changes last (or never).**
 
 **Additive changes** are safe: add a new table, add a column, add an index. These changes don't remove anything and don't break existing queries. You can deploy them at any time.
 
-**Destructive changes** are risky: remove a column, split a table into two, rename a column, change a data type. These break existing queries and application code that references the old structure. They require careful coordination.
+**Breaking changes** are risky: remove a column, split a table into two, rename a column, change a data type. These break existing queries and application code that references the old structure. They require careful coordination.
 
 A common pattern for safely refactoring a column:
 1. Add the new column (additive change)
@@ -301,7 +301,7 @@ A common pattern for safely refactoring a column:
 3. Update application code to write to both columns during a transition period
 4. Verify the new column has correct data for all rows
 5. Migrate application code to read from the new column only
-6. Only then, remove the old column (destructive change, now safe)
+6. Only then, remove the old column (breaking change, now safe)
 
 This process is slower than just "fixing" the column, but it preserves data and allows rollback at any stage.
 
@@ -420,7 +420,7 @@ Several design patterns appear across almost every business domain: the header-d
 
 Red flags in existing schemas: catch-all columns named "misc" or "notes," tables with many nullable columns, repeating groups expressed as numbered columns, nullable foreign keys that should be required, and no timestamps on transactional tables.
 
-Refactoring a bad design requires care: additive changes first, destructive changes last. Test that refactored queries return identical results before going live.
+Refactoring a bad design requires care: additive changes first, breaking changes last. Test that refactored queries return identical results before going live.
 
 Communicating design decisions means translating technical choices into business language and connecting each decision to the problem it solves. ER diagrams are powerful tools for technical audiences and onboarding; for business stakeholders, lead with what the system can now do, not how it's structured. Keep diagrams in sync with the schema or they become actively misleading.
 
@@ -442,9 +442,7 @@ Communicating design decisions means translating technical choices into business
 
 **Design failure** — A schema structure that prevents recording real-world facts, produces incorrect query results, or allows data to get out of sync.
 
-**Additive change** — A schema change that adds to the structure (new table, new column, new index) without removing anything. Generally safe to deploy without breaking existing queries.
 
-**Destructive change** — A schema change that removes or renames something (drop column, rename table, change data type). Breaks existing queries and requires careful migration.
 
 **Design review** — A collaborative session where one or more people examine a schema design to find gaps, ambiguities, edge cases, and questions the design can't answer.
 

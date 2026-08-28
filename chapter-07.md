@@ -265,13 +265,13 @@ Seven steps, no SQL. But if you handed this plan to someone who knows SQL — or
 
 ### Visualizing the shape of data at each step
 
-One of the most useful habits in query planning is to visualize the shape of your data at each step of the pipeline. "Shape" means: how many rows? How many columns? What does one row represent?
+One of the most useful habits in query planning is to visualize the shape of your data at each step of the pipeline. "Shape" means three things: how many rows? How many columns? And what does one row represent — the **grain** of the result, the same idea you met in Section 2.4, now applied to what a query returns rather than what a table stores.
 
 At the start, you might have a million stream rows with 8 columns. After filtering to last month, maybe 80,000 rows. After joining to Song, still 80,000 rows but now with 5 more columns. After aggregating by genre, maybe 12 rows (one per genre) with 2 columns (genre, stream_count).
 
 Tracking this shape helps you catch errors. If you expect 12 genre rows but get 47, something went wrong in the grouping. If you expect 80,000 stream rows but get 800,000, you probably have a bad join that's producing a Cartesian product.
 
-Visualizing the shape is also how you verify that your aggregation is at the right level. If the result has 80,000 rows, you haven't aggregated yet. If it has 1 row, you've aggregated too much. The shape tells you where you are in the pipeline.
+Visualizing the shape is also how you verify that your aggregation landed at the right grain. If the result has 80,000 rows, you haven't aggregated yet. If it has 1 row, you've aggregated too much. The shape tells you where you are in the pipeline.
 
 ---
 
@@ -398,7 +398,7 @@ SQL is a translation of this plan. If the plan is clear, the SQL — whether wri
 
 **Join path** — The sequence of joins required to connect two tables that are not directly related, traced through foreign key relationships in the data model.
 
-**Grain (of a query result)** — What one row in the query result represents. Should be defined before planning the aggregation step.
+**Grain (of a query result)** — What one row of a query's output represents. The same idea as a table's grain (Section 2.4), applied to the rows a query returns rather than the rows a table stores. Worth defining before planning the aggregation step.
 
 ---
 

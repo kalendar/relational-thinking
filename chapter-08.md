@@ -522,17 +522,13 @@ Verifying AI-generated SQL requires conceptual fluency — understanding what th
 
 **Table alias** — A short name given to a table in FROM or JOIN (`FROM User u`), used to qualify column references elsewhere in the same query.
 
-**INNER JOIN** — A join that returns only rows where matching values exist in both tables.
 
-**GROUP BY** — SQL clause that groups rows by one or more columns before applying aggregate functions.
 
-**HAVING** — SQL clause that filters groups after aggregation (like WHERE, but applied to aggregated results).
 
 **Aggregate functions** — Functions that compute a single value from a set of rows: COUNT, SUM, AVG, MIN, MAX.
 
 **Schema context** — The table and column information provided to an AI assistant so it can write SQL for your specific database.
 
-**Result grain** — What one row in the query result represents. Should match the intended grain before trusting the result.
 
 ---
 

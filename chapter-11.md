@@ -144,7 +144,7 @@ When data violates a constraint, you get a database error, not a wrong answer. T
 
 Constraints like NOT NULL, UNIQUE, and CHECK operate on individual column values. **Referential integrity** operates on *relationships between tables*: it ensures that a foreign key value in one table actually points to an existing row in the referenced table.
 
-Without referential integrity, you can insert a Ticket with a `student_id` of 99999 even if no Student with `student_id = 99999` exists. You've created an **orphaned record** — a row that references nothing. That ticket can't be joined to a Student. It won't show up in reports that join Ticket to Student. It's invisible garbage in your database.
+Without referential integrity, you can insert a Ticket with a `student_id` of 99999 even if no Student with `student_id = 99999` exists. You've created an orphaned record — the problem Chapter 3 introduced: a row that references nothing. That ticket can't be joined to a Student. It won't show up in reports that join Ticket to Student. It's invisible garbage in your database.
 
 Foreign key constraints are the mechanism that prevents this.
 
@@ -429,7 +429,6 @@ When integrity fails, the consequences include orphaned records, phantom totals,
 
 **Soft deletion** — The practice of marking records as inactive (with a flag column) rather than deleting them. Preserves historical data and prevents orphaned records.
 
-**Orphaned record** — A row in a child table whose foreign key value no longer has a matching row in the parent table. Occurs when referential integrity is not enforced.
 
 **ON DELETE RESTRICT** — The default cascading behavior: reject a DELETE on the parent if any child rows reference it. The developer must explicitly clean up child rows first.
 

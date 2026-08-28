@@ -76,7 +76,7 @@ The analogy: when you look up a word in a dictionary, you don't complain that th
 
 Before we see how joins work, let's look at what happens when they go wrong. There are two classic failure modes.
 
-**The Cartesian product** happens when you join two tables without a join condition — or with a wrong one. Instead of matching rows on a shared key, the database produces every possible combination of rows from both tables.
+**The Cartesian product**, which we met in Chapter 7, happens when you join two tables without a join condition — or with a wrong one. Instead of matching rows on a shared key, the database produces every possible combination of rows from both tables.
 
 Imagine joining a table of 1,000 songs to a table of 10,000 streams with no join condition. The result: 1,000 × 10,000 = 10,000,000 rows, nearly all of them meaningless. The query might run for a long time, return an enormous result, and look superficially like data — but it's wrong.
 
@@ -568,7 +568,6 @@ For AI-assisted join and aggregation queries: describe the join path explicitly,
 
 **LEFT JOIN (LEFT OUTER JOIN)** — A join that returns all rows from the left table, with matching rows from the right table where they exist. Unmatched left rows appear with NULLs for right-table columns.
 
-**Cartesian product** — The result of joining two tables with no join condition: every possible combination of rows. Almost always a query error.
 
 **Fan trap** — A query error where joining through two one-to-many relationships from the same table inflates aggregation results by multiplying rows before counting or summing.
 
