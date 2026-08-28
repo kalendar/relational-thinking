@@ -5,3 +5,6 @@ __pycache__/
 
 # scraped/derived working copies — regenerate rather than edit
 _pre-sync-backup-*/
+
+# stale git lock files moved aside when delete permission lapsed mid-session
+_git-stale-locks/
