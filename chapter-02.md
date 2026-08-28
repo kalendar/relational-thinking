@@ -209,7 +209,7 @@ Here's something that surprises a lot of people: in a relational table, the orde
 
 In a spreadsheet, you might sort artists alphabetically and expect them to stay in that order. In a relational database, there's no guaranteed order. The database might store the rows in any sequence it finds efficient, and when you retrieve them, they might come back in a different order each time.
 
-This isn't a bug. It's a consequence of the set-based thinking we mentioned in Chapter 1. A table is a _set_ of rows, and sets don't have an inherent order. If you want results in a specific order, you ask for that order explicitly when you run a query.
+This isn't a bug. It's a consequence of the set-based thinking behind Codd's relational model, which we met in Chapter 1 and will make precise in Chapter 4. A table is a _set_ of rows, and sets don't have an inherent order. If you want results in a specific order, you ask for that order explicitly when you run a query.
 
 The practical implication: **never design a database that depends on the order of rows**. If order matters – like the track listing on an album – that needs to be an explicit attribute (a `track_number` column), not an assumption about how the rows are stored.
 

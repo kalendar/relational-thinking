@@ -157,7 +157,7 @@ What the field needed was a way to separate the _logical_ organization of data f
 
 In 1970, a mathematician at IBM named Edgar F. Codd published a paper called " [A Relational Model of Data for Large Shared Data Banks](https://dl.acm.org/doi/epdf/10.1145/362384.362685)." It was one of the most influential papers in the history of computing.
 
-Codd's idea was elegant: organize all data as simple tables (which he called _relations_), and provide a mathematical language for querying those tables. Crucially, the user wouldn't need to know how the data was stored – just what it contained. You could ask any question that the data could answer, without needing to know the physical structure underneath.
+Codd's idea was elegant: organize all data as simple tables (which he called _relations_), and provide a mathematical language for querying those tables. The mathematics behind it was set theory — a table is a *set* of rows, and sets have no inherent order. Crucially, the user wouldn't need to know how the data was stored – just what it contained. You could ask any question that the data could answer, without needing to know the physical structure underneath.
 
 This was revolutionary for two reasons. First, it gave non-programmers a path to querying data themselves. Second, it meant that changing how data was stored didn't break every application that used it.
 

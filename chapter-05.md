@@ -280,7 +280,7 @@ When all three of these are true, you're in good shape. Normalizing further is d
 
 Transactional systems — systems that record business events as they happen (orders, bookings, enrollments, payments) — benefit enormously from normalization. The data is written frequently, by many users, in many small operations. Consistency is critical. 3NF is the standard target.
 
-The one area where you'll sometimes see intentional denormalization in transactional systems is for performance. Joins cost time. If a query that needs to run in milliseconds requires joining eight tables, you might denormalize — deliberately store a fact in two places — to speed it up. But this should be a conscious, documented trade-off, not a default design choice.
+The one area where you'll sometimes see intentional denormalization in transactional systems is for performance. Joins cost time. (A *join* is the operation that puts back together what normalization split apart — recombining rows from separate tables on a shared key. Chapter 7 covers it properly; for now all you need is that it isn't free.) If a query that needs to run in milliseconds requires joining eight tables, you might denormalize — deliberately store a fact in two places — to speed it up. But this should be a conscious, documented trade-off, not a default design choice.
 
 ### Signs that you've over-normalized
 

@@ -159,7 +159,7 @@ The result has columns named `name` and `music_type` instead of `artist_name` an
 
 ### FROM: specifying the table
 
-`FROM` is followed by the name of the table you're querying. For single-table queries, this is straightforward. When joins are involved, `FROM` is where you start, and `JOIN` clauses follow.
+`FROM` is followed by the name of the table you're querying. For single-table queries, this is straightforward. When joins are involved, `FROM` is where you start, and `JOIN` clauses follow. You'll also see a short name written right after a table — `FROM User u` — which is a **table alias**: a nickname for that table within this one query, so later references can be shortened to `u.subscription_tier` instead of `User.subscription_tier`. AI assistants use aliases constantly, so it's worth being able to read them before you write them.
 
 ### WHERE: filtering rows
 
@@ -408,7 +408,7 @@ An AI doesn't know your data. It knows SQL syntax and general patterns. It will 
 
 Here are the most common AI failure modes:
 
-**Wrong join type.** The AI uses an INNER JOIN when you needed a LEFT JOIN (or vice versa), silently dropping rows you needed to keep — or including rows you needed to exclude.
+**Wrong join type.** The AI uses an INNER JOIN when you needed a LEFT JOIN (or vice versa), silently dropping rows you needed to keep — or including rows you needed to exclude. (An INNER JOIN returns only rows that match in both tables; a *LEFT JOIN* returns every row from the first table whether or not it has a match, leaving the missing side empty. That difference is what lets you ask "which songs have *never* been streamed?" — Chapter 9 covers both properly.)
 
 **Missing filter.** You asked about "last month" but the AI forgot the date filter, returning all-time results. The numbers look reasonable, so you don't notice.
 
@@ -518,7 +518,9 @@ Verifying AI-generated SQL requires conceptual fluency — understanding what th
 
 **WHERE** — The SQL clause that filters rows based on a condition.
 
-**AS** — SQL keyword for renaming a column or expression in the query result (aliasing).
+**AS** — SQL keyword for renaming a column or expression in the query result (aliasing a column, not a table).
+
+**Table alias** — A short name given to a table in FROM or JOIN (`FROM User u`), used to qualify column references elsewhere in the same query.
 
 **INNER JOIN** — A join that returns only rows where matching values exist in both tables.
 
@@ -561,6 +563,7 @@ The activities below are designed to be completed with a generative AI tool such
 > - What is the most common reason AI-generated SQL is wrong even though it runs without errors?
 > - Walk me through the verification checklist for AI-generated SQL — what are the key things to check?
 > - What does it mean to "sanity check" a query result? Give an example of a sanity check you might run.
+> - What is a table alias? Why do AI-generated queries use them so heavily, and what do you need to watch for when reading one?
 
 ---
 
