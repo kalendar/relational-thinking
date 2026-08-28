@@ -131,29 +131,21 @@ The solution is to ensure that every row has at least one attribute — or combi
 
 ### Candidate keys, primary keys, and surrogate keys
 
-A **candidate key** is any attribute or combination of attributes that could uniquely identify a row. A relation can have multiple candidate keys.
+Section 2.5 introduced primary keys, and the choice between an identifier the real world already supplies and one the system invents. The relational model adds a piece that section didn't need: where primary keys come from in the first place.
 
-For example, in a User table for a music app, both `user_id` (a system-generated number) and `email_address` could uniquely identify a user. Either one is a candidate key.
+A **candidate key** is any attribute or combination of attributes that *could* uniquely identify a row. A relation can have several. In a User table for a music app, both `user_id` (a system-generated number) and `email_address` could uniquely identify a user. Either one is a candidate key.
 
-The **primary key** is the candidate key you choose to use as the official identifier for a row. It's the key that other tables will reference with foreign keys, and it's the key the database optimizes for lookups. In practice, you choose the primary key that is most stable and most practical.
+The primary key, then, isn't simply "the unique column" — it's the candidate key you *choose* as the official identifier. It's the key other tables reference with foreign keys, and the key the database optimizes for lookups. From the candidates above you'd probably choose `user_id`, because email addresses change while a system-generated ID never does.
 
-From the candidate keys above, you'd probably choose `user_id` as the primary key, because email addresses can change (people switch email providers), while a system-generated ID never changes.
-
-**Surrogate keys** vs. **natural keys** is one of the most common design decisions you'll make.
-
-A **natural key** is an identifier that has real-world meaning. An ISBN uniquely identifies a book. A Social Security Number uniquely identifies a US citizen. An email address uniquely identifies a user account. Natural keys are appealing because they carry meaning — you don't need to look anything up to understand what they refer to.
-
-A **surrogate key** is a system-generated identifier with no real-world meaning — just a unique number assigned by the database. `artist_id = 1`, `artist_id = 2`, `artist_id = 3`. The number means nothing outside the database; it just ensures uniqueness.
+That choice — a natural key carrying real-world meaning, or a surrogate key carrying none — is one of the most common design decisions you'll make, and it's worth being precise about what each one costs.
 
 ### Natural keys: meaningful but fragile
 
-Natural keys seem like a good idea until real life intervenes.
+Section 2.5 made the core case: real-world uniqueness has a way of not lasting. ISBNs get reused, email addresses change, two different songs are both called "Sorry."
 
-What if a book goes out of print and its ISBN gets reused? (It happens.) What if a person changes their Social Security Number? (Rare, but it happens — for witness protection, among other reasons.) What if a user changes their email address? (This happens all the time.) What if a song title isn't unique — two songs are both called "Sorry"?
+What the relational model lets us say more precisely is *why* that hurts. A primary key is what other tables reference. So when a natural key changes, the change cascades — every table holding that value as a foreign key has to be updated in step, and any that isn't now points at something that no longer exists.
 
-When any of these things happen, a natural key stops being a reliable identifier. And because foreign keys in other tables reference this key, a change cascades — every table that referenced the old value has to be updated.
-
-Natural keys are also often long and awkward to work with as foreign keys. An ISBN is 13 digits. A Social Security Number is 9 digits with dashes. Using them as foreign keys in other tables means every related row has to store that entire string. A surrogate key like an integer is much more compact.
+There's a second, quieter cost. Natural keys are often long. An ISBN is 13 digits; a Social Security Number is 9 with dashes. Every related row storing that value as a foreign key carries the whole string, where a surrogate integer would carry a few bytes — a difference that compounds across millions of rows.
 
 ### Surrogate keys: stable but opaque
 
@@ -298,11 +290,9 @@ These rules aren't arbitrary. They follow from the mathematics of the model, and
 
 **Candidate key** — Any attribute or combination of attributes that could uniquely identify a tuple in a relation.
 
-**Primary key** — The candidate key chosen as the official identifier for rows in a table. Must be unique and never null.
+**Natural key** — A candidate key drawn from a real-world identifier (e.g., ISBN, email address). Meaningful but potentially unstable, and not necessarily the key you choose as primary.
 
-**Natural key** — A primary key made from a real-world identifier (e.g., ISBN, email address). Meaningful but potentially unstable.
-
-**Surrogate key** — A system-generated primary key with no real-world meaning. Stable and compact.
+**Surrogate key** — A system-generated identifier with no real-world meaning, typically chosen as the primary key. Stable and compact.
 
 **Domain** — The set of valid values an attribute can hold. Enforced through data types and constraints.
 

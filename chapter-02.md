@@ -395,7 +395,7 @@ A thing – a person, place, object, event, or concept – that a database track
 
 **Primary key** — One or more columns whose values uniquely identify each row in a table. No two rows may share a value, and the value can never be blank.
 
-**Natural key** — A primary key drawn from an attribute that already exists in the real world (an email address, an ISBN) because it happens to be unique.
+**Natural key** — An identifier that already exists in the real world (an email address, an ISBN) and happens to be unique, so it can be used to identify rows.
 
 **Surrogate key** — A system-generated identifier with no business meaning, created solely to uniquely identify a row (e.g., an auto-incrementing ID).
 
