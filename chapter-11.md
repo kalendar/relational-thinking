@@ -295,6 +295,8 @@ If any part of a transaction fails, the entire transaction is rolled back. No pa
 
 Business analogy: buying a concert ticket is atomic. You don't "partially buy" a ticket. Either the purchase goes through — ticket issued, payment recorded, seats decremented — or it doesn't go through and nothing changes.
 
+One caution: this is the second thing this book has called *atomicity*. In Chapter 2, an atomic **value** was one that couldn't usefully be split — one value per cell. Here, an atomic **transaction** is one that can't be partially applied. The two share a word and an intuition — indivisibility — but describe entirely different things: one is about how you shape a column, the other about whether a group of operations all happen together. Both usages are standard, so it's worth being able to tell which one someone means.
+
 **Consistency** — the database moves from one valid state to another.
 
 Every transaction takes the database from a state where all constraints and rules are satisfied to another state where all constraints and rules are still satisfied. A transaction that would violate a constraint cannot be committed. The database is never left in an inconsistent state.
@@ -441,7 +443,7 @@ When integrity fails, the consequences include orphaned records, phantom totals,
 
 **ACID** — An acronym for the four guarantees that transactions provide: Atomicity (all or nothing), Consistency (valid state to valid state), Isolation (concurrent transactions don't interfere), Durability (committed data survives failure).
 
-**Atomicity** — The ACID property that ensures all operations in a transaction succeed together or none take effect.
+**Atomicity (transactions)** — The ACID property that ensures all operations in a transaction succeed together or none take effect.
 
 **Consistency** — The ACID property that ensures every transaction moves the database from one constraint-satisfying state to another.
 
@@ -480,6 +482,7 @@ The activities below are designed to be completed with a generative AI tool such
 > - What is the difference between ON DELETE RESTRICT and ON DELETE CASCADE? Which is safer, and why?
 > - What is soft deletion? Why might you prefer it over actually deleting a record?
 > - Explain ACID in plain English. What does each letter stand for, and what problem does each property solve?
+> - This book uses "atomicity" for two different things — atomic values in Chapter 2, and the ACID atomicity property here. What does each mean, and what do they have in common?
 > - What is a phantom total? Why is it dangerous?
 > - The chapter says "the database error as a helpful message." What does this mean? Why is a constraint violation error better than no error?
 > - What is the difference between application-level validation and database-level constraints? Why do you need both?

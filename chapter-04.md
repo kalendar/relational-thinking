@@ -94,7 +94,7 @@ Let's make the mapping concrete:
 | Attribute   | Column        | One property tracked for every tuple: name, genre, duration |
 | Domain      | Data type     | The set of valid values an attribute can hold |
 
-One more term from the formal model worth knowing: **degree** is the number of attributes (columns) in a relation, and **cardinality** is the number of tuples (rows). A relation with 5 attributes and 1,000 rows has a degree of 5 and a cardinality of 1,000.
+One more term from the formal model worth knowing: **degree** is the number of attributes (columns) in a relation. A relation with 5 attributes has a degree of 5. (You may see the row count called a relation's *cardinality* elsewhere. This book reserves that word for the sense you'll meet in Chapter 6 — how many instances of one entity relate to another — because that's the meaning you'll actually use.)
 
 ### Why precision in language prevents confusion in design
 
@@ -295,7 +295,6 @@ These rules aren't arbitrary. They follow from the mathematics of the model, and
 
 **Degree** — The number of attributes (columns) in a relation.
 
-**Cardinality** — The number of tuples (rows) in a relation.
 
 **Candidate key** — Any attribute or combination of attributes that could uniquely identify a tuple in a relation.
 
@@ -337,7 +336,7 @@ The activities below are designed to be completed with a generative AI tool such
 >
 > - What does it mean to say a relational table is a "set" of rows, and why does that matter?
 > - What is the difference between a declarative query and a procedural one? Why is declarative better for working with data?
-> - What are the formal terms for a table, a row, and a column in relational theory? What is "degree" and what is "cardinality"?
+> - What are the formal terms for a table, a row, and a column in relational theory? What does "degree" mean?
 > - What is a candidate key? What makes it different from a primary key?
 > - What is the difference between a natural key and a surrogate key? When would you prefer each one?
 > - What is entity integrity, and why does it matter?

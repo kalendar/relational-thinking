@@ -389,7 +389,7 @@ A thing – a person, place, object, event, or concept – that a database track
 
 **Column** – One attribute of an entity. All rows in a table share the same columns.
 
-**Atomicity** – The principle that each cell in a table should contain exactly one value, indivisible into smaller useful parts.
+**Atomicity (data)** – The principle that each cell in a table should contain exactly one value, indivisible into smaller useful parts.
 
 **Grain** – The precise definition of what one row in a table represents. Defined by completing the sentence: "One row in this table represents one ___________."
 
