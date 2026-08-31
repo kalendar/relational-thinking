@@ -31,7 +31,7 @@ Imagine you're building a database to track which artists are performing at your
 | 2 | Billie Eilish | Alt-Pop | Sunset Stage |
 | 3 | Bad Bunny | Reggaeton | Main Stage |
 
-This looks fine. But now you need to track information about the stages themselves — their capacity, their sound system specs, their location on the festival grounds. Where do you put that?
+This looks fine. But now you need to track information about the stages themselves - their capacity, their sound system specs, their location on the festival grounds. Where do you put that?
 
 You could add more columns: `stage_capacity`, `stage_location`, `stage_sound_system`. Now your `Artist` table looks like this:
 
@@ -41,7 +41,7 @@ You could add more columns: `stage_capacity`, `stage_location`, `stage_sound_sys
 | 2 | Billie Eilish | Alt-Pop | Sunset Stage | 20,000 | West Field | Tier 2 |
 | 3 | Bad Bunny | Reggaeton | Main Stage | 50,000 | North Field | Tier 1 |
 
-See the problem? The stage capacity, location, and sound system information for the Main Stage is repeated in rows 1 and 3. If the Main Stage capacity changes, you have to update multiple rows — and if you miss one, your data is inconsistent. This is exactly the kind of dangerous redundancy that Chapter 5 will cover in depth under normalization.
+See the problem? The stage capacity, location, and sound system information for the Main Stage is repeated in rows 1 and 3. If the Main Stage capacity changes, you have to update multiple rows - and if you miss one, your data is inconsistent. This is exactly the kind of dangerous redundancy that Chapter 5 will cover in depth under normalization.
 
 The fix is obvious once you see it: stages should have their own table. The relationship between artists and stages belongs _between_ the tables, not inside one of them.
 
@@ -53,7 +53,7 @@ Embedding relationships inside a single table tends to produce three specific sy
 
 **Nulls** appear when you try to cram in information that doesn't apply to every row. Imagine adding a `headliner_bonus` column to the Artist table – a special payment only headliners receive. For non-headliners, that column would be empty (null). A table full of nulls is a sign that you're trying to make one table do the work of several.
 
-**Structural distortion** is subtler. When you force a relationship into a single table, the table stops accurately representing what it's supposed to be about. An `Artist` table that contains stage information isn't really about artists anymore — it's a confused mashup. The structure of the table should match the entity it represents.
+**Structural distortion** is subtler. When you force a relationship into a single table, the table stops accurately representing what it's supposed to be about. An `Artist` table that contains stage information isn't really about artists anymore - it's a confused mashup. The structure of the table should match the entity it represents.
 
 ### Each table models one thing well
 
@@ -63,9 +63,9 @@ This separation creates a system that's easier to maintain, easier to query, and
 
 ### Relationships are first-class citizens, not afterthoughts
 
-Here's a mindset shift that takes some getting used to: in a relational database, the _relationship between things_ is just as important as the things themselves. Relationships aren't just connective tissue — they're often where the most interesting data lives.
+Here's a mindset shift that takes some getting used to: in a relational database, the _relationship between things_ is just as important as the things themselves. Relationships aren't just connective tissue - they're often where the most interesting data lives.
 
-When a customer places an order, the relationship between the customer and the products they ordered carries data: how many of each item, at what price, on what date, with what shipping method. That relationship isn't an afterthought — it's the core of what an e-commerce system needs to track.
+When a customer places an order, the relationship between the customer and the products they ordered carries data: how many of each item, at what price, on what date, with what shipping method. That relationship isn't an afterthought - it's the core of what an e-commerce system needs to track.
 
 We'll see this concretely when we get to many-to-many relationships. For now, the key idea is: relationships deserve deliberate design, just like entities do.
 
@@ -81,7 +81,7 @@ A **one-to-many** relationship means that one instance of entity A can be associ
 
 Examples:
 
-– One **artist** can record many **songs**, but (ignoring collabs for the moment **) each** song belongs to one artist.
+– One **artist** can record many **songs**, but (ignoring collabs for the moment) **each** song belongs to one artist.
 
 – One **customer** can place many **orders**, but each order belongs to one customer.
 
@@ -109,9 +109,9 @@ Let's look at the Artist/Song relationship. An artist can have many songs. Each 
 | 103 | Kill Bill | 2 | 154 |
 | 104 | Snooze | 2 | 201 |
 
-The `artist_id` column in the `Song` table is a **foreign key** — it references the `artist_id` in the `Artist` table. It's how the database knows that "vampire" and "good 4 u" both belong to Olivia Rodrigo. We'll say more about foreign keys below, but for now remember: a foreign key lives on the "many" side of the relationship.
+The `artist_id` column in the `Song` table is a **foreign key** - it references the `artist_id` in the `Artist` table. It's how the database knows that "vampire" and "good 4 u" both belong to Olivia Rodrigo. We'll say more about foreign keys below, but for now remember: a foreign key lives on the "many" side of the relationship.
 
-Notice what this design achieves: Olivia Rodrigo's name appears once, in the Artist table. If her name is spelled incorrectly, you fix it in one place. Her songs can number in the hundreds and the Artist table doesn't grow at all — only the Song table grows.
+Notice what this design achieves: Olivia Rodrigo's name appears once, in the Artist table. If her name is spelled incorrectly, you fix it in one place. Her songs can number in the hundreds and the Artist table doesn't grow at all - only the Song table grows.
 
 ### Examples: customers to orders, departments to employees
 
@@ -138,7 +138,7 @@ Examples:
 
 – A **product** can be part of many **orders**, and each order can contain many products.
 
-Many-to-many relationships cannot be represented directly with a foreign key on one of the two tables. Think about it: if a song can be on many playlists, where do you put the foreign key? You can't put a `playlist_id` on the Song table because one song belongs to many playlists — one column can only hold one value.
+Many-to-many relationships cannot be represented directly with a foreign key on one of the two tables. Think about it: if a song can be on many playlists, where do you put the foreign key? You can't put a `playlist_id` on the Song table because one song belongs to many playlists - one column can only hold one value.
 
 The solution is a **junction table** (also called a bridge table or associative table). The junction table sits between the two entities and has a row for each pairing.
 
@@ -173,13 +173,13 @@ For the Song/Playlist relationship:
 
 Now the "Morning Commute" playlist contains "Espresso" and "Cruel Summer." The "Study Session" playlist contains "Cruel Summer" and "Flowers." "Espresso" appears on both "Morning Commute" and "Gym Hits." Every combination is represented cleanly, without any repeating or cramming.
 
-The junction table has one row per relationship — one row for each song-on-a-playlist pairing. That's its grain. And it works because each row only has to capture one pairing, not multiple.
+The junction table has one row per relationship - one row for each song-on-a-playlist pairing. That's its grain. And it works because each row only has to capture one pairing, not multiple.
 
 ### The junction table: what it is and what it can carry
 
-The junction table isn't just a connector — it can hold data about the relationship itself.
+The junction table isn't just a connector - it can hold data about the relationship itself.
 
-Think about the relationship between a Student and a Course. The enrollment isn't just "this student is in this course" — it also has a semester, a grade, and an enrollment status (active, dropped, waitlisted). That data belongs on the enrollment — not on the student, not on the course, but on the relationship between them.
+Think about the relationship between a Student and a Course. The enrollment isn't just "this student is in this course" - it also has a semester, a grade, and an enrollment status (active, dropped, waitlisted). That data belongs on the enrollment - not on the student, not on the course, but on the relationship between them.
 
 **Enrollment table (junction with data):**
 
@@ -190,7 +190,7 @@ Think about the relationship between a Student and a Course. The enrollment isn'
 | 5002 | MKTG101 | Spring 2026 | NULL | Active |
 | 5003 | MIS310 | Fall 2025 | C | Active |
 
-When a junction table carries meaningful data like this, it often starts to look like an entity in its own right. An "Enrollment" is a thing — it has its own attributes, its own life cycle. This is a common pattern: what starts as a simple junction table evolves into a full entity as the system's needs grow.
+When a junction table carries meaningful data like this, it often starts to look like an entity in its own right. An "Enrollment" is a thing - it has its own attributes, its own life cycle. This is a common pattern: what starts as a simple junction table evolves into a full entity as the system's needs grow.
 
 ### One-to-one: rare, but worth knowing
 
@@ -202,7 +202,7 @@ Usually the answer is one of two things.
 
 **Security partitioning:** You want to keep sensitive data separate from general data. A `User` table might have username and email. A separate `UserCredentials` table has the password hash and two-factor authentication details. By separating them, you can give some parts of your system access to general user data without giving them access to authentication data.
 
-**Optional extension:** One entity sometimes has additional data, and sometimes doesn't. A `User` table might have a corresponding `UserProfile` row — but only for users who've completed their profile. Rather than adding a dozen nullable columns to the User table for profile information, you create a separate table that only has a row when the profile exists.
+**Optional extension:** One entity sometimes has additional data, and sometimes doesn't. A `User` table might have a corresponding `UserProfile` row - but only for users who've completed their profile. Rather than adding a dozen nullable columns to the User table for profile information, you create a separate table that only has a row when the profile exists.
 
 One-to-one is worth knowing, but if you find yourself reaching for it, ask first: should these really be one table? Often the answer is yes.
 
@@ -234,15 +234,15 @@ In the Song/Artist example:
 
 – The `artist_id` value in any Song row must match an `artist_id` value that actually exists in the Artist table
 
-The foreign key is a pointer. It doesn't copy the artist's information into the Song table — it just records which artist that song belongs to. When you want the artist's name, you follow the pointer from Song to Artist and look it up there.
+The foreign key is a pointer. It doesn't copy the artist's information into the Song table - it just records which artist that song belongs to. When you want the artist's name, you follow the pointer from Song to Artist and look it up there.
 
 This is the mechanism that makes the relational model work. Instead of duplicating data across tables, you store each piece of data once and connect tables through keys.
 
 ### The foreign key as a pointer, not a copy
 
-This distinction — pointer vs. copy — is fundamental to understanding why relational databases are designed the way they are.
+This distinction - pointer vs. copy - is fundamental to understanding why relational databases are designed the way they are.
 
-In a spreadsheet, if you want to show the artist name next to each song, you'd copy the artist name into the song row. This is what "Artist Name" columns in flat files do. The problem is that now the artist's name exists in two places. If the artist changes their name (it happens — see: "The Artist Formerly Known as Prince"), you have to update every song row. Miss one, and your data is wrong.
+In a spreadsheet, if you want to show the artist name next to each song, you'd copy the artist name into the song row. This is what "Artist Name" columns in flat files do. The problem is that now the artist's name exists in two places. If the artist changes their name (it happens - see: "The Artist Formerly Known as Prince"), you have to update every song row. Miss one, and your data is wrong.
 
 In a relational database, the artist's name lives in exactly one place: the Artist table. Every song that references that artist uses the same `artist_id`. When the artist's name changes, you update one row, and the change is immediately reflected everywhere. That's the power of the pointer.
 
@@ -250,7 +250,7 @@ In a relational database, the artist's name lives in exactly one place: the Arti
 
 When we say the Song table "references" the Artist table, we mean something very specific: the value in `Song.artist_id` must correspond to a value in `Artist.artist_id`.
 
-This isn't just a design convention — a properly configured database _enforces_ it. If you try to insert a song with `artist_id = 999` and there is no artist with ID 999, the database refuses. The song cannot exist in the system without a valid artist.
+This isn't just a design convention - a properly configured database _enforces_ it. If you try to insert a song with `artist_id = 999` and there is no artist with ID 999, the database refuses. The song cannot exist in the system without a valid artist.
 
 This enforcement is called **referential integrity**, and it's one of the most valuable features of a relational database. It means you can trust that every foreign key actually points to something real.
 
@@ -258,9 +258,9 @@ This enforcement is called **referential integrity**, and it's one of the most v
 
 Referential integrity is a simple idea: you can't reference something that doesn't exist.
 
-Think about what would happen without it. You delete an artist from the Artist table. But there are 47 songs in the Song table that still have that artist's `artist_id`. Those songs now point to an artist that doesn't exist. They're **orphaned records** — data that references nothing, data you can't trust.
+Think about what would happen without it. You delete an artist from the Artist table. But there are 47 songs in the Song table that still have that artist's `artist_id`. Those songs now point to an artist that doesn't exist. They're **orphaned records** - data that references nothing, data you can't trust.
 
-Referential integrity prevents this. The database won't let you delete an artist who still has songs. You have to deal with those songs first — either delete them, reassign them to another artist, or handle them in some other way. The database forces you to maintain consistency.
+Referential integrity prevents this. The database won't let you delete an artist who still has songs. You have to deal with those songs first - either delete them, reassign them to another artist, or handle them in some other way. The database forces you to maintain consistency.
 
 In a well-designed database, every foreign key is guaranteed to point to a real row. That's a guarantee you can build on.
 
@@ -270,9 +270,9 @@ This is worth pausing on, because it's one of the most powerful ideas in this co
 
 The real world has rules. An order can't exist without a customer. A ticket can't exist without an event. A song can't be on a playlist if the song doesn't exist. A student can't be enrolled in a course if the course isn't offered.
 
-A database can enforce these rules automatically. You don't have to write application code that checks "does this customer exist before I create the order?" — the database checks it for you, every time, without fail.
+A database can enforce these rules automatically. You don't have to write application code that checks "does this customer exist before I create the order?" - the database checks it for you, every time, without fail.
 
-This is why database design is about more than just organizing data. It's about encoding the rules of a business into a structure that enforces them. When a constraint lives in the database, no application — no matter how buggy, no matter who wrote it — can violate it.
+This is why database design is about more than just organizing data. It's about encoding the rules of a business into a structure that enforces them. When a constraint lives in the database, no application - no matter how buggy, no matter who wrote it - can violate it.
 
 * * *
 
@@ -320,7 +320,7 @@ One question that comes up constantly in data modeling: is this thing a relation
 
 For example: should `genre` be an attribute of the `Artist` entity (a column in the Artist table), or should it be a separate `Genre` entity with its own table?
 
-The answer depends on how the system uses genre. If genre is just a label — you display it, but you don't need to track anything about it beyond the name — it can be an attribute (a column). But if the system needs to manage genres separately — if genres have descriptions, parent categories, or if you want to ensure consistency across all artists — then genre should be its own entity with a relationship to Artist.
+The answer depends on how the system uses genre. If genre is just a label - you display it, but you don't need to track anything about it beyond the name - it can be an attribute (a column). But if the system needs to manage genres separately - if genres have descriptions, parent categories, or if you want to ensure consistency across all artists - then genre should be its own entity with a relationship to Artist.
 
 A useful rule of thumb: **if you'd ever want to store additional information about it, or if you need to ensure consistency across many rows, make it an entity.** If it's just a label that describes something and doesn't need to be managed separately, it can stay as an attribute.
 
@@ -342,7 +342,7 @@ Key relationships:
 
 – Actor appears in many Shows; Show has many Actors (many-to-many)
 
-– Profile watches many Episodes; Episode is watched by many Profiles (many-to-many — with a junction that carries watch progress and timestamp)
+– Profile watches many Episodes; Episode is watched by many Profiles (many-to-many - with a junction that carries watch progress and timestamp)
 
 **Domain 2: College course registration**
 
@@ -354,7 +354,7 @@ Key relationships:
 
 – Professor teaches many Courses; Course can be taught by one Professor in a given semester (many-to-many across semesters, one-to-many within a semester)
 
-– Student enrolls in many Courses; Course has many Students (many-to-many — the Enrollment junction table)
+– Student enrolls in many Courses; Course has many Students (many-to-many - the Enrollment junction table)
 
 – Course is scheduled in a Room (one-to-many if a course meets in the same room all semester)
 
@@ -374,13 +374,13 @@ Key relationships:
 
 – Customer purchases many Tickets (one-to-many)
 
-Notice how each domain has the same structural patterns — one-to-many and many-to-many — showing up in different forms. Once you can recognize these patterns, you can model almost any business domain.
+Notice how each domain has the same structural patterns - one-to-many and many-to-many - showing up in different forms. Once you can recognize these patterns, you can model almost any business domain.
 
-### What changes across domains — and what stays the same
+### What changes across domains - and what stays the same
 
 The entities change. The specific verbs change. The content of the data changes. But the patterns don't.
 
-One-to-many and many-to-many show up everywhere. The use of foreign keys to connect tables shows up everywhere. The junction table for many-to-many relationships shows up everywhere. The idea that relationships can carry data of their own — just like entities — shows up everywhere.
+One-to-many and many-to-many show up everywhere. The use of foreign keys to connect tables shows up everywhere. The junction table for many-to-many relationships shows up everywhere. The idea that relationships can carry data of their own - just like entities - shows up everywhere.
 
 This is one of the most encouraging things about learning relational thinking: you're not learning a different system for every domain. You're learning a small set of universal patterns that apply across all of them. Once you have those patterns, you have the tools to model almost anything.
 
@@ -392,7 +392,7 @@ Relationships in a relational database live _between_ tables, not inside them. E
 
 There are three types of relationships. One-to-many is the most common: one instance of A connects to many instances of B, but each B connects to only one A. The foreign key lives on the "many" side. Many-to-many relationships require a junction table that sits between the two entities and has one row per pairing. One-to-one is rare and should be used only when there's a clear reason.
 
-A foreign key is a column that references the primary key of another table. It's a pointer, not a copy. Referential integrity — the database's guarantee that every foreign key points to something real — prevents orphaned records and enforces real-world business rules automatically.
+A foreign key is a column that references the primary key of another table. It's a pointer, not a copy. Referential integrity - the database's guarantee that every foreign key points to something real - prevents orphaned records and enforces real-world business rules automatically.
 
 To find relationships in any domain, look for verbs. Nouns are entities; verbs are relationships. Determine the type of each relationship by asking: "Can one A have many Bs? And can one B have many As?" The answers tell you whether you have a one-to-many or a many-to-many.
 
@@ -400,23 +400,21 @@ To find relationships in any domain, look for verbs. Nouns are entities; verbs a
 
 ## Key Terms
 
-**Relationship**
+**Relationship** - A connection between two entity types in a database. Relationships are represented by foreign keys (for one-to-many) or junction tables (for many-to-many).
 
-— A connection between two entity types in a database. Relationships are represented by foreign keys (for one-to-many) or junction tables (for many-to-many).
+**One-to-many relationship** - A relationship where one instance of entity A can connect to many instances of entity B, but each B connects to only one A. The most common relationship type.
 
-**One-to-many relationship** — A relationship where one instance of entity A can connect to many instances of entity B, but each B connects to only one A. The most common relationship type.
+**Many-to-many relationship** - A relationship where one instance of entity A can connect to many instances of entity B, and one instance of entity B can also connect to many instances of entity A. Requires a junction table.
 
-**Many-to-many relationship** — A relationship where one instance of entity A can connect to many instances of entity B, and one instance of entity B can also connect to many instances of entity A. Requires a junction table.
+**One-to-one relationship** - A relationship where one instance of entity A connects to exactly one instance of entity B, and vice versa. Rare in practice.
 
-**One-to-one relationship** — A relationship where one instance of entity A connects to exactly one instance of entity B, and vice versa. Rare in practice.
+**Foreign key** - A column in one table that contains values matching the primary key of another table. It represents a relationship by pointing from one row to another.
 
-**Foreign key** — A column in one table that contains values matching the primary key of another table. It represents a relationship by pointing from one row to another.
+**Referential integrity** - The guarantee that every foreign key value corresponds to an existing row in the referenced table. Prevents orphaned records.
 
-**Referential integrity** — The guarantee that every foreign key value corresponds to an existing row in the referenced table. Prevents orphaned records.
+**Junction table** - A table that implements a many-to-many relationship by storing one row for each pairing of two entities. Also called a bridge table or associative table.
 
-**Junction table** — A table that implements a many-to-many relationship by storing one row for each pairing of two entities. Also called a bridge table or associative table.
-
-**Orphaned record** — A row whose foreign key points to a row that no longer exists in the referenced table. A sign of broken referential integrity.
+**Orphaned record** - A row whose foreign key points to a row that no longer exists in the referenced table. A sign of broken referential integrity.
 
 * * *
 
@@ -426,7 +424,7 @@ The activities below are designed to be completed with a generative AI tool such
 
 * * *
 
-### Activity 3.1 — Concept Check: Relationships, Foreign Keys, and Integrity
+### Activity 3.1 - Concept Check: Relationships, Foreign Keys, and Integrity
 
 _This activity checks your understanding of the core vocabulary and ideas from Chapter 3. The AI will quiz you one question at a time, give you feedback, and help fill in any gaps._
 
@@ -449,7 +447,7 @@ _This activity checks your understanding of the core vocabulary and ideas from C
 
 * * *
 
-### Activity 3.2 — Apply It: Map the Relationships in an App You Use
+### Activity 3.2 - Apply It: Map the Relationships in an App You Use
 
 _This activity asks you to identify and classify relationships in a real app or service you already use. The AI will guide you through the analysis step by step._
 
@@ -459,9 +457,9 @@ _This activity asks you to identify and classify relationships in a real app or 
 
 > I'm studying database relationships in my Introduction to Databases class. I just learned about one-to-many, many-to-many, and one-to-one relationships, foreign keys, and junction tables. I want to practice by mapping the relationships in an app I actually use.
 >
-> I'll name an app or service, and you'll guide me through identifying its key relationships. Ask me one question at a time and wait for my answer before continuing. After each answer, give me feedback — tell me what's correct, point out anything I missed or misclassified, and help me think more carefully.
+> I'll name an app or service, and you'll guide me through identifying its key relationships. Ask me one question at a time and wait for my answer before continuing. After each answer, give me feedback - tell me what's correct, point out anything I missed or misclassified, and help me think more carefully.
 >
-> 1. What app or service do you want to analyze? (Name one — for example: Instagram, Spotify, DoorDash, Canvas, your university's course registration system, etc.)
+> 1. What app or service do you want to analyze? (Name one - for example: Instagram, Spotify, DoorDash, Canvas, your university's course registration system, etc.)
 > 2. What are the main entities in this app? List four to six things the app needs to keep track of.
 > 3. Now list all the relationships between those entities. For each one, describe it in a sentence using a verb: "\[Entity A\] \[verb\] \[Entity B\]."
 > 4. For each relationship you listed, classify it: is it one-to-many, many-to-many, or one-to-one?
@@ -472,17 +470,17 @@ _This activity asks you to identify and classify relationships in a real app or 
 
 * * *
 
-### Activity 3.3 — Practice: One-to-Many or Many-to-Many?
+### Activity 3.3 - Practice: One-to-Many or Many-to-Many?
 
-_This activity gives you practice classifying relationships — the core skill you need before you can design a database. The AI will present scenarios and ask you to identify and justify the relationship type._
+_This activity gives you practice classifying relationships - the core skill you need before you can design a database. The AI will present scenarios and ask you to identify and justify the relationship type._
 
 * * *
 
 **Copy and paste this prompt into your AI tool:**
 
-> I'm learning about database relationships and I want to practice classifying them. My textbook taught me to ask two questions: "Can one A have many Bs?" and "Can one B have many As?" — and the answers tell me whether the relationship is one-to-many or many-to-many.
+> I'm learning about database relationships and I want to practice classifying them. My textbook taught me to ask two questions: "Can one A have many Bs?" and "Can one B have many As?" - and the answers tell me whether the relationship is one-to-many or many-to-many.
 >
-> Please present the following relationship pairs to me one at a time. For each one, ask me: (a) Is this one-to-many or many-to-many? (b) Why — walk me through the two questions. (c) If it's many-to-many, what would the junction table be named and what would one row represent?
+> Please present the following relationship pairs to me one at a time. For each one, ask me: (a) Is this one-to-many or many-to-many? (b) Why - walk me through the two questions. (c) If it's many-to-many, what would the junction table be named and what would one row represent?
 >
 > Wait for my answer each time. Tell me if I'm right, correct me if I'm wrong, and explain the reasoning. Ask if I want to discuss it further before moving on.
 >
@@ -503,7 +501,7 @@ _This activity gives you practice classifying relationships — the core skill y
 
 * * *
 
-### Activity 3.4 — Case Study: From a Business Description to a Relationship Map
+### Activity 3.4 - Case Study: From a Business Description to a Relationship Map
 
 _This activity puts you in the role of a database designer who has to read a business description and build a relationship map from scratch. The AI plays the role of a project manager who needs you to design their system._
 
@@ -511,13 +509,13 @@ _This activity puts you in the role of a database designer who has to read a bus
 
 **Copy and paste this prompt into your AI tool:**
 
-> I'm learning database design in my Introduction to Databases class. I just studied relationships between tables — one-to-many, many-to-many, junction tables, and foreign keys. I want to practice going from a plain-English business description to a database relationship map.
+> I'm learning database design in my Introduction to Databases class. I just studied relationships between tables - one-to-many, many-to-many, junction tables, and foreign keys. I want to practice going from a plain-English business description to a database relationship map.
 >
-> Please play the role of a project manager at a company that runs a music festival. You're going to describe your business to me and I'm going to design the database. Ask me one question at a time and wait for my answer. After each answer, respond as the project manager — tell me if my design matches what you need, push back if something's wrong, and add context that helps me refine my thinking.
+> Please play the role of a project manager at a company that runs a music festival. You're going to describe your business to me and I'm going to design the database. Ask me one question at a time and wait for my answer. After each answer, respond as the project manager - tell me if my design matches what you need, push back if something's wrong, and add context that helps me refine my thinking.
 >
 > Here's the business description to work from:
 >
-> "We run an annual three-day music festival. We book artists to perform on one of four stages. Each artist performs once, in a specific time slot on a specific day. Fans buy tickets in advance — each ticket is for the whole festival, not a single show. We also have vendors who sell food and merchandise; each vendor is assigned to a specific location on the festival grounds. We need to track which artists are performing, when and where, how many tickets we've sold and to whom, and which vendors are where."
+> "We run an annual three-day music festival. We book artists to perform on one of four stages. Each artist performs once, in a specific time slot on a specific day. Fans buy tickets in advance - each ticket is for the whole festival, not a single show. We also have vendors who sell food and merchandise; each vendor is assigned to a specific location on the festival grounds. We need to track which artists are performing, when and where, how many tickets we've sold and to whom, and which vendors are where."
 >
 > Here are the questions to guide the design:
 >
@@ -525,7 +523,7 @@ _This activity puts you in the role of a database designer who has to read a bus
 > 2. For each pair of related entities, describe the relationship in a sentence with a verb. Then classify it: one-to-many or many-to-many?
 > 3. Are there any many-to-many relationships? If so, what junction tables do we need, and what would one row in each represent?
 > 4. Do any of those junction tables carry additional data beyond just connecting two entities? What data?
-> 5. Are there any relationships you're uncertain about — where it could go either way depending on business decisions? What are they, and what questions would you ask the project manager to resolve them?
-> 6. Draw a simple text-based diagram of your relationship map — just entity names connected by lines labeled with the relationship type (1:M or M:M).
+> 5. Are there any relationships you're uncertain about - where it could go either way depending on business decisions? What are they, and what questions would you ask the project manager to resolve them?
+> 6. Draw a simple text-based diagram of your relationship map - just entity names connected by lines labeled with the relationship type (1:M or M:M).
 >
 > After my final answer, give me feedback on the overall design: what did I get right, what did I miss, and what's the most important thing to nail down before building this database?
