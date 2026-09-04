@@ -53,7 +53,7 @@ Set theory gives us three fundamental operations that turn out to be extremely u
 
 **Difference** gives you the items that appear in one set but not the other. In database terms: give me all artists who played at Lollapalooza but *not* Coachella.
 
-<img src="./set_theory.png" alt="Venn diagrams visually illustrating union, intersection, and difference." width="400" />
+<img src="./set_theory.png" alt="Venn diagrams visually illustrating union, intersection, and difference." width="100%" />
 
 You don't need to memorize these as formal operations - SQL has built-in ways to express them - but recognizing them helps you understand what queries are doing. When you see a query that says "find me customers who bought product A and also product B," you're looking at an intersection. When a query says "find me all users who haven't logged in since January," you're looking at a difference.
 
