@@ -270,7 +270,7 @@ The ZIP code example from section 5.2 is a classic case: `zip_code → city`. If
 
 This video includes additional explanations and examples of 1NF, 2NF, and 3NF. **Stop watching at 19:12 - we do not cover 4NF or 5NF in this course.**
 
-[Database Normalization](https://www.youtube.com/watch?v=GFQaEYEc8_8)
+https://www.youtube.com/watch?v=GFQaEYEc8_8
 
 ---
 
