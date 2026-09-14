@@ -2,11 +2,11 @@
 
 ---
 
-Here's a scenario you've probably encountered. Someone builds a spreadsheet to track something — concert bookings, class schedules, employee information — and it works fine at first. Then the data grows. People start noticing problems. Changing one thing requires changing it in five places. A typo in one row makes a report come out wrong. Deleting one record accidentally wipes out information you needed.
+Here's a scenario you've probably encountered. Someone builds a spreadsheet to track something - concert bookings, class schedules, employee information - and it works fine at first. Then the data grows. People start noticing problems. Changing one thing requires changing it in five places. A typo in one row makes a report come out wrong. Deleting one record accidentally wipes out information you needed.
 
 The spreadsheet wasn't wrong. It was just designed without thinking carefully about redundancy. And redundancy, it turns out, is the root of most data quality problems.
 
-**Normalization** is the process of designing a database to eliminate redundancy. It's not a set of arbitrary rules to memorize — it's a way of thinking about data that, once internalized, becomes almost instinctive. This chapter teaches you how to think about normalization, not just how to apply it.
+**Normalization** is the process of designing a database to eliminate redundancy. It's not a set of arbitrary rules to memorize - it's a way of thinking about data that, once internalized, becomes almost instinctive. This chapter teaches you how to think about normalization, not just how to apply it.
 
 ---
 
@@ -14,7 +14,7 @@ The spreadsheet wasn't wrong. It was just designed without thinking carefully ab
 
 ### What redundant data looks like in practice
 
-Redundancy means storing the same fact in more than one place. It seems harmless — maybe even helpful, like having a backup. But in a database, redundancy is almost always a problem.
+Redundancy means storing the same fact in more than one place. It seems harmless - maybe even helpful, like having a backup. But in a database, redundancy is almost always a problem.
 
 Let's look at a concrete example. Imagine a small music venue is tracking their bookings in a single table called `Booking`:
 
@@ -32,25 +32,25 @@ This is redundancy. And it causes three specific categories of problems.
 
 ### The "everything in one spreadsheet" anti-pattern
 
-The Booking table above is the classic "everything in one spreadsheet" design. It's intuitive — you want to see all the information about a booking in one place, so you put all the information about a booking in one place. The problem is that the "information about a booking" includes facts about *other things* — facts about the artist, the manager, the venue — that don't change from booking to booking.
+The Booking table above is the classic "everything in one spreadsheet" design. It's intuitive - you want to see all the information about a booking in one place, so you put all the information about a booking in one place. The problem is that the "information about a booking" includes facts about *other things* - facts about the artist, the manager, the venue - that don't change from booking to booking.
 
 When you repeat those facts on every row, you create a database that looks complete but is fragile. A small change in the real world requires multiple updates in the database, and if any of those updates are missed, the data becomes inconsistent.
 
-The fix — which normalization provides — is to give each fact one home and reference it from other tables when needed.
+The fix - which normalization provides - is to give each fact one home and reference it from other tables when needed.
 
 ### Update anomaly: changing one fact requires changing many rows
 
 Suppose Gracie Abrams gets a new manager. Her old manager, Jordan Lee, has left and been replaced by someone named Priya Patel at a new email address.
 
-In the Booking table above, you'd need to update rows 1, 2, and 3. What if there are 30 bookings? You update 30 rows. What if you miss one? Now your database contains two different managers for Gracie Abrams — one in most rows, one in the row you forgot to update. Which one is correct? You don't know.
+In the Booking table above, you'd need to update rows 1, 2, and 3. What if there are 30 bookings? You update 30 rows. What if you miss one? Now your database contains two different managers for Gracie Abrams - one in most rows, one in the row you forgot to update. Which one is correct? You don't know.
 
-This is the **update anomaly**: when the same fact is stored in multiple rows, updating it requires changing every row — and any missed update creates inconsistency.
+This is the **update anomaly**: when the same fact is stored in multiple rows, updating it requires changing every row - and any missed update creates inconsistency.
 
 In a properly normalized database, Gracie Abrams's manager information would be stored exactly once, in the Artist table. Updating the manager means changing one row, and the change is immediately consistent everywhere.
 
 ### Insert anomaly: you can't record something without recording something else
 
-Now imagine you want to add a new venue — The Troubadour in Los Angeles — to your database. In the Booking table, there's nowhere to put venue information unless it's attached to a booking. You can't add The Troubadour until you have a booking there.
+Now imagine you want to add a new venue - The Troubadour in Los Angeles - to your database. In the Booking table, there's nowhere to put venue information unless it's attached to a booking. You can't add The Troubadour until you have a booking there.
 
 This is the **insert anomaly**: the structure of the table forces you to record one type of information only in the presence of another type, even when the two things are independent.
 
@@ -66,7 +66,7 @@ This is the **delete anomaly**: when facts about different things are stored in 
 
 In a normalized design, Noah Kahan's artist information lives in the Artist table. Deleting his bookings doesn't touch the Artist table. The information is safe.
 
-These three anomalies — update, insert, and delete — are the practical costs of redundancy. Normalization is the systematic approach to eliminating them.
+These three anomalies - update, insert, and delete - are the practical costs of redundancy. Normalization is the systematic approach to eliminating them.
 
 ---
 
@@ -89,9 +89,9 @@ Functional dependencies are about facts: is this a fact about the artist, or a f
 
 ### A → B: knowing A tells you B
 
-It's important to understand what a functional dependency doesn't mean. It doesn't mean that B always has the same value — it means that for any given value of A, there's exactly one value of B.
+It's important to understand what a functional dependency doesn't mean. It doesn't mean that B always has the same value - it means that for any given value of A, there's exactly one value of B.
 
-For example: `venue_city → venue_name` is *not* a valid functional dependency. Knowing that a city is San Francisco doesn't tell you the venue name, because there are multiple venues in San Francisco. But `venue_name → venue_city` might be valid — if we assume venue names are unique, then knowing the venue name tells you the city.
+For example: `venue_city → venue_name` is *not* a valid functional dependency. Knowing that a city is San Francisco doesn't tell you the venue name, because there are multiple venues in San Francisco. But `venue_name → venue_city` might be valid - if we assume venue names are unique, then knowing the venue name tells you the city.
 
 The direction matters. A → B means "knowing A tells you B," not "knowing B tells you A."
 
@@ -101,10 +101,10 @@ Here are some functional dependencies you'll encounter frequently in business da
 
 - `employee_id → department`: An employee belongs to one department. Knowing the employee ID tells you the department.
 - `product_sku → product_name`: A SKU (stock-keeping unit) uniquely identifies a product.
-- `zip_code → city`: In the US, a ZIP code maps to one city. (This is why databases often store ZIP code and city separately rather than having users type the city — you can look it up from the ZIP.)
+- `zip_code → city`: In the US, a ZIP code maps to one city. (This is why databases often store ZIP code and city separately rather than having users type the city - you can look it up from the ZIP.)
 - `order_id, product_id → quantity`: In an order line item, knowing both the order and the product tells you the quantity ordered of that product.
 
-Notice that last one: it takes *two* attributes together to determine the quantity. This is called a **composite dependency** — the quantity depends on the combination of order and product, not on either alone.
+Notice that last one: it takes *two* attributes together to determine the quantity. This is called a **composite dependency** - the quantity depends on the combination of order and product, not on either alone.
 
 ### Spotting functional dependencies in a table
 
@@ -116,13 +116,13 @@ Go back to the Booking table:
 - `venue_name`, `venue_city` are facts about the **venue**. They depend on venue identity, not on `booking_id`.
 - `show_date`, `ticket_price` are facts about the **booking**. They depend on `booking_id`.
 
-When a table contains columns that are facts about different things, that's a sign the table needs to be split. Each table should contain facts about exactly one thing — one entity. That's what normalization enforces.
+When a table contains columns that are facts about different things, that's a sign the table needs to be split. Each table should contain facts about exactly one thing - one entity. That's what normalization enforces.
 
 ### The smell test: "does this column really belong here?"
 
 A quick diagnostic: for each column in a table, ask "is this a fact about the thing this table is supposed to represent?"
 
-In a Booking table, `show_date` passes the test — it's a fact about the booking. But `artist_manager` fails — it's a fact about the artist, not the booking. It doesn't change based on which booking you're looking at; it changes based on which artist you're looking at.
+In a Booking table, `show_date` passes the test - it's a fact about the booking. But `artist_manager` fails - it's a fact about the artist, not the booking. It doesn't change based on which booking you're looking at; it changes based on which artist you're looking at.
 
 When a column doesn't pass the smell test, it's in the wrong table. Normalization is the process of moving it to the right one.
 
@@ -130,7 +130,7 @@ When a column doesn't pass the smell test, it's in the wrong table. Normalizatio
 
 ## 5.3 The Normal Forms
 
-Normalization is typically described through a series of **normal forms** — levels of design quality, each eliminating a specific type of redundancy. Think of them as a checklist you work through when designing a table.
+Normalization is typically described through a series of **normal forms** - levels of design quality, each eliminating a specific type of redundancy. Think of them as a checklist you work through when designing a table.
 
 We'll cover the three most important ones: First Normal Form (1NF), Second Normal Form (2NF), and Third Normal Form (3NF). Each builds on the previous one.
 
@@ -177,7 +177,7 @@ A table is in **Second Normal Form (2NF)** when:
 1. It's already in 1NF.
 2. Every non-key attribute depends on the *whole* primary key, not just part of it.
 
-2NF is only relevant when a table has a **composite primary key** — a primary key made of two or more columns. If the primary key is a single column, a table in 1NF is automatically in 2NF.
+2NF is only relevant when a table has a **composite primary key** - a primary key made of two or more columns. If the primary key is a single column, a table in 1NF is automatically in 2NF.
 
 Consider an `OrderItem` table with a composite primary key of `(order_id, product_id)`:
 
@@ -187,9 +187,9 @@ Consider an `OrderItem` table with a composite primary key of `(order_id, produc
 | 1001     | 502        | Poster       | $20           | 1        |
 | 1002     | 501        | Band Tee     | $35           | 1        |
 
-The primary key is the combination of `order_id` and `product_id`. But look at `product_name` and `product_price` — do they depend on the combination of order and product, or just on the product?
+The primary key is the combination of `order_id` and `product_id`. But look at `product_name` and `product_price` - do they depend on the combination of order and product, or just on the product?
 
-Just the product. `product_name = "Band Tee"` is true regardless of which order it appears in. This is a **partial dependency** — `product_name` depends on only part of the composite key (`product_id`), not the whole key.
+Just the product. `product_name = "Band Tee"` is true regardless of which order it appears in. This is a **partial dependency** - `product_name` depends on only part of the composite key (`product_id`), not the whole key.
 
 The fix is to move `product_name` and `product_price` to their own `Product` table, where `product_id` is the primary key:
 
@@ -206,19 +206,19 @@ The fix is to move `product_name` and `product_price` to their own `Product` tab
 | 1001     | 502        | 1        |
 | 1002     | 501        | 1        |
 
-Now `quantity` is the only non-key attribute in the OrderItem table, and it correctly depends on the full composite key — how many of a specific product were in a specific order. The product's name and price live in the Product table, stored once, referenced by foreign key.
+Now `quantity` is the only non-key attribute in the OrderItem table, and it correctly depends on the full composite key - how many of a specific product were in a specific order. The product's name and price live in the Product table, stored once, referenced by foreign key.
 
 ### Every non-key attribute must depend on the whole key
 
 The 2NF test: for each non-key column, ask "does this depend on the entire primary key, or could it be determined by just part of it?"
 
-If a column depends on just part of a composite key, it's a partial dependency and belongs in its own table. This is the same intuition as the "smell test" from section 5.2 — the column is a fact about something other than what this table represents.
+If a column depends on just part of a composite key, it's a partial dependency and belongs in its own table. This is the same intuition as the "smell test" from section 5.2 - the column is a fact about something other than what this table represents.
 
 ### Third Normal Form: eliminating transitive dependencies
 
 A table is in **Third Normal Form (3NF)** when:
 1. It's already in 2NF.
-2. Every non-key attribute depends *directly* on the primary key — not on another non-key attribute.
+2. Every non-key attribute depends *directly* on the primary key - not on another non-key attribute.
 
 A **transitive dependency** happens when a non-key attribute determines another non-key attribute. The second attribute depends on the primary key *through* the first attribute, not directly.
 
@@ -230,9 +230,9 @@ Here's the classic example. Imagine an Artist table:
 | 2         | Noah Kahan     | Sarah Bloom  | sbloom@paradigm.com     |
 | 3         | Sabrina Carpenter | Jordan Lee | jordan@wmeagency.com    |
 
-The primary key is `artist_id`. Both `manager_name` and `manager_email` depend on `artist_id` — but they also have a dependency between them: `manager_name → manager_email`. Knowing the manager's name tells you their email address (assuming manager names are unique).
+The primary key is `artist_id`. Both `manager_name` and `manager_email` depend on `artist_id` - but they also have a dependency between them: `manager_name → manager_email`. Knowing the manager's name tells you their email address (assuming manager names are unique).
 
-This is a transitive dependency: `artist_id → manager_name → manager_email`. The email doesn't depend *directly* on the artist — it depends on the manager, who depends on the artist.
+This is a transitive dependency: `artist_id → manager_name → manager_email`. The email doesn't depend *directly* on the artist - it depends on the manager, who depends on the artist.
 
 The problem: if Jordan Lee changes their email address, you have to update rows 1 and 3. The same update anomaly we saw in section 5.1. Manager information belongs in its own table.
 
@@ -249,7 +249,7 @@ The problem: if Jordan Lee changes their email address, you have to update rows 
 | 2         | Noah Kahan        | 2          |
 | 3         | Sabrina Carpenter | 1          |
 
-Now Jordan Lee's email is stored once. Updating it takes one change. And if Jordan Lee takes on a new artist, you just add a row to the Artist table with `manager_id = 1` — no need to re-enter contact information.
+Now Jordan Lee's email is stored once. Updating it takes one change. And if Jordan Lee takes on a new artist, you just add a row to the Artist table with `manager_id = 1` - no need to re-enter contact information.
 
 ### Non-key attributes must depend on the key, not on each other
 
@@ -265,43 +265,50 @@ The ZIP code example from section 5.2 is a classic case: `zip_code → city`. If
 
 ### When to normalize and when to stop
 
-You might be wondering: are there normal forms beyond 3NF? Yes — there's BCNF (Boyce-Codd Normal Form), 4NF, 5NF, and beyond. Each eliminates more subtle types of dependency.
+You might be wondering: are there normal forms beyond 3NF? Yes - there's BCNF (Boyce-Codd Normal Form), 4NF, 5NF, and beyond. Each eliminates more subtle types of dependency.
 
 For most business databases, **3NF is the target**. It eliminates the update, insert, and delete anomalies that cause real problems, without over-engineering the design. Going further is rarely necessary and sometimes counterproductive.
 
 The signs that you've reached a good stopping point:
 - Each table represents exactly one entity or relationship.
-- Every non-key column is a fact about the primary key, the whole primary key, and nothing but the primary key. (This is a useful mnemonic — we'll return to it.)
+- Every non-key column is a fact about the primary key, the whole primary key, and nothing but the primary key. (This is a useful mnemonic - we'll return to it.)
 - Changing any real-world fact requires changing exactly one row in exactly one table.
 
 When all three of these are true, you're in good shape. Normalizing further is diminishing returns.
 
 ### 3NF is usually enough for transactional systems
 
-Transactional systems — systems that record business events as they happen (orders, bookings, enrollments, payments) — benefit enormously from normalization. The data is written frequently, by many users, in many small operations. Consistency is critical. 3NF is the standard target.
+Transactional systems - systems that record business events as they happen (orders, bookings, enrollments, payments) - benefit enormously from normalization. The data is written frequently, by many users, in many small operations. Consistency is critical. 3NF is the standard target.
 
-The one area where you'll sometimes see intentional denormalization in transactional systems is for performance. Joins cost time. (A *join* is the operation that puts back together what normalization split apart — recombining rows from separate tables on a shared key. Chapter 7 covers it properly; for now all you need is that it isn't free.) If a query that needs to run in milliseconds requires joining eight tables, you might denormalize — deliberately store a fact in two places — to speed it up. But this should be a conscious, documented trade-off, not a default design choice.
+The one area where you'll sometimes see intentional denormalization in transactional systems is for performance. Joins cost time. (A *join* is the operation that puts back together what normalization split apart - recombining rows from separate tables on a shared key. Chapter 7 covers it properly; for now all you need is that it isn't free.) If a query that needs to run in milliseconds requires joining eight tables, you might denormalize - deliberately store a fact in two places - to speed it up. But this should be a conscious, documented trade-off, not a default design choice.
+
+### Video Summary
+
+This video includes additional explanations and examples of 1NF, 2NF, and 3NF. If the player doesn't stop automatically, you can stop watching at 19:12. We do not cover 4NF or 5NF in this course.
+
+[Database Normalization](https://www.youtube.com/embed/GFQaEYEc8_8?start=0&end=1152)
+
 
 ### Signs that you've over-normalized
 
 Yes, it's possible to normalize too much. Signs of over-normalization:
 
-- Simple queries require joining five or more tables to get basic information.
+- Simple queries require joining five or more tables to get basic information. (We'll talk about joins in more detail in a coming chapter.)
 - Tables have only two or three columns.
 - The database is hard to understand because it's been split into so many small pieces.
 - Performance is unacceptably slow because of join overhead.
 
-Over-normalization is less common than under-normalization, but it happens — especially when designers apply the rules mechanically without asking whether the design serves the system's actual needs.
+Over-normalization is less common than under-normalization, but it happens - especially when designers apply the rules mechanically without asking whether the design serves the system's actual needs.
 
 The goal is not the most normalized design. The goal is the most appropriate design for the system's purpose.
 
 ### Denormalization and the performance trade-off
 
-**Denormalization** is the deliberate decision to introduce redundancy — to store a fact in more than one place — in exchange for performance.
+**Denormalization** is the deliberate decision to introduce redundancy - to store a fact in more than one place - in exchange for performance.
 
-The most common scenario: analytical systems (dashboards, reports, data warehouses) that run complex queries across millions of rows. These systems are read-heavy — they don't update data frequently, but they read it constantly. For these systems, the cost of redundancy (update anomalies) is low (updates are rare), and the benefit of eliminating joins (faster reads) is high.
+The most common scenario: analytical systems (dashboards, reports, data warehouses) that run complex queries across millions of rows. These systems are read-heavy - they don't update data frequently, but they read it constantly. For these systems, the cost of redundancy (update anomalies) is low (updates are rare), and the benefit of eliminating joins (faster reads) is high.
 
-This is why data warehouses use a design style called the **star schema** or **snowflake schema** — deliberately denormalized structures that make common analytical queries fast. We'll revisit this in Chapter 13.
+This is why data warehouses use a design style called the **star schema** or **snowflake schema** - deliberately denormalized structures that make common analytical queries fast. We'll revisit this in Chapter 13.
 
 The key discipline: when you denormalize, do it explicitly and document why. Don't denormalize by accident (that's just bad design). Denormalize by choice, with a clear reason, and with a plan for managing the redundancy you've introduced.
 
@@ -311,7 +318,7 @@ When you make a deliberate decision to denormalize, write it down. A comment in 
 
 *"The `artist_name` column is stored redundantly in the Stream table (in addition to the Artist table) to avoid a join on high-frequency stream queries. Update the Artist table first; a nightly job synchronizes the Stream table."*
 
-This kind of documentation turns a potentially confusing design decision into a clear, intentional engineering choice. Future maintainers — including future you — will thank you.
+This kind of documentation turns a potentially confusing design decision into a clear, intentional engineering choice. Future maintainers - including future you - will thank you.
 
 ---
 
@@ -319,41 +326,41 @@ This kind of documentation turns a potentially confusing design decision into a 
 
 Redundancy is the root of most data quality problems. When the same fact is stored in more than one place, it becomes vulnerable to inconsistency through three types of anomalies: update anomalies (changing one fact requires changing many rows), insert anomalies (you can't record one thing without recording another), and delete anomalies (deleting one thing accidentally destroys information about something else).
 
-Functional dependencies are the tool for reasoning about what belongs together. A → B means "knowing A tells you B." When non-key columns are facts about something other than the table's primary key, they're functionally dependent on the wrong thing — and belong in a different table.
+Functional dependencies are the tool for reasoning about what belongs together. A → B means "knowing A tells you B." When non-key columns are facts about something other than the table's primary key, they're functionally dependent on the wrong thing - and belong in a different table.
 
-The three normal forms provide a systematic path to a well-designed database. First Normal Form requires atomic values and no repeating groups. Second Normal Form requires that every non-key column depend on the whole primary key (relevant only for composite keys). Third Normal Form requires that every non-key column depend directly on the primary key — not on another non-key column.
+The three normal forms provide a systematic path to a well-designed database. First Normal Form requires atomic values and no repeating groups. Second Normal Form requires that every non-key column depend on the whole primary key (relevant only for composite keys). Third Normal Form requires that every non-key column depend directly on the primary key - not on another non-key column.
 
 Normalization is judgment, not formula. For most transactional databases, 3NF is the right target. Going further is rarely necessary; going less far leaves you with anomalies. Denormalization is sometimes appropriate for performance, but only when done deliberately, with documentation.
 
-The goal is not the most normalized design — it's the most appropriate one.
+The goal is not the most normalized design - it's the most appropriate one.
 
 ---
 
 ## Key Terms
 
-**Normalization** — The process of designing a database to eliminate redundancy and the anomalies it causes.
+**Normalization** - The process of designing a database to eliminate redundancy and the anomalies it causes.
 
-**Redundancy** — Storing the same fact in more than one place in a database.
+**Redundancy** - Storing the same fact in more than one place in a database.
 
-**Update anomaly** — A problem caused by redundancy: changing one real-world fact requires updating multiple rows, and inconsistency results if any are missed.
+**Update anomaly** - A problem caused by redundancy: changing one real-world fact requires updating multiple rows, and inconsistency results if any are missed.
 
-**Insert anomaly** — A problem caused by redundancy: you can't record information about one thing without also recording information about another.
+**Insert anomaly** - A problem caused by redundancy: you can't record information about one thing without also recording information about another.
 
-**Delete anomaly** — A problem caused by redundancy: deleting a row to remove one piece of information accidentally destroys other information stored in the same row.
+**Delete anomaly** - A problem caused by redundancy: deleting a row to remove one piece of information accidentally destroys other information stored in the same row.
 
-**Functional dependency** — A relationship between two attributes where knowing the value of one tells you the value of the other. Written A → B.
+**Functional dependency** - A relationship between two attributes where knowing the value of one tells you the value of the other. Written A → B.
 
-**Partial dependency** — A dependency where a non-key attribute depends on only part of a composite primary key. Eliminated in 2NF.
+**Partial dependency** - A dependency where a non-key attribute depends on only part of a composite primary key. Eliminated in 2NF.
 
-**Transitive dependency** — A dependency where a non-key attribute depends on another non-key attribute rather than directly on the primary key. Eliminated in 3NF.
+**Transitive dependency** - A dependency where a non-key attribute depends on another non-key attribute rather than directly on the primary key. Eliminated in 3NF.
 
-**First Normal Form (1NF)** — Every cell contains an atomic value; no repeating groups.
+**First Normal Form (1NF)** - Every cell contains an atomic value; no repeating groups.
 
-**Second Normal Form (2NF)** — In 1NF, plus every non-key attribute depends on the full primary key (not just part of it).
+**Second Normal Form (2NF)** - In 1NF, plus every non-key attribute depends on the full primary key (not just part of it).
 
-**Third Normal Form (3NF)** — In 2NF, plus every non-key attribute depends directly on the primary key, not on another non-key attribute.
+**Third Normal Form (3NF)** - In 2NF, plus every non-key attribute depends directly on the primary key, not on another non-key attribute.
 
-**Denormalization** — The deliberate introduction of redundancy to improve performance, typically in analytical systems. Should be documented and intentional.
+**Denormalization** - The deliberate introduction of redundancy to improve performance, typically in analytical systems. Should be documented and intentional.
 
 ---
 
@@ -363,7 +370,7 @@ The activities below are designed to be completed with a generative AI tool such
 
 ---
 
-### Activity 5.1 — Concept Check: Normalization and the Normal Forms
+### Activity 5.1 - Concept Check: Normalization and the Normal Forms
 
 *This activity checks your understanding of the key ideas from Chapter 5. The AI will quiz you one question at a time, give feedback, and help fill in any gaps.*
 
@@ -371,7 +378,7 @@ The activities below are designed to be completed with a generative AI tool such
 
 **Copy and paste this prompt into your AI tool:**
 
-> I've just finished reading Chapter 5 of my Introduction to Databases textbook, which covered normalization — including redundancy, anomalies, functional dependencies, and the first three normal forms. I want to check my understanding. Please quiz me by asking the following questions one at a time. Wait for my answer before moving on. After each answer, tell me what I got right, correct anything I misunderstood, and explain it more clearly if needed. Then ask if I'd like to go deeper before moving to the next question.
+> I've just finished reading Chapter 5 of my Introduction to Databases textbook, which covered normalization - including redundancy, anomalies, functional dependencies, and the first three normal forms. I want to check my understanding. Please quiz me by asking the following questions one at a time. Wait for my answer before moving on. After each answer, tell me what I got right, correct anything I misunderstood, and explain it more clearly if needed. Then ask if I'd like to go deeper before moving to the next question.
 >
 > Here are the questions:
 >
@@ -388,7 +395,7 @@ The activities below are designed to be completed with a generative AI tool such
 
 ---
 
-### Activity 5.2 — Apply It: Diagnose a Messy Table
+### Activity 5.2 - Apply It: Diagnose a Messy Table
 
 *This activity asks you to look at a poorly designed table, identify what's wrong with it, and work through how to fix it. The AI will guide you step by step.*
 
@@ -423,17 +430,17 @@ The activities below are designed to be completed with a generative AI tool such
 
 ---
 
-### Activity 5.3 — Practice: Spot the Dependency
+### Activity 5.3 - Practice: Spot the Dependency
 
-*This activity gives you practice identifying functional dependencies — the foundational skill for normalization.*
+*This activity gives you practice identifying functional dependencies - the foundational skill for normalization.*
 
 ---
 
 **Copy and paste this prompt into your AI tool:**
 
-> I'm studying normalization in my Introduction to Databases class and I want to practice identifying functional dependencies. A functional dependency A → B means "knowing A tells you B" — that for any given value of A, there's exactly one value of B.
+> I'm studying normalization in my Introduction to Databases class and I want to practice identifying functional dependencies. A functional dependency A → B means "knowing A tells you B" - that for any given value of A, there's exactly one value of B.
 >
-> Please present the following attribute pairs to me one at a time. For each one, ask me: (a) Is there a functional dependency here? If so, which direction — A → B, B → A, both, or neither? (b) Is this dependency likely to hold in the real world, or are there exceptions? (c) Would this dependency cause a normalization problem if both attributes were non-key columns in the same table?
+> Please present the following attribute pairs to me one at a time. For each one, ask me: (a) Is there a functional dependency here? If so, which direction - A → B, B → A, both, or neither? (b) Is this dependency likely to hold in the real world, or are there exceptions? (c) Would this dependency cause a normalization problem if both attributes were non-key columns in the same table?
 >
 > Wait for my answer each time. Tell me if I'm right, correct me if I'm wrong, and explain the reasoning. Ask if I want to discuss further before moving on.
 >
@@ -454,7 +461,7 @@ The activities below are designed to be completed with a generative AI tool such
 
 ---
 
-### Activity 5.4 — Case Study: Normalize a Real-World Table
+### Activity 5.4 - Case Study: Normalize a Real-World Table
 
 *This activity walks you through a full normalization exercise on a realistic table, from identifying problems all the way to a finished normalized design. The AI plays the role of a database design mentor.*
 
@@ -464,7 +471,7 @@ The activities below are designed to be completed with a generative AI tool such
 
 > I'm learning database normalization in my Introduction to Databases class. I want to work through a full normalization exercise from start to finish.
 >
-> Please play the role of a database design mentor. You'll present me with a messy, denormalized table and guide me through normalizing it step by step — first to 1NF, then 2NF, then 3NF. Ask me one question at a time and wait for my answer before continuing. After each answer, respond as my mentor — tell me what I got right, correct any mistakes, and explain the reasoning.
+> Please play the role of a database design mentor. You'll present me with a messy, denormalized table and guide me through normalizing it step by step - first to 1NF, then 2NF, then 3NF. Ask me one question at a time and wait for my answer before continuing. After each answer, respond as my mentor - tell me what I got right, correct any mistakes, and explain the reasoning.
 >
 > Here's the table we're working with. It's called `MusicFestivalBooking` and is used by a festival promoter:
 >
@@ -488,13 +495,13 @@ The activities below are designed to be completed with a generative AI tool such
 > - headliner_flag: Yes
 > - booking_fee: $850,000
 >
-> Guide me through these steps:
+> Show me the table, and then guide me through these steps:
 >
-> 1. First, identify every piece of redundancy you see — what facts would be repeated if there were multiple rows in this table?
-> 2. Is this table in First Normal Form? The `festival_dates` column contains a range — is that atomic? How would you fix it?
+> 1. First, identify every piece of redundancy you see - what facts would be repeated if there were multiple rows in this table?
+> 2. Is this table in First Normal Form? The `festival_dates` column contains a range - is that atomic? How would you fix it?
 > 3. What is a good primary key for this table? Is it a single column or composite?
-> 4. Check for Second Normal Form: are there any partial dependencies — non-key columns that depend on only part of the primary key?
-> 5. Check for Third Normal Form: are there any transitive dependencies — non-key columns that depend on other non-key columns?
+> 4. Check for Second Normal Form: are there any partial dependencies - non-key columns that depend on only part of the primary key?
+> 5. Check for Third Normal Form: are there any transitive dependencies - non-key columns that depend on other non-key columns?
 > 6. Draw out the normalized schema: what tables would you end up with, what are their primary keys, and what columns does each one have?
 >
 > After my final answer, give me the complete normalized schema and explain how it eliminates each of the anomalies we identified.
