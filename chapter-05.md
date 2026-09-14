@@ -1,5 +1,12 @@
 # Chapter 5: Normalization as a Design Philosophy
 
+By the end of this chapter, you will be able to:
+
+- **Explain** why redundancy causes update, insert, and delete anomalies, and **diagnose** which anomaly a given database problem represents.
+- **Identify** functional dependencies in a table (A → B) and **apply** the "smell test" to decide whether a column belongs in its current table.
+- **Apply** the checklist for First, Second, and Third Normal Form to a denormalized table, and **produce** a normalized schema that satisfies 3NF.
+- **Judge** when 3NF is the right stopping point for a design, and **justify** a deliberate denormalization decision by weighing its performance benefit against the anomalies it reintroduces.
+
 ---
 
 Here's a scenario you've probably encountered. Someone builds a spreadsheet to track something - concert bookings, class schedules, employee information - and it works fine at first. Then the data grows. People start noticing problems. Changing one thing requires changing it in five places. A typo in one row makes a report come out wrong. Deleting one record accidentally wipes out information you needed.
@@ -259,6 +266,12 @@ If `column B` is determined by `column A`, and `column A` is not the primary key
 
 The ZIP code example from section 5.2 is a classic case: `zip_code → city`. If both `zip_code` and `city` are non-key columns in a Customer table, city transitively depends on the primary key through ZIP code. The right design either stores only the ZIP code (and looks up the city when needed) or creates a separate ZIP code reference table.
 
+### Video Summary
+
+This video includes additional explanations and examples of 1NF, 2NF, and 3NF. **Stop watching at 19:12 - we do not cover 4NF or 5NF in this course.**
+
+[Database Normalization](https://www.youtube.com/watch?v=GFQaEYEc8_8)
+
 ---
 
 ## 5.4 Normalization as Judgment, Not Formula
@@ -281,12 +294,6 @@ When all three of these are true, you're in good shape. Normalizing further is d
 Transactional systems - systems that record business events as they happen (orders, bookings, enrollments, payments) - benefit enormously from normalization. The data is written frequently, by many users, in many small operations. Consistency is critical. 3NF is the standard target.
 
 The one area where you'll sometimes see intentional denormalization in transactional systems is for performance. Joins cost time. (A *join* is the operation that puts back together what normalization split apart - recombining rows from separate tables on a shared key. Chapter 7 covers it properly; for now all you need is that it isn't free.) If a query that needs to run in milliseconds requires joining eight tables, you might denormalize - deliberately store a fact in two places - to speed it up. But this should be a conscious, documented trade-off, not a default design choice.
-
-### Video Summary
-
-This video includes additional explanations and examples of 1NF, 2NF, and 3NF. If the player doesn't stop automatically, you can stop watching at 19:12. We do not cover 4NF or 5NF in this course.
-
-[Database Normalization](https://www.youtube.com/embed/GFQaEYEc8_8?start=0&end=1152)
 
 
 ### Signs that you've over-normalized
