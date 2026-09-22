@@ -49,7 +49,7 @@ There are several ER diagramming notations in common use. We'll use **crow's foo
 
 In crow's foot notation, entities are represented as rectangles, and relationships are represented as lines connecting them. The symbols at the ends of the lines indicate the **cardinality** of the relationship - how many instances of each entity can participate.
 
-The four symbols you need to know:
+The three symbols you need to know:
 
 ```
 |    exactly one (mandatory)
