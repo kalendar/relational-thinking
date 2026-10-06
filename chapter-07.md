@@ -1,5 +1,12 @@
 # Chapter 7: Query Thinking: What Do You Want to Know?
 
+By the end of this chapter, you will be able to:
+
+- **Restate** a plain-English business question as a precise one, catching ambiguities (such as counting streams versus counting distinct users) before any code is written.
+- **Describe** the four core operations of relational querying - filtering, projecting, joining, and aggregating - and **identify** which operation answers each part of a business question.
+- **Explain** how the output of one operation becomes the input to the next, and **plan** a query as a pipeline of set transformations.
+- **Plan** a query without writing SQL by sketching the result you want, working backward to the tables that supply each column, and tracing the join path through foreign keys.
+
 ---
 
 You've spent six chapters learning how to build a database. Now we shift to the other side of the table: how to *ask* one.
