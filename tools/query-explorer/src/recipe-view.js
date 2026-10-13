@@ -109,7 +109,7 @@
           const s = QE.suggestJoinKey(input, QE.loadTable(QE.findTableDef(dataset, v)));
           actions.updateDraft({ table: v, leftColumn: s ? s.leftColumn : '', rightColumn: s ? s.rightColumn : '', cartesian: false });
         }, 'Table')
-        : h('span', { class: 'reason' }, 'Every table in this data set is already part of the table.'))];
+        : h('span', { class: 'reason' }, 'Every table in this data set is already combined into this table.'))];
     if (!d.table) return parts;
     const other = QE.loadTable(QE.findTableDef(dataset, d.table));
     const s = QE.suggestJoinKey(input, other);

@@ -181,11 +181,11 @@
         QE.renderCounter(ok ? results[i - 1].table : null, r.table),
         ok ? h('button', { class: 'btn small', type: 'button', 'data-focus-key': 'replay', onclick: actions.replay }, '↻ Replay') : null,
         ok && step.op === 'aggregate'
-          ? h('label', null, h('input', { type: 'checkbox', 'data-focus-key': 'collapsed', checked: state.showCollapsed, onchange: e => actions.setShowCollapsed(e.target.checked) }), ' Show what was collapsed')
+          ? h('label', null, h('input', { type: 'checkbox', 'data-focus-key': 'collapsed', checked: state.showCollapsed, onchange: e => actions.setShowCollapsed(e.target.checked) }), ' Show the rows in each group')
           : null));
       if (r.status === 'off') body.push(h('p', { class: 'alert' }, 'This step is turned off, so the table is unchanged.'));
       if (r.status === 'invalid') body.push(h('p', { class: 'alert' }, '⚠ ', rich(r.message), ' This step was skipped.'));
-      if (ok && r.trace.cartesian) body.push(h('p', { class: 'alert bad' }, 'Every row was paired with every other row. Most of these rows are meaningless.'));
+      if (ok && r.trace.cartesian) body.push(h('p', { class: 'alert bad' }, 'Every row was paired with every row of the other table. Most of these rows are meaningless.'));
       body.push(h('div', { id: 'table-holder' }, finalTable(d, results, i, false)));
     }
     return h('section', { class: 'result', 'aria-label': 'Result' }, h('h2', null, 'Result'), tabs, body);

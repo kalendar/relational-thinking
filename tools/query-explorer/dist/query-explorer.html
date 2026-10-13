@@ -1669,7 +1669,7 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
           [17, 1, '2026-03-08', 'Haven', 20, 8, 6],
           [18, 2, '2026-03-08', 'Haven', 9, 15, 11],
           [19, 4, '2026-03-08', 'Lotus', 16, 12, 5],
-          [20, 7, '2026-03-08', 'Split', 18, 10, 1],
+          [20, 7, '2026-03-08', 'Split', 15, 10, 1],
           [21, 10, '2026-03-08', 'Sunset', 15, 13, 3],
           [22, 13, '2026-03-08', 'Lotus', 22, 11, 4],
           [23, 5, '2026-03-08', 'Sunset', 6, 18, 10],
@@ -2184,7 +2184,7 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
           const s = QE.suggestJoinKey(input, QE.loadTable(QE.findTableDef(dataset, v)));
           actions.updateDraft({ table: v, leftColumn: s ? s.leftColumn : '', rightColumn: s ? s.rightColumn : '', cartesian: false });
         }, 'Table')
-        : h('span', { class: 'reason' }, 'Every table in this data set is already part of the table.'))];
+        : h('span', { class: 'reason' }, 'Every table in this data set is already combined into this table.'))];
     if (!d.table) return parts;
     const other = QE.loadTable(QE.findTableDef(dataset, d.table));
     const s = QE.suggestJoinKey(input, other);
@@ -2586,11 +2586,11 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
         QE.renderCounter(ok ? results[i - 1].table : null, r.table),
         ok ? h('button', { class: 'btn small', type: 'button', 'data-focus-key': 'replay', onclick: actions.replay }, '↻ Replay') : null,
         ok && step.op === 'aggregate'
-          ? h('label', null, h('input', { type: 'checkbox', 'data-focus-key': 'collapsed', checked: state.showCollapsed, onchange: e => actions.setShowCollapsed(e.target.checked) }), ' Show what was collapsed')
+          ? h('label', null, h('input', { type: 'checkbox', 'data-focus-key': 'collapsed', checked: state.showCollapsed, onchange: e => actions.setShowCollapsed(e.target.checked) }), ' Show the rows in each group')
           : null));
       if (r.status === 'off') body.push(h('p', { class: 'alert' }, 'This step is turned off, so the table is unchanged.'));
       if (r.status === 'invalid') body.push(h('p', { class: 'alert' }, '⚠ ', rich(r.message), ' This step was skipped.'));
-      if (ok && r.trace.cartesian) body.push(h('p', { class: 'alert bad' }, 'Every row was paired with every other row. Most of these rows are meaningless.'));
+      if (ok && r.trace.cartesian) body.push(h('p', { class: 'alert bad' }, 'Every row was paired with every row of the other table. Most of these rows are meaningless.'));
       body.push(h('div', { id: 'table-holder' }, finalTable(d, results, i, false)));
     }
     return h('section', { class: 'result', 'aria-label': 'Result' }, h('h2', null, 'Result'), tabs, body);
