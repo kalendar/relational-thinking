@@ -216,10 +216,20 @@
     }
   }
 
-  // Task 13 replaces this with the animation player.
   function afterRender(d, results, n) {
     const holder = document.getElementById('table-holder');
-    if (holder && state.view === 'result' && n > 0 && results[n].status === 'ok') holder.replaceChildren(finalTable(d, results, n, true));
+    if (!holder || state.view !== 'result' || n === 0 || results[n].status !== 'ok') return;
+    const token = animToken;
+    QE.playStep(holder, {
+      before: results[n - 1].table,
+      result: results[n],
+      step: state.recipe.steps[n - 1],
+      dataset: d,
+      reduceMotion: state.reduceMotion,
+      isCurrent: () => token === animToken,
+    }).then(done => {
+      if (done) holder.replaceChildren(finalTable(d, results, n, true));
+    });
   }
 
   render();
