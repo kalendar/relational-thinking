@@ -26,6 +26,14 @@
     ],
   };
 
+  const SUMMARY_FUNCTIONS = [
+    { id: 'count', label: 'count of rows', prefix: 'number_of_rows', types: [] },
+    { id: 'total', label: 'total', prefix: 'total', types: ['number'] },
+    { id: 'average', label: 'average', prefix: 'average', types: ['number'] },
+    { id: 'lowest', label: 'lowest', prefix: 'lowest', types: ['number', 'date'] },
+    { id: 'highest', label: 'highest', prefix: 'highest', types: ['number', 'date'] },
+  ];
+
   function loadTable(def) {
     const columns = def.columns.map(c => ({ ...c, origin: def.name }));
     const rows = def.rows.map(r => {
@@ -170,7 +178,55 @@
     return null;
   }
 
-  const api = { CONDITIONS, loadTable, getColumn, findTableDef, filterTable, projectTable, joinTable, suggestJoinKey };
+  function round2(n) {
+    return Math.round(n * 100) / 100;
+  }
+
+  function summarize(fn, rows, column) {
+    if (fn === 'count') return rows.length;
+    const vals = rows.map(r => r[column]).filter(v => v !== null && v !== undefined);
+    if (fn === 'total') return round2(vals.reduce((s, v) => s + v, 0));
+    if (!vals.length) return null;
+    if (fn === 'average') return round2(vals.reduce((s, v) => s + v, 0) / vals.length);
+    if (fn === 'lowest') return vals.reduce((m, v) => (v < m ? v : m));
+    if (fn === 'highest') return vals.reduce((m, v) => (v > m ? v : m));
+    throw new Error(`Unknown summary "${fn}"`);
+  }
+
+  function aggregateTable(table, step) {
+    const index = new Map();
+    const groups = [];
+    table.rows.forEach((row, i) => {
+      const key = JSON.stringify(step.groupBy.map(g => row[g]));
+      if (!index.has(key)) { index.set(key, groups.length); groups.push([]); }
+      groups[index.get(key)].push(i);
+    });
+    if (!step.groupBy.length && !groups.length) groups.push([]);
+
+    const groupCols = step.groupBy.map(g => getColumn(table, g));
+    const used = new Set(groupCols.map(c => c.name));
+    const sumCols = step.summaries.map(s => {
+      const fn = SUMMARY_FUNCTIONS.find(f => f.id === s.fn);
+      const base = s.fn === 'count' ? fn.prefix : `${fn.prefix}_${s.column.replace(/\./g, '_')}`;
+      let name = base;
+      for (let n = 2; used.has(name); n++) name = `${base}_${n}`;
+      used.add(name);
+      const type = s.fn === 'lowest' || s.fn === 'highest' ? getColumn(table, s.column).type : 'number';
+      return { name, type, origin: table.name, summary: s };
+    });
+
+    const rows = groups.map(members => {
+      const memberRows = members.map(i => table.rows[i]);
+      const row = {};
+      groupCols.forEach(c => { row[c.name] = memberRows[0][c.name]; });
+      sumCols.forEach(c => { row[c.name] = summarize(c.summary.fn, memberRows, c.summary.column); });
+      return row;
+    });
+    const columns = [...groupCols, ...sumCols.map(({ summary, ...c }) => c)];
+    return { table: { ...table, columns, rows }, trace: { groups } };
+  }
+
+  const api = { CONDITIONS, SUMMARY_FUNCTIONS, loadTable, getColumn, findTableDef, filterTable, projectTable, joinTable, suggestJoinKey, aggregateTable };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.QE = Object.assign(root.QE || {}, api);
 })(this);
