@@ -99,7 +99,78 @@
     return { table: { ...table, rows: kept.map(i => table.rows[i]) }, trace: { kept, dropped } };
   }
 
-  const api = { CONDITIONS, loadTable, getColumn, findTableDef, filterTable };
+  function projectTable(table, step) {
+    const keep = new Set(step.columns);
+    const columns = table.columns.filter(c => keep.has(c.name));
+    const rows = table.rows.map(r => {
+      const row = {};
+      columns.forEach(c => { row[c.name] = r[c.name]; });
+      return row;
+    });
+    return {
+      table: { ...table, columns, rows },
+      trace: { kept: columns.map(c => c.name), dropped: table.columns.filter(c => !keep.has(c.name)).map(c => c.name) },
+    };
+  }
+
+  function sameValue(a, b, type) {
+    return type === 'text' ? norm(a) === norm(b) : a === b;
+  }
+
+  function joinTable(left, right, step) {
+    const cartesian = !!step.cartesian;
+    const sameKey = !cartesian && step.leftColumn === step.rightColumn;
+    const rightKept = right.columns.filter(c => !(sameKey && c.name === step.rightColumn));
+    const leftNames = new Set(left.columns.map(c => c.name));
+    const clash = new Set(rightKept.filter(c => leftNames.has(c.name)).map(c => c.name));
+    const leftMap = left.columns.map(c => ({ from: c.name, col: clash.has(c.name) ? { ...c, name: `${c.origin}.${c.name}` } : c }));
+    const rightMap = rightKept.map(c => ({ from: c.name, col: clash.has(c.name) ? { ...c, name: `${right.name}.${c.name}` } : c }));
+    const type = cartesian ? null : getColumn(left, step.leftColumn).type;
+
+    const pairs = [];
+    const unmatchedLeft = [];
+    const matchedRight = new Set();
+    left.rows.forEach((lr, li) => {
+      let found = false;
+      right.rows.forEach((rr, ri) => {
+        if (cartesian || sameValue(lr[step.leftColumn], rr[step.rightColumn], type)) {
+          pairs.push([li, ri]);
+          matchedRight.add(ri);
+          found = true;
+        }
+      });
+      if (!found) unmatchedLeft.push(li);
+    });
+    const unmatchedRight = right.rows.map((_, i) => i).filter(i => !matchedRight.has(i));
+    const rows = pairs.map(([li, ri]) => {
+      const row = {};
+      leftMap.forEach(m => { row[m.col.name] = left.rows[li][m.from]; });
+      rightMap.forEach(m => { row[m.col.name] = right.rows[ri][m.from]; });
+      return row;
+    });
+    return {
+      table: {
+        name: left.name,
+        sources: [...left.sources, right.name],
+        columns: [...leftMap.map(m => m.col), ...rightMap.map(m => m.col)],
+        rows,
+      },
+      trace: { pairs, unmatchedLeft, unmatchedRight, cartesian },
+    };
+  }
+
+  function suggestJoinKey(current, other) {
+    for (const c of current.columns) {
+      for (const o of other.columns) {
+        if (c.name !== o.name) continue;
+        if (c.key === 'fk' && c.ref === other.name && o.key === 'pk') return { leftColumn: c.name, rightColumn: o.name };
+        if (o.key === 'fk' && o.ref === c.origin && c.key === 'pk') return { leftColumn: c.name, rightColumn: o.name };
+      }
+    }
+    return null;
+  }
+
+  const api = { CONDITIONS, loadTable, getColumn, findTableDef, filterTable, projectTable, joinTable, suggestJoinKey };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.QE = Object.assign(root.QE || {}, api);
 })(this);
