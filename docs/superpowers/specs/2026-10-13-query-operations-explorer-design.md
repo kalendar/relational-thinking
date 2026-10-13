@@ -173,7 +173,7 @@ After an aggregate step, a **Show what was collapsed** toggle lets the student e
 - At least one row in each data set has **no match** in a related table, for an ordinary reason (e.g., a newly signed artist with no songs yet). This makes the "no match — dropped" behavior visible.
 - Apart from key columns, no column name appears in two tables of the same data set (e.g., `artist_name` and `song_title`, not two `name` columns).
 - Each data set includes at least one text category column, one number column, and one date column, spread across its tables.
-- Dates fall in 2026.
+- Activity dates (streams, ticket sales, games, swipes, and so on) fall in 2026. Release dates for real songs, series, and movies use their real dates, and Box Office Weekend uses weekends from its movies' real 2025 release windows. All dates fall between 2015 and 2026.
 - Names: real artists, series, movies, NFL players, NFL teams, and colleges where they fit. Invented names for private people (students, viewers, managers, gamers, small creators) and for anything where a real name would be odd. All numbers are invented.
 - One table is designated the **starting table** (step 0's default), normally the table with the most rows.
 
@@ -223,7 +223,7 @@ In the column lists, **PK** = primary key and **FK** = foreign key. Types: (t) t
 
 #### 5. Campus Dining
 - **Students:** `student_id` PK, `first_name` (t, invented), `meal_plan` (t: Unlimited, 14 per week, Block 100), `residence_hall` (t)
-- **DiningHalls:** `hall_id` PK, `hall_name` (t, invented), `campus_area` (t)
+- **DiningHalls:** `hall_id` PK, `hall_name` (t, invented), `campus_area` (t), `seats` (n)
 - **MealSwipes** *(start)*: `swipe_id` PK, `student_id` FK, `hall_id` FK, `swipe_date` (d), `meal_period` (t: Breakfast, Lunch, Dinner, Late Night)
 - No match: a commuter student with no swipes.
 - Try this:
