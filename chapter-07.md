@@ -396,7 +396,7 @@ SQL is a translation of this plan. If the plan is clear, the SQL - whether writt
 
 ## Interactive Activities
 
-The activities below are designed to be completed with a generative AI tool such as Claude (claude.ai) or ChatGPT. For each activity, copy the prompt in the gray box and paste it directly into your AI tool to begin an interactive study session.
+The activities below are designed to be completed with a generative AI tool such as Claude (claude.ai) or ChatGPT. For each activity, copy the prompt in the gray box and paste it directly into your AI tool to begin an interactive study session. Activity 7.0 is the one exception: it uses an interactive tool instead of a prompt.
 
 ---
 
