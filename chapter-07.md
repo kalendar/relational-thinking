@@ -402,9 +402,14 @@ The activities below are designed to be completed with a generative AI tool such
 
 ### Activity 7.0 - Query Explorer
 
-*Explore the foundational operations of queries - filter, project, join, and aggregate - using this interactive tool.*
+<blockquote>
+<div class="textbox shaded">
 
-https://kalendar.github.io/relational-thinking/query-explorer.html
+<p>Explore the foundational operations of queries - filter, project, join, and aggregate - using this interactive tool.</p>
+
+<p><a href="https://kalendar.github.io/relational-thinking/query-explorer.html">https://kalendar.github.io/relational-thinking/query-explorer.html</a></p>
+
+</div></blockquote>
 
 ---
 
