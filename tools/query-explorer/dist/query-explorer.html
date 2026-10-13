@@ -2072,6 +2072,440 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
   root.QE = Object.assign(QE, { renderTable, sizeText, renderCounter });
 })(this);
 
+// ---- recipe-view.js ----
+// Query Explorer: the recipe panel (step cards and step editors).
+(function (root) {
+  'use strict';
+  const QE = root.QE;
+  const { h, rich, icon } = QE;
+
+  const OPS = [
+    { op: 'filter', label: 'Filter' },
+    { op: 'project', label: 'Project' },
+    { op: 'join', label: 'Join' },
+    { op: 'aggregate', label: 'Aggregate' },
+  ];
+  const opLabel = op => OPS.find(o => o.op === op).label;
+
+  function newDraft(op, input) {
+    if (op === 'filter') return { op, column: '', condition: '', value: '', value2: '', values: [] };
+    if (op === 'project') return { op, columns: input.columns.map(c => c.name) };
+    if (op === 'join') return { op, table: '', leftColumn: '', rightColumn: '', cartesian: false };
+    return { op, groupBy: [], summaries: [{ fn: 'count', column: '' }] };
+  }
+
+  function select(key, value, options, onchange, label, disabled) {
+    return h('select', { 'data-focus-key': key, 'aria-label': label, disabled: !!disabled, onchange: e => onchange(e.target.value) },
+      h('option', { value: '', disabled: true, selected: value === '' }, 'Choose…'),
+      options.map(o => h('option', { value: o.value, selected: String(o.value) === String(value) }, o.label)));
+  }
+
+  function distinct(input, name) {
+    return [...new Set(input.rows.map(r => r[name]))].sort((a, b) => String(a).localeCompare(String(b)));
+  }
+
+  // Typing in a box updates the draft without redrawing, so the cursor stays put.
+  function liveUpdate(ctx, input, patch) {
+    Object.assign(ctx.state.draft, patch);
+    const reason = QE.incompleteReason(ctx.state.draft, input);
+    const btn = document.getElementById('apply-btn');
+    if (btn) btn.disabled = !!reason;
+    const note = document.getElementById('apply-reason');
+    if (note) note.textContent = reason || '';
+  }
+
+  function onEnter(ctx, input) {
+    return e => {
+      if (e.key === 'Enter' && !QE.incompleteReason(ctx.state.draft, input)) ctx.actions.applyDraft();
+    };
+  }
+
+  function valueControl(d, col, input, ctx) {
+    const { actions } = ctx;
+    if (col.type === 'text' && d.condition === 'is_one_of') {
+      return h('fieldset', null, h('legend', null, 'Pick one or more'), h('div', { class: 'checks' },
+        distinct(input, col.name).map(v => h('label', null,
+          h('input', { type: 'checkbox', 'data-focus-key': 'f-one-' + v, checked: d.values.includes(v),
+            onchange: e => actions.updateDraft({ values: e.target.checked ? [...d.values, v] : d.values.filter(x => x !== v) }) }),
+          v))));
+    }
+    if (col.type === 'text' && d.condition === 'contains') {
+      return h('div', { class: 'row' }, h('input', { type: 'text', 'data-focus-key': 'f-val', 'aria-label': 'Text to look for', value: d.value,
+        oninput: e => liveUpdate(ctx, input, { value: e.target.value }), onkeydown: onEnter(ctx, input) }));
+    }
+    if (col.type === 'text') {
+      return h('div', { class: 'row' }, select('f-val', d.value, distinct(input, col.name).map(v => ({ value: v, label: v })), v => actions.updateDraft({ value: v }), 'Value'));
+    }
+    const type = col.type === 'number' ? 'number' : 'date';
+    const box = (key, field, label) => h('input', { type, 'data-focus-key': key, 'aria-label': label, value: d[field],
+      oninput: e => liveUpdate(ctx, input, { [field]: e.target.value }), onkeydown: onEnter(ctx, input) });
+    return d.condition === 'between'
+      ? h('div', { class: 'row' }, box('f-val', 'value', 'From'), 'and', box('f-val2', 'value2', 'To'))
+      : h('div', { class: 'row' }, box('f-val', 'value', 'Value'));
+  }
+
+  function filterEditor(d, input, ctx) {
+    const { actions } = ctx;
+    const col = QE.getColumn(input, d.column);
+    const parts = [h('div', { class: 'row' }, 'Keep only rows where',
+      select('f-col', d.column, input.columns.map(c => ({ value: c.name, label: c.name })), v => {
+        const type = QE.getColumn(input, v).type;
+        actions.updateDraft({ column: v, condition: QE.CONDITIONS[type][0].id, value: '', value2: '', values: [] });
+      }, 'Column'),
+      col ? select('f-cond', d.condition, QE.CONDITIONS[col.type].map(c => ({ value: c.id, label: c.label })),
+        v => actions.updateDraft({ condition: v, value: '', value2: '', values: [] }), 'Condition') : null)];
+    if (col && d.condition) parts.push(valueControl(d, col, input, ctx));
+    return parts;
+  }
+
+  function checkList(legend, input, chosen, keyPrefix, onchange) {
+    return h('fieldset', null, h('legend', null, legend), h('div', { class: 'checks' },
+      input.columns.map(c => h('label', null,
+        h('input', { type: 'checkbox', 'data-focus-key': keyPrefix + c.name, checked: chosen.includes(c.name),
+          onchange: e => onchange(input.columns.map(x => x.name).filter(n => (n === c.name ? e.target.checked : chosen.includes(n)))) }),
+        h('code', null, c.name)))));
+  }
+
+  function projectEditor(d, input, { actions }) {
+    return checkList('Keep only these columns', input, d.columns, 'p-', columns => actions.updateDraft({ columns }));
+  }
+
+  function joinEditor(d, input, { dataset, actions }) {
+    const choices = dataset.tables.filter(t => !input.sources.includes(t.name));
+    const parts = [h('div', { class: 'row' }, 'Combine with',
+      choices.length
+        ? select('j-table', d.table, choices.map(t => ({ value: t.name, label: t.name })), v => {
+          const s = QE.suggestJoinKey(input, QE.loadTable(QE.findTableDef(dataset, v)));
+          actions.updateDraft({ table: v, leftColumn: s ? s.leftColumn : '', rightColumn: s ? s.rightColumn : '', cartesian: false });
+        }, 'Table')
+        : h('span', { class: 'reason' }, 'Every table in this data set is already part of the table.'))];
+    if (!d.table) return parts;
+    const other = QE.loadTable(QE.findTableDef(dataset, d.table));
+    const s = QE.suggestJoinKey(input, other);
+    const left = QE.getColumn(input, d.leftColumn);
+    const isSuggested = s && !d.cartesian && s.leftColumn === d.leftColumn && s.rightColumn === d.rightColumn;
+    parts.push(h('div', { class: 'row' }, 'matching',
+      select('j-left', d.leftColumn, input.columns.map(c => ({ value: c.name, label: c.name })), v => {
+        const type = QE.getColumn(input, v).type;
+        const keepRight = other.columns.some(c => c.name === d.rightColumn && c.type === type);
+        actions.updateDraft({ leftColumn: v, rightColumn: keepRight ? d.rightColumn : '' });
+      }, 'Column in the current table', d.cartesian),
+      'equals',
+      select('j-right', d.rightColumn, other.columns.filter(c => !left || c.type === left.type).map(c => ({ value: c.name, label: c.name })),
+        v => actions.updateDraft({ rightColumn: v }), `Column in ${d.table}`, d.cartesian),
+      isSuggested ? h('span', { class: 'suggested' }, '✓ suggested') : null));
+    if (!s) parts.push(h('p', { class: 'reason' }, "These tables don't share a key."));
+    parts.push(h('label', null,
+      h('input', { type: 'checkbox', 'data-focus-key': 'j-cart', checked: d.cartesian, onchange: e => actions.updateDraft({ cartesian: e.target.checked }) }),
+      " Don't match on anything"));
+    return parts;
+  }
+
+  function aggregateEditor(d, input, { actions }) {
+    const setSummaries = summaries => actions.updateDraft({ summaries });
+    return [
+      checkList('Group by (leave all unchecked to summarize the whole table)', input, d.groupBy, 'g-', groupBy => actions.updateDraft({ groupBy })),
+      h('fieldset', null, h('legend', null, 'Calculate'),
+        d.summaries.map((s, i) => {
+          const fn = QE.SUMMARY_FUNCTIONS.find(f => f.id === s.fn);
+          const cols = input.columns.filter(c => fn.types.includes(c.type));
+          return h('div', { class: 'row' },
+            select('s-fn-' + i, s.fn, QE.SUMMARY_FUNCTIONS.map(f => ({ value: f.id, label: f.label })), v => {
+              const next = QE.SUMMARY_FUNCTIONS.find(f => f.id === v);
+              const keep = input.columns.some(c => c.name === s.column && next.types.includes(c.type));
+              setSummaries(d.summaries.map((x, j) => (j === i ? { fn: v, column: keep ? s.column : '' } : x)));
+            }, 'Calculation'),
+            s.fn === 'count' ? null : ['of', select('s-col-' + i, s.column, cols.map(c => ({ value: c.name, label: c.name })),
+              v => setSummaries(d.summaries.map((x, j) => (j === i ? { ...x, column: v } : x))), 'Column')],
+            d.summaries.length > 1
+              ? h('button', { class: 'btn small', type: 'button', 'data-focus-key': 's-del-' + i, 'aria-label': 'Remove this calculation',
+                onclick: () => setSummaries(d.summaries.filter((_, j) => j !== i)) }, '✕')
+              : null);
+        }),
+        d.summaries.length < 3
+          ? h('button', { class: 'btn small', type: 'button', 'data-focus-key': 's-add', onclick: () => setSummaries([...d.summaries, { fn: 'count', column: '' }]) }, '+ Add a calculation')
+          : null),
+    ];
+  }
+
+  const EDITORS = { filter: filterEditor, project: projectEditor, join: joinEditor, aggregate: aggregateEditor };
+
+  function editor(ctx, input) {
+    const { state, actions } = ctx;
+    const reason = QE.incompleteReason(state.draft, input);
+    return h('div', { class: 'editor' },
+      EDITORS[state.draft.op](state.draft, input, ctx),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn primary', type: 'button', id: 'apply-btn', 'data-focus-key': 'apply', disabled: !!reason, onclick: actions.applyDraft }, 'Apply'),
+        h('button', { class: 'btn', type: 'button', 'data-focus-key': 'cancel', onclick: actions.cancelDraft }, 'Cancel'),
+        h('span', { class: 'reason', id: 'apply-reason', 'aria-live': 'polite' }, reason || '')));
+  }
+
+  function startCard({ state, dataset, actions }) {
+    return h('li', { class: 'step' + (state.selected === 0 ? ' selected' : '') },
+      h('div', { class: 'step-main' },
+        h('button', { class: 'step-num', type: 'button', 'data-focus-key': 'step-0', 'aria-label': 'Show the starting table', onclick: () => actions.selectStep(0) }, '0'),
+        h('span', null,
+          h('span', { class: 'step-op' }, 'Start'),
+          h('label', { class: 'step-text' }, 'Start with ',
+            h('select', { 'data-focus-key': 'start', onchange: e => actions.setStart(e.target.value) },
+              dataset.tables.map(t => h('option', { value: t.name, selected: t.name === state.recipe.start }, t.name)))))));
+  }
+
+  function stepCard(ctx, step, n) {
+    const { state, results, actions } = ctx;
+    const r = results[n];
+    const input = results[n - 1].table;
+    const off = step.on === false;
+    return h('li', { class: ['step', state.selected === n ? 'selected' : '', off ? 'off' : ''].join(' ') },
+      h('button', { class: 'step-main', type: 'button', 'data-focus-key': 'step-' + n, 'aria-pressed': String(state.selected === n), onclick: () => actions.selectStep(n) },
+        h('span', { class: 'step-num' }, String(n)),
+        h('span', null,
+          h('span', { class: 'step-op' }, icon(step.op), opLabel(step.op), off ? ' (turned off)' : ''),
+          h('span', { class: 'step-text' }, rich(QE.describeStep(step, input))))),
+      r.status === 'invalid' ? h('span', { class: 'warn-badge', role: 'note' }, '⚠ ', rich(r.message)) : null,
+      state.editing === n
+        ? editor(ctx, input)
+        : h('div', { class: 'step-tools' },
+          h('button', { class: 'btn small', type: 'button', 'data-focus-key': 'edit-' + n, onclick: () => actions.editStep(n) }, 'Edit'),
+          h('button', { class: 'btn small', type: 'button', 'data-focus-key': 'toggle-' + n, onclick: () => actions.toggleStep(n) }, off ? 'Turn on' : 'Turn off'),
+          h('button', { class: 'btn small', type: 'button', 'data-focus-key': 'delete-' + n, onclick: () => actions.deleteStep(n) }, 'Delete')));
+  }
+
+  function newCard(ctx) {
+    const { state, results } = ctx;
+    const n = state.recipe.steps.length + 1;
+    return h('li', { class: 'step selected' },
+      h('div', { class: 'step-main' },
+        h('span', { class: 'step-num' }, String(n)),
+        h('span', null, h('span', { class: 'step-op' }, icon(state.draft.op), 'New ' + opLabel(state.draft.op).toLowerCase() + ' step'))),
+      editor(ctx, results[results.length - 1].table));
+  }
+
+  function renderRecipePanel(ctx) {
+    const { state, actions } = ctx;
+    const items = [startCard(ctx)];
+    state.recipe.steps.forEach((step, k) => items.push(stepCard(ctx, step, k + 1)));
+    if (state.editing === 'new') items.push(newCard(ctx));
+    return h('section', { class: 'recipe', 'aria-label': 'Recipe' },
+      h('h2', null, 'Recipe'),
+      h('ol', { class: 'steps' }, items),
+      h('div', { class: 'ops', role: 'group', 'aria-label': 'Add a step' },
+        OPS.map(o => h('button', { class: 'op-btn', type: 'button', 'data-focus-key': 'add-' + o.op, onclick: () => actions.addStep(o.op) }, icon(o.op), o.label))));
+  }
+
+  root.QE = Object.assign(QE, { newDraft, renderRecipePanel });
+})(this);
+
+// ---- app.js ----
+// Query Explorer: app state, actions, and the main render.
+(function (root) {
+  'use strict';
+  const QE = root.QE;
+  const { h, rich } = QE;
+  const DATASETS = root.QE_DATASETS || [];
+  const appEl = document.getElementById('app');
+
+  let nextId = 1;
+  let animToken = 0;
+  const reducedByDefault = !!(root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  const state = {
+    datasetId: DATASETS[0].id,
+    recipe: { start: DATASETS[0].start, steps: [] },
+    selected: 0,
+    editing: null, // null | 'new' | step number
+    draft: null,
+    view: 'result', // 'result' | a table name
+    reduceMotion: reducedByDefault,
+    showCollapsed: false,
+    tryOpen: false,
+    openHints: new Set(),
+    animate: null, // step number to animate after the next render
+    focus: null, // data-focus-key to focus after the next render
+  };
+
+  const dataset = () => DATASETS.find(d => d.id === state.datasetId);
+
+  const actions = {
+    setDataset(id) {
+      if (state.recipe.steps.length && !root.confirm('Switching data sets clears your recipe. Continue?')) { render(); return; }
+      const d = DATASETS.find(x => x.id === id);
+      Object.assign(state, { datasetId: id, recipe: { start: d.start, steps: [] }, selected: 0, editing: null, draft: null, view: 'result', showCollapsed: false, openHints: new Set() });
+      render();
+    },
+    setStart(name) {
+      Object.assign(state, { selected: 0, editing: null, draft: null, view: 'result' });
+      state.recipe.start = name;
+      render();
+    },
+    selectStep(n) { state.selected = n; state.view = 'result'; render(); },
+    addStep(op) {
+      const results = QE.runRecipe(dataset(), state.recipe);
+      state.draft = QE.newDraft(op, results[results.length - 1].table);
+      state.editing = 'new';
+      render();
+    },
+    editStep(n) {
+      state.draft = JSON.parse(JSON.stringify(state.recipe.steps[n - 1]));
+      state.editing = n;
+      render();
+    },
+    updateDraft(patch) { Object.assign(state.draft, patch); render(); },
+    applyDraft() {
+      const steps = state.recipe.steps;
+      let n;
+      if (state.editing === 'new') {
+        steps.push({ ...state.draft, id: nextId++, on: true });
+        n = steps.length;
+      } else {
+        n = state.editing;
+        steps[n - 1] = { ...state.draft, id: steps[n - 1].id, on: steps[n - 1].on };
+      }
+      Object.assign(state, { editing: null, draft: null, selected: n, view: 'result', animate: n, focus: 'step-' + n });
+      render();
+    },
+    cancelDraft() { state.editing = null; state.draft = null; render(); },
+    toggleStep(n) {
+      const step = state.recipe.steps[n - 1];
+      step.on = step.on === false;
+      state.selected = n;
+      render();
+    },
+    deleteStep(n) {
+      state.recipe.steps.splice(n - 1, 1);
+      if (state.selected >= n) state.selected = Math.max(0, state.selected - 1);
+      if (typeof state.editing === 'number') { state.editing = null; state.draft = null; }
+      state.focus = 'add-filter';
+      render();
+    },
+    setView(v) { state.view = v; render(); },
+    toggleHint(key) {
+      if (state.openHints.has(key)) state.openHints.delete(key);
+      else state.openHints.add(key);
+      render();
+    },
+    setReduceMotion(on) { state.reduceMotion = on; render(); },
+    setShowCollapsed(on) { state.showCollapsed = on; render(); },
+    replay() { state.animate = state.selected; render(); },
+  };
+
+  function tryThis(d) {
+    return h('details', { class: 'try', open: state.tryOpen, ontoggle: e => { state.tryOpen = e.target.open; } },
+      h('summary', null, `Try this (${d.questions.length} questions)`),
+      h('ol', null, d.questions.map((q, i) => {
+        const key = d.id + ':' + i;
+        const open = state.openHints.has(key);
+        return h('li', null, q.text, ' ',
+          h('button', { class: 'btn small', type: 'button', 'data-focus-key': 'hint-' + i, 'aria-expanded': String(open), onclick: () => actions.toggleHint(key) }, open ? 'Hide hint' : 'Show hint'),
+          open ? h('p', { class: 'hint' }, rich(QE.describeRecipe(d, q.recipe).join(' → ')), q.note ? ' ' + q.note : '') : null);
+      })));
+  }
+
+  function header(d) {
+    return h('header', { class: 'top' },
+      h('div', { class: 'top-row' },
+        h('h1', null, 'Query Explorer'),
+        h('div', { class: 'picker' },
+          h('label', { for: 'dataset' }, 'Data set'),
+          h('select', { id: 'dataset', 'data-focus-key': 'dataset', onchange: e => actions.setDataset(e.target.value) },
+            DATASETS.map(x => h('option', { value: x.id, selected: x.id === d.id }, x.name)))),
+        h('label', { class: 'motion' },
+          h('input', { type: 'checkbox', 'data-focus-key': 'motion', checked: state.reduceMotion, onchange: e => actions.setReduceMotion(e.target.checked) }),
+          'Reduce motion')),
+      h('p', { class: 'subline' }, d.description, h('span', { class: 'note' }, ' · Real names, made-up numbers. All data is invented for practice.')),
+      tryThis(d));
+  }
+
+  function emptyMessage(results, i) {
+    let k = i;
+    while (k > 0 && results[k - 1].table.rows.length === 0) k--;
+    return k === 0 ? 'This table has no rows.' : `No rows left. Step ${k} removed them all. Try changing it.`;
+  }
+
+  function finalTable(d, results, i, highlight) {
+    const r = results[i];
+    const step = i > 0 ? state.recipe.steps[i - 1] : null;
+    const ok = step && r.status === 'ok';
+    const opts = { emptyMessage: emptyMessage(results, i) };
+    if (highlight && ok) {
+      const before = results[i - 1].table;
+      const other = step.op === 'join' ? QE.loadTable(QE.findTableDef(d, step.table)) : null;
+      const plan = QE.visualPlan(step, before, r, other);
+      opts.rowClass = k => (plan.afterRows[k] ? 'hl ' + plan.afterRows[k] : null);
+      opts.wrapClass = 'highlight';
+    }
+    if (ok && step.op === 'aggregate' && state.showCollapsed) {
+      const before = results[i - 1].table;
+      opts.afterRow = k => [h('tr', { class: 'detail' }, h('td', { colspan: String(r.table.columns.length) },
+        QE.renderTable({ ...before, rows: r.trace.groups[k].map(j => before.rows[j]) }, { emptyMessage: 'No rows went into this summary.' })))];
+    }
+    const view = QE.renderTable(r.table, opts);
+    if (opts.wrapClass) setTimeout(() => view.classList.remove('highlight'), 2000);
+    return view;
+  }
+
+  function resultPanel(d, results) {
+    const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'What to show' },
+      [['result', 'Recipe result'], ...d.tables.map(t => [t.name, t.name])].map(([v, label]) =>
+        h('button', { class: 'tab', role: 'tab', type: 'button', 'data-focus-key': 'tab-' + v, 'aria-selected': String(state.view === v), onclick: () => actions.setView(v) }, label)));
+    const body = [];
+    if (state.view !== 'result') {
+      const t = QE.loadTable(QE.findTableDef(d, state.view));
+      body.push(h('p', { class: 'counter' }, h('strong', null, QE.sizeText(t)), ` · the original ${t.name} table`),
+        h('div', { id: 'table-holder' }, QE.renderTable(t)));
+    } else {
+      const i = state.selected;
+      const r = results[i];
+      const step = i > 0 ? state.recipe.steps[i - 1] : null;
+      const ok = step && r.status === 'ok';
+      body.push(h('div', { class: 'counter-row' },
+        h('strong', null, `Step ${i}`),
+        QE.renderCounter(ok ? results[i - 1].table : null, r.table),
+        ok ? h('button', { class: 'btn small', type: 'button', 'data-focus-key': 'replay', onclick: actions.replay }, '↻ Replay') : null,
+        ok && step.op === 'aggregate'
+          ? h('label', null, h('input', { type: 'checkbox', 'data-focus-key': 'collapsed', checked: state.showCollapsed, onchange: e => actions.setShowCollapsed(e.target.checked) }), ' Show what was collapsed')
+          : null));
+      if (r.status === 'off') body.push(h('p', { class: 'alert' }, 'This step is turned off, so the table is unchanged.'));
+      if (r.status === 'invalid') body.push(h('p', { class: 'alert' }, '⚠ ', rich(r.message), ' This step was skipped.'));
+      if (ok && r.trace.cartesian) body.push(h('p', { class: 'alert bad' }, 'Every row was paired with every other row. Most of these rows are meaningless.'));
+      body.push(h('div', { id: 'table-holder' }, finalTable(d, results, i, false)));
+    }
+    return h('section', { class: 'result', 'aria-label': 'Result' }, h('h2', null, 'Result'), tabs, body);
+  }
+
+  function render() {
+    animToken++;
+    const active = document.activeElement;
+    const focusKey = state.focus || (active && active.dataset ? active.dataset.focusKey : null);
+    state.focus = null;
+    const d = dataset();
+    const results = QE.runRecipe(d, state.recipe);
+    if (state.selected > results.length - 1) state.selected = results.length - 1;
+    document.body.classList.toggle('reduce-motion', state.reduceMotion);
+    appEl.replaceChildren(header(d), h('main', { class: 'layout' },
+      QE.renderRecipePanel({ state, dataset: d, results, actions }),
+      resultPanel(d, results)));
+    if (focusKey) {
+      const el = appEl.querySelector(`[data-focus-key="${CSS.escape(focusKey)}"]`);
+      if (el) el.focus();
+    }
+    if (state.animate !== null) {
+      const n = state.animate;
+      state.animate = null;
+      afterRender(d, results, n);
+    }
+  }
+
+  // Task 13 replaces this with the animation player.
+  function afterRender(d, results, n) {
+    const holder = document.getElementById('table-holder');
+    if (holder && state.view === 'result' && n > 0 && results[n].status === 'ok') holder.replaceChildren(finalTable(d, results, n, true));
+  }
+
+  render();
+})(this);
+
 </script>
 </body>
 </html>
