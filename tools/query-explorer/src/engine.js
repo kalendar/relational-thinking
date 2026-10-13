@@ -226,7 +226,130 @@
     return { table: { ...table, columns, rows }, trace: { groups } };
   }
 
-  const api = { CONDITIONS, SUMMARY_FUNCTIONS, loadTable, getColumn, findTableDef, filterTable, projectTable, joinTable, suggestJoinKey, aggregateTable };
+  function blank(v) {
+    return v === undefined || v === null || String(v).trim() === '';
+  }
+
+  function notNumber(v) {
+    return blank(v) || !Number.isFinite(Number(v));
+  }
+
+  function incompleteReason(step, table) {
+    switch (step.op) {
+      case 'filter': {
+        if (blank(step.column)) return 'Pick a column.';
+        if (blank(step.condition)) return 'Pick a condition.';
+        if (step.condition === 'is_one_of') return step.values && step.values.length ? null : 'Pick at least one value.';
+        const two = step.condition === 'between';
+        if (blank(step.value) || (two && blank(step.value2))) return two ? 'Fill in both values.' : 'Pick a value.';
+        const col = table ? getColumn(table, step.column) : null;
+        if (col && col.type === 'number' && (notNumber(step.value) || (two && notNumber(step.value2)))) {
+          return 'Type a number, like 1500 (no commas).';
+        }
+        return null;
+      }
+      case 'project':
+        return step.columns && step.columns.length ? null : 'Keep at least one column.';
+      case 'join':
+        if (blank(step.table)) return 'Pick a table.';
+        if (!step.cartesian && (blank(step.leftColumn) || blank(step.rightColumn))) return 'Pick the columns to match.';
+        return null;
+      case 'aggregate':
+        if (!step.summaries || !step.summaries.length) return 'Add a calculation.';
+        if (step.summaries.some(s => s.fn !== 'count' && blank(s.column))) return 'Pick a column for each calculation.';
+        return null;
+    }
+    return 'Unknown step.';
+  }
+
+  function missingColumn(table, name) {
+    return getColumn(table, name) ? null : `This step uses \`${name}\`, which isn't in the table anymore.`;
+  }
+
+  function validateStep(table, step, dataset) {
+    switch (step.op) {
+      case 'filter': {
+        const missing = missingColumn(table, step.column);
+        if (missing) return missing;
+        const type = getColumn(table, step.column).type;
+        if (!CONDITIONS[type].some(c => c.id === step.condition)) return `\`${step.column}\` can't use the condition you picked anymore.`;
+        return null;
+      }
+      case 'project': {
+        for (const name of step.columns) {
+          const missing = missingColumn(table, name);
+          if (missing) return missing;
+        }
+        return null;
+      }
+      case 'join': {
+        const def = findTableDef(dataset, step.table);
+        if (!def) return `There's no table named **${step.table}** in this data set.`;
+        if (table.sources.includes(step.table)) return `**${step.table}** is already part of the table.`;
+        if (step.cartesian) return null;
+        const missing = missingColumn(table, step.leftColumn);
+        if (missing) return missing;
+        const right = def.columns.find(c => c.name === step.rightColumn);
+        if (!right) return `**${step.table}** has no column \`${step.rightColumn}\`.`;
+        if (getColumn(table, step.leftColumn).type !== right.type) {
+          return `\`${step.leftColumn}\` and \`${step.rightColumn}\` hold different kinds of values, so they can't be matched.`;
+        }
+        return null;
+      }
+      case 'aggregate': {
+        for (const name of step.groupBy) {
+          const missing = missingColumn(table, name);
+          if (missing) return missing;
+        }
+        for (const s of step.summaries) {
+          if (s.fn === 'count') continue;
+          const missing = missingColumn(table, s.column);
+          if (missing) return missing;
+          const fn = SUMMARY_FUNCTIONS.find(f => f.id === s.fn);
+          if (!fn.types.includes(getColumn(table, s.column).type)) return `You can't find the ${fn.label} of \`${s.column}\`.`;
+        }
+        return null;
+      }
+    }
+    return `Unknown step type "${step.op}".`;
+  }
+
+  function applyStep(table, step, dataset) {
+    switch (step.op) {
+      case 'filter': return filterTable(table, step);
+      case 'project': return projectTable(table, step);
+      case 'join': return joinTable(table, loadTable(findTableDef(dataset, step.table)), step);
+      case 'aggregate': return aggregateTable(table, step);
+    }
+    throw new Error(`Unknown step type "${step.op}"`);
+  }
+
+  function runRecipe(dataset, recipe) {
+    const start = loadTable(findTableDef(dataset, recipe.start));
+    const results = [{ status: 'ok', table: start, trace: null, message: null }];
+    let current = start;
+    for (const step of recipe.steps) {
+      if (step.on === false) {
+        results.push({ status: 'off', table: current, trace: null, message: null });
+        continue;
+      }
+      const problem = incompleteReason(step, current) || validateStep(current, step, dataset);
+      if (problem) {
+        results.push({ status: 'invalid', table: current, trace: null, message: problem });
+        continue;
+      }
+      const out = applyStep(current, step, dataset);
+      current = out.table;
+      results.push({ status: 'ok', table: out.table, trace: out.trace, message: null });
+    }
+    return results;
+  }
+
+  const api = {
+    CONDITIONS, SUMMARY_FUNCTIONS, loadTable, getColumn, findTableDef,
+    filterTable, projectTable, joinTable, suggestJoinKey, aggregateTable,
+    incompleteReason, validateStep, runRecipe,
+  };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.QE = Object.assign(root.QE || {}, api);
 })(this);
