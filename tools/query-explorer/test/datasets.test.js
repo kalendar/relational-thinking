@@ -19,6 +19,10 @@ test('data set ids are unique', () => {
   assert.equal(new Set(ids).size, ids.length);
 });
 
+test('there are exactly 10 data sets', () => {
+  assert.equal(DATASETS.length, 10);
+});
+
 for (const ds of DATASETS) {
   test(`${ds.name}: basic shape`, () => {
     assert.match(ds.id, /^[a-z0-9-]+$/);

@@ -1,0 +1,132 @@
+(function (root) {
+  'use strict';
+  const dataset = {
+    id: 'esports',
+    name: 'Esports Tournament',
+    description: 'Teams · Gamers · MatchStats',
+    start: 'MatchStats',
+    tables: [
+      {
+        name: 'Teams',
+        columns: [
+          { name: 'team_id', type: 'number', key: 'pk' },
+          { name: 'team_name', type: 'text' },
+          { name: 'region', type: 'text' },
+        ],
+        rows: [
+          [1, 'Herd Esports', 'East'],
+          [2, 'Ridge Runners GG', 'East'],
+          [3, 'Lakeshore Legends', 'Midwest'],
+          [4, 'Prairie Storm', 'Midwest'],
+          [5, 'Desert Owls', 'West'],
+          [6, 'Pacific Surge', 'West'],
+          [7, 'Bayou Blitz', 'South'],
+          [8, 'Peach State Pulse', 'South'],
+        ],
+      },
+      {
+        name: 'Gamers',
+        columns: [
+          { name: 'gamer_id', type: 'number', key: 'pk' },
+          { name: 'gamertag', type: 'text' },
+          { name: 'team_id', type: 'number', key: 'fk', ref: 'Teams' },
+          { name: 'role', type: 'text' },
+        ],
+        rows: [
+          [1, 'ClutchCarl', 1, 'Duelist'],
+          [2, 'FrostByte', 1, 'Controller'],
+          [3, 'MapleStrike', 2, 'Initiator'],
+          [4, 'VoltVixen', 2, 'Duelist'],
+          [5, 'PixelPanda', 3, 'Sentinel'],
+          [6, 'QuietStorm', 3, 'Controller'],
+          [7, 'NovaNinja', 4, 'Duelist'],
+          [8, 'TurboTaco', 4, 'Initiator'],
+          [9, 'CobaltKid', 5, 'Sentinel'],
+          [10, 'SkyHopper', 5, 'Duelist'],
+          [11, 'EmberFox', 6, 'Controller'],
+          [12, 'RiftRunner', 6, 'Initiator'],
+          [13, 'LunaBlitz', 7, 'Duelist'],
+          [14, 'GlitchGoat', 7, 'Sentinel'],
+          [15, 'ZenZebra', 8, 'Controller'],
+          [16, 'HoneyBadger7', 8, 'Initiator'],
+          [17, 'BenchBuddy', 1, 'Sentinel'],
+        ],
+      },
+      {
+        name: 'MatchStats',
+        columns: [
+          { name: 'stat_id', type: 'number', key: 'pk' },
+          { name: 'gamer_id', type: 'number', key: 'fk', ref: 'Gamers' },
+          { name: 'match_date', type: 'date' },
+          { name: 'map_name', type: 'text' },
+          { name: 'kills', type: 'number' },
+          { name: 'deaths', type: 'number' },
+          { name: 'assists', type: 'number' },
+        ],
+        rows: [
+          [1, 1, '2026-03-07', 'Ascent', 24, 10, 4],
+          [2, 2, '2026-03-07', 'Ascent', 11, 13, 9],
+          [3, 3, '2026-03-07', 'Bind', 9, 14, 12],
+          [4, 4, '2026-03-07', 'Bind', 17, 11, 5],
+          [5, 5, '2026-03-07', 'Haven', 8, 16, 10],
+          [6, 6, '2026-03-07', 'Haven', 6, 15, 14],
+          [7, 7, '2026-03-07', 'Lotus', 21, 12, 3],
+          [8, 8, '2026-03-07', 'Lotus', 13, 12, 11],
+          [9, 9, '2026-03-07', 'Split', 7, 17, 8],
+          [10, 10, '2026-03-07', 'Split', 19, 14, 4],
+          [11, 11, '2026-03-08', 'Sunset', 10, 12, 13],
+          [12, 12, '2026-03-08', 'Sunset', 12, 11, 15],
+          [13, 13, '2026-03-08', 'Ascent', 28, 9, 2],
+          [14, 14, '2026-03-08', 'Ascent', 5, 19, 7],
+          [15, 15, '2026-03-08', 'Bind', 4, 22, 9],
+          [16, 16, '2026-03-08', 'Bind', 14, 13, 12],
+          [17, 1, '2026-03-08', 'Haven', 20, 8, 6],
+          [18, 2, '2026-03-08', 'Haven', 9, 15, 11],
+          [19, 4, '2026-03-08', 'Lotus', 16, 12, 5],
+          [20, 7, '2026-03-08', 'Split', 18, 10, 1],
+          [21, 10, '2026-03-08', 'Sunset', 15, 13, 3],
+          [22, 13, '2026-03-08', 'Lotus', 22, 11, 4],
+          [23, 5, '2026-03-08', 'Sunset', 6, 18, 10],
+          [24, 8, '2026-03-08', 'Split', 12, 14, 14],
+          [25, 12, '2026-03-08', 'Ascent', 10, 16, 13],
+        ],
+      },
+    ],
+    questions: [
+      {
+        text: 'Which team got the most total kills?',
+        recipe: {
+          start: 'MatchStats',
+          steps: [
+            { op: 'join', table: 'Gamers', leftColumn: 'gamer_id', rightColumn: 'gamer_id' },
+            { op: 'join', table: 'Teams', leftColumn: 'team_id', rightColumn: 'team_id' },
+            { op: 'aggregate', groupBy: ['team_name'], summaries: [{ fn: 'total', column: 'kills' }] },
+          ],
+        },
+      },
+      {
+        text: 'Which gamers had 20 or more kills in a match?',
+        recipe: {
+          start: 'MatchStats',
+          steps: [
+            { op: 'filter', column: 'kills', condition: 'at_least', value: '20' },
+            { op: 'join', table: 'Gamers', leftColumn: 'gamer_id', rightColumn: 'gamer_id' },
+            { op: 'project', columns: ['gamertag', 'map_name', 'kills'] },
+          ],
+        },
+      },
+      {
+        text: 'What is the average number of assists for each role?',
+        recipe: {
+          start: 'MatchStats',
+          steps: [
+            { op: 'join', table: 'Gamers', leftColumn: 'gamer_id', rightColumn: 'gamer_id' },
+            { op: 'aggregate', groupBy: ['role'], summaries: [{ fn: 'average', column: 'assists' }] },
+          ],
+        },
+      },
+    ],
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = dataset;
+  else (root.QE_DATASETS = root.QE_DATASETS || []).push(dataset);
+})(this);
