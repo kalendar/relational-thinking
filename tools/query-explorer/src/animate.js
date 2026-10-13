@@ -57,11 +57,11 @@
         [() => {
           stage = h('div', { class: 'join-stage' }, side('Current table', before, plan.leftMatch, 'left'), side(step.table, other, plan.rightMatch, 'right'));
           holder.replaceChildren(stage);
-        }, plan.cartesian ? 900 : 1100],
+        }, plan.cartesian ? 2700 : 3300],
         [() => {
           stage.classList.add('merge');
           stage.querySelectorAll('tr.nomatch').forEach(tr => tr.classList.add('fade'));
-        }, 500],
+        }, 1500],
       ];
     },
 

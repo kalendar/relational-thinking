@@ -128,7 +128,7 @@ tr.collapse td{padding-top:0; padding-bottom:0; font-size:0; line-height:0; opac
 .col-drop{background:var(--card-2) !important; color:var(--muted) !important; text-decoration:line-through;}
 .col-collapse{font-size:0 !important; padding-left:0 !important; padding-right:0 !important; opacity:0;}
 tr.nomatch td{outline:2px dashed var(--bad); outline-offset:-2px;}
-tr.fade td{opacity:.15;}
+tr.fade td{opacity:.15; transition:opacity 1.2s;}
 tr.c0 td{background:var(--teal-soft);}
 tr.c1 td{background:var(--amber-soft);}
 tr.c2 td{background:var(--indigo-soft);}
@@ -137,7 +137,7 @@ tr.c4 td{background:var(--good-soft);}
 .table-wrap:not(.highlight) tr.hl td{background:transparent; transition:background-color 1.2s;}
 .join-stage{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
 .join-stage h3{font-size:.85rem; margin:0 0 6px;}
-.join-stage .right{transition:transform .5s, opacity .5s;}
+.join-stage .right{transition:transform 1.5s, opacity 1.5s;}
 .join-stage.merge .right{transform:translateX(-40px); opacity:.35;}
 tr.detail > td{background:var(--card); padding:6px 12px 10px 32px;}
 tr.detail .table-wrap{max-height:none; opacity:.8;}
