@@ -21,7 +21,7 @@
 
   function select(key, value, options, onchange, label, disabled) {
     return h('select', { 'data-focus-key': key, 'aria-label': label, disabled: !!disabled, onchange: e => onchange(e.target.value) },
-      h('option', { value: '', disabled: true, selected: value === '' }, 'Choose…'),
+      h('option', { value: '', disabled: true, selected: !options.some(o => String(o.value) === String(value)) }, 'Choose…'),
       options.map(o => h('option', { value: o.value, selected: String(o.value) === String(value) }, o.label)));
   }
 
@@ -29,19 +29,25 @@
     return [...new Set(input.rows.map(r => r[name]))].sort((a, b) => String(a).localeCompare(String(b)));
   }
 
+  // Why Apply is blocked: a blank field, or a name the table no longer has.
+  function blockReason(ctx, input) {
+    const d = ctx.state.draft;
+    return QE.incompleteReason(d, input) || QE.validateStep(input, d, ctx.dataset);
+  }
+
   // Typing in a box updates the draft without redrawing, so the cursor stays put.
   function liveUpdate(ctx, input, patch) {
     Object.assign(ctx.state.draft, patch);
-    const reason = QE.incompleteReason(ctx.state.draft, input);
+    const reason = blockReason(ctx, input);
     const btn = document.getElementById('apply-btn');
     if (btn) btn.disabled = !!reason;
     const note = document.getElementById('apply-reason');
-    if (note) note.textContent = reason || '';
+    if (note) note.replaceChildren(...(reason ? rich(reason) : []));
   }
 
   function onEnter(ctx, input) {
     return e => {
-      if (e.key === 'Enter' && !QE.incompleteReason(ctx.state.draft, input)) ctx.actions.applyDraft();
+      if (e.key === 'Enter' && !blockReason(ctx, input)) ctx.actions.applyDraft();
     };
   }
 
@@ -157,13 +163,13 @@
 
   function editor(ctx, input) {
     const { state, actions } = ctx;
-    const reason = QE.incompleteReason(state.draft, input);
+    const reason = blockReason(ctx, input);
     return h('div', { class: 'editor' },
       EDITORS[state.draft.op](state.draft, input, ctx),
       h('div', { class: 'row' },
         h('button', { class: 'btn primary', type: 'button', id: 'apply-btn', 'data-focus-key': 'apply', disabled: !!reason, onclick: actions.applyDraft }, 'Apply'),
         h('button', { class: 'btn', type: 'button', 'data-focus-key': 'cancel', onclick: actions.cancelDraft }, 'Cancel'),
-        h('span', { class: 'reason', id: 'apply-reason', 'aria-live': 'polite' }, reason || '')));
+        h('span', { class: 'reason', id: 'apply-reason', 'aria-live': 'polite' }, reason ? rich(reason) : '')));
   }
 
   function startCard({ state, dataset, actions }) {

@@ -40,15 +40,24 @@
       render();
     },
     selectStep(n) { state.selected = n; state.view = 'result'; render(); },
+    // Rule: any action that changes the recipe or opens another editor drops the open draft,
+    // so a draft is never kept against a table it was not built for.
     addStep(op) {
       const results = QE.runRecipe(dataset(), state.recipe);
       state.draft = QE.newDraft(op, results[results.length - 1].table);
       state.editing = 'new';
+      state.focus = '@editor';
       render();
     },
     editStep(n) {
-      state.draft = JSON.parse(JSON.stringify(state.recipe.steps[n - 1]));
+      const draft = JSON.parse(JSON.stringify(state.recipe.steps[n - 1]));
+      // Drop names the table no longer has, so the editor shows only what can be kept.
+      const names = QE.runRecipe(dataset(), state.recipe)[n - 1].table.columns.map(c => c.name);
+      if (draft.op === 'project') draft.columns = draft.columns.filter(c => names.includes(c));
+      if (draft.op === 'aggregate') draft.groupBy = draft.groupBy.filter(c => names.includes(c));
+      state.draft = draft;
       state.editing = n;
+      state.focus = '@editor';
       render();
     },
     updateDraft(patch) { Object.assign(state.draft, patch); render(); },
@@ -65,17 +74,25 @@
       Object.assign(state, { editing: null, draft: null, selected: n, view: 'result', animate: n, focus: 'step-' + n });
       render();
     },
-    cancelDraft() { state.editing = null; state.draft = null; render(); },
+    cancelDraft() {
+      state.focus = state.editing === 'new' ? 'add-' + state.draft.op : 'edit-' + state.editing;
+      state.editing = null;
+      state.draft = null;
+      render();
+    },
     toggleStep(n) {
       const step = state.recipe.steps[n - 1];
       step.on = step.on === false;
+      state.editing = null;
+      state.draft = null;
       state.selected = n;
       render();
     },
     deleteStep(n) {
       state.recipe.steps.splice(n - 1, 1);
       if (state.selected >= n) state.selected = Math.max(0, state.selected - 1);
-      if (typeof state.editing === 'number') { state.editing = null; state.draft = null; }
+      state.editing = null;
+      state.draft = null;
       state.focus = 'add-filter';
       render();
     },
@@ -187,7 +204,9 @@
       QE.renderRecipePanel({ state, dataset: d, results, actions }),
       resultPanel(d, results)));
     if (focusKey) {
-      const el = appEl.querySelector(`[data-focus-key="${CSS.escape(focusKey)}"]`);
+      const el = focusKey === '@editor'
+        ? appEl.querySelector('.editor select:not(:disabled), .editor input:not(:disabled), .editor button:not(:disabled)')
+        : appEl.querySelector(`[data-focus-key="${CSS.escape(focusKey)}"]`);
       if (el) el.focus();
     }
     if (state.animate !== null) {
