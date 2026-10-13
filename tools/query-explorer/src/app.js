@@ -115,7 +115,7 @@
         const open = state.openHints.has(key);
         return h('li', null, q.text, ' ',
           h('button', { class: 'btn small', type: 'button', 'data-focus-key': 'hint-' + i, 'aria-expanded': String(open), onclick: () => actions.toggleHint(key) }, open ? 'Hide hint' : 'Show hint'),
-          open ? h('p', { class: 'hint' }, rich(QE.describeRecipe(d, q.recipe).join(' → ')), q.note ? ' ' + q.note : '') : null);
+          open ? h('p', { class: 'hint' }, rich(QE.describeRecipe(d, q.recipe).join(' → ')), q.note ? ` (${q.note})` : '') : null);
       })));
   }
 

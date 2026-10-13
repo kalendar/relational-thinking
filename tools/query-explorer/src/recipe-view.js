@@ -67,8 +67,8 @@
     if (col.type === 'text') {
       return h('div', { class: 'row' }, select('f-val', d.value, distinct(input, col.name).map(v => ({ value: v, label: v })), v => actions.updateDraft({ value: v }), 'Value'));
     }
-    const type = col.type === 'number' ? 'number' : 'date';
-    const box = (key, field, label) => h('input', { type, 'data-focus-key': key, 'aria-label': label, value: d[field],
+    const attrs = col.type === 'number' ? { type: 'text', inputmode: 'decimal' } : { type: 'date' };
+    const box = (key, field, label) => h('input', { ...attrs, 'data-focus-key': key, 'aria-label': label, value: d[field],
       oninput: e => liveUpdate(ctx, input, { [field]: e.target.value }), onkeydown: onEnter(ctx, input) });
     return d.condition === 'between'
       ? h('div', { class: 'row' }, box('f-val', 'value', 'From'), 'and', box('f-val2', 'value2', 'To'))
@@ -110,7 +110,7 @@
           actions.updateDraft({ table: v, leftColumn: s ? s.leftColumn : '', rightColumn: s ? s.rightColumn : '', cartesian: false });
         }, 'Table')
         : h('span', { class: 'reason' }, 'Every table in this data set is already combined into this table.'))];
-    if (!d.table) return parts;
+    if (!d.table || !choices.some(t => t.name === d.table)) return parts;
     const other = QE.loadTable(QE.findTableDef(dataset, d.table));
     const s = QE.suggestJoinKey(input, other);
     const left = QE.getColumn(input, d.leftColumn);
@@ -206,7 +206,7 @@
   function newCard(ctx) {
     const { state, results } = ctx;
     const n = state.recipe.steps.length + 1;
-    return h('li', { class: 'step selected' },
+    return h('li', { class: 'step editing' },
       h('div', { class: 'step-main' },
         h('span', { class: 'step-num' }, String(n)),
         h('span', null, h('span', { class: 'step-op' }, icon(state.draft.op), 'New ' + opLabel(state.draft.op).toLowerCase() + ' step'))),

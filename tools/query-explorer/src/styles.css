@@ -79,7 +79,10 @@ details.try summary{cursor:pointer; font-family:'Montserrat',sans-serif; font-we
 /* recipe */
 .steps{list-style:none; margin:0 0 14px; padding:0; display:flex; flex-direction:column; gap:8px;}
 .step{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 12px;}
-.step.selected{border-color:var(--teal); box-shadow:0 0 0 2px var(--teal-soft);}
+.step.selected{border-color:var(--teal); border-left-width:6px; box-shadow:0 0 0 2px var(--teal-soft);}
+.step.selected .step-num{background:var(--ink); color:var(--bg);}
+.step.selected .step-op::before{content:'\25B8\00a0';}
+.step.editing{border-color:var(--teal); border-style:dashed;}
 .step.off .step-main{opacity:.55;}
 .step-main{display:flex; gap:10px; align-items:flex-start; width:100%; text-align:left; background:none; border:0; padding:0; cursor:pointer;}
 .step-num{flex:none; width:26px; height:26px; border-radius:50%; border:0; background:var(--card-2); display:grid; place-items:center; font-family:'Montserrat',sans-serif; font-weight:700; font-size:.8rem; color:var(--ink); cursor:pointer;}
