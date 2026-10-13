@@ -400,6 +400,14 @@ The activities below are designed to be completed with a generative AI tool such
 
 ---
 
+### Activity 7.0 - Query Explorer
+
+*Explore the foundational operations of queries - filter, project, join, and aggregate - using this interactive tool.*
+
+https://kalendar.github.io/relational-thinking/query-explorer.html
+
+---
+
 ### Activity 7.1 - Concept Check: The Four Operations of Relational Thinking
 
 *This activity checks your understanding of the key ideas from Chapter 7. The AI will quiz you one question at a time, give feedback, and help fill in any gaps.*
