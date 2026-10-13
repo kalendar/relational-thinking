@@ -38,7 +38,7 @@
           [1, 1, 'Zach Bryan', '2026-06-12'],
           [2, 2, 'Billie Eilish', '2026-06-20'],
           [3, 5, 'Sabrina Carpenter', '2026-06-27'],
-          [4, 6, 'Tyler,  The Creator', '2026-07-08'],
+          [4, 6, 'Tyler, The Creator', '2026-07-08'],
           [5, 3, 'Chappell Roan', '2026-07-11'],
           [6, 8, 'Morgan Wallen', '2026-07-18'],
           [7, 7, 'Post Malone', '2026-07-25'],
