@@ -373,7 +373,25 @@ The goal is not the most normalized design - it's the most appropriate one.
 
 ## Interactive Activities
 
-The activities below are designed to be completed with a generative AI tool such as Claude (claude.ai) or ChatGPT. For each activity, copy the prompt in the gray box and paste it directly into your AI tool to begin an interactive study session.
+The activities below are designed to be completed with a generative AI tool such as Claude (claude.ai) or ChatGPT. For each activity, copy the prompt in the gray box and paste it directly into your AI tool to begin an interactive study session. Activity 5.0 is the one exception: it uses interactive tools instead of a prompt.
+
+---
+
+### Activity 5.0 - Table Splitters
+
+<blockquote>
+<div class="textbox shaded">
+
+<p>Practice normalization by splitting one messy spreadsheet into clean, linked tables. Each exercise gives you a flat table and asks you to move every fact into exactly one place, choose a key for each table, and link the tables together. Start with the first exercise and work your way up to the hardest.</p>
+
+<ul>
+<li><a href="https://kalendar.github.io/relational-thinking/gym-checkin-splitter.html">Gym Check-In Splitter</a> - the simplest: two tables</li>
+<li><a href="https://kalendar.github.io/relational-thinking/truck-rally-splitter.html">Truck Rally Splitter</a> - three tables</li>
+<li><a href="https://kalendar.github.io/relational-thinking/table-splitter.html">Table Splitter</a> - four tables</li>
+<li><a href="https://kalendar.github.io/relational-thinking/movie-night-splitter.html">Movie Night Splitter</a> - the trickiest: four tables, with a dependency hiding inside another</li>
+</ul>
+
+</div></blockquote>
 
 ---
 
