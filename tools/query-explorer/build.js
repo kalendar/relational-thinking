@@ -6,7 +6,7 @@ const SRC = path.join(__dirname, 'src');
 const OUT = path.join(__dirname, 'dist', 'query-explorer.html');
 
 // Load order matters: each file reads what earlier files put on window.QE.
-const SCRIPT_ORDER = ['engine.js', 'describe.js', 'visual.js', 'DATASETS', 'dom.js', 'table-view.js', 'recipe-view.js', 'animate.js', 'app.js'];
+const SCRIPT_ORDER = ['engine.js', 'describe.js', 'visual.js', 'narrate.js', 'DATASETS', 'dom.js', 'table-view.js', 'modal.js', 'recipe-view.js', 'animate.js', 'app.js'];
 
 function datasetFiles() {
   return fs.readdirSync(path.join(SRC, 'datasets')).filter(f => f.endsWith('.js')).sort().map(f => `datasets/${f}`);

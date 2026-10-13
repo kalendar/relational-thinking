@@ -8,7 +8,9 @@
 
   let nextId = 1;
   let animToken = 0;
-  const reducedByDefault = !!(root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  // Asked live (not cached) so a change in the device setting is respected.
+  const deviceWantsLessMotion = () => !!(root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const reducedByDefault = deviceWantsLessMotion();
 
   const state = {
     datasetId: DATASETS[0].id,
@@ -18,6 +20,7 @@
     draft: null,
     view: 'result', // 'result' | a table name
     reduceMotion: reducedByDefault,
+    explainJoins: true,
     showCollapsed: false,
     tryOpen: false,
     openHints: new Set(),
@@ -103,6 +106,7 @@
       render();
     },
     setReduceMotion(on) { state.reduceMotion = on; render(); },
+    setExplainJoins(on) { state.explainJoins = on; render(); },
     setShowCollapsed(on) { state.showCollapsed = on; render(); },
     replay() { state.animate = state.selected; render(); },
   };
@@ -119,6 +123,14 @@
       })));
   }
 
+  const MOTION_TITLE = 'Join walkthroughs keep their motion unless your device asks for less.';
+
+  function motionNote() {
+    if (!state.explainJoins) return null;
+    if (deviceWantsLessMotion()) return h('p', { class: 'motion-note' }, 'Your device asks for less motion, so join walkthroughs change instantly.');
+    return state.reduceMotion ? h('p', { class: 'motion-note' }, MOTION_TITLE) : null;
+  }
+
   function header(d) {
     return h('header', { class: 'top' },
       h('div', { class: 'top-row' },
@@ -127,9 +139,14 @@
           h('label', { for: 'dataset' }, 'Data set'),
           h('select', { id: 'dataset', 'data-focus-key': 'dataset', onchange: e => actions.setDataset(e.target.value) },
             DATASETS.map(x => h('option', { value: x.id, selected: x.id === d.id }, x.name)))),
-        h('label', { class: 'motion' },
-          h('input', { type: 'checkbox', 'data-focus-key': 'motion', checked: state.reduceMotion, onchange: e => actions.setReduceMotion(e.target.checked) }),
-          'Reduce motion')),
+        h('div', { class: 'toggles' },
+          h('label', { class: 'motion' },
+            h('input', { type: 'checkbox', 'data-focus-key': 'explain', checked: state.explainJoins, onchange: e => actions.setExplainJoins(e.target.checked) }),
+            'Explain joins step by step'),
+          h('label', { class: 'motion', title: MOTION_TITLE },
+            h('input', { type: 'checkbox', 'data-focus-key': 'motion', checked: state.reduceMotion, onchange: e => actions.setReduceMotion(e.target.checked) }),
+            'Reduce motion'),
+          motionNote())),
       h('p', { class: 'subline' }, d.description, h('span', { class: 'note' }, ' · Real names, made-up numbers. All data is invented for practice.')),
       tryThis(d));
   }
@@ -192,6 +209,7 @@
   }
 
   function render() {
+    QE.closeModal(); // a dialog from an older render must never outlive it
     animToken++;
     const active = document.activeElement;
     const focusKey = state.focus || (active && active.dataset ? active.dataset.focusKey : null);
@@ -220,12 +238,27 @@
     const holder = document.getElementById('table-holder');
     if (!holder || state.view !== 'result' || n === 0 || results[n].status !== 'ok') return;
     const token = animToken;
+    const step = state.recipe.steps[n - 1];
+    const before = results[n - 1].table;
+    let walkthrough;
+    if (step.op === 'join' && state.explainJoins) {
+      const texts = QE.joinNarration({ step, before, other: QE.loadTable(QE.findTableDef(d, step.table)), result: results[n] });
+      walkthrough = {
+        texts,
+        instant: deviceWantsLessMotion(),
+        show: t => {
+          const i = texts.indexOf(t);
+          return QE.showModal({ title: t.title, body: t.body, step: i, steps: texts.length, stepText: `${i + 1} of ${texts.length}` });
+        },
+      };
+    }
     QE.playStep(holder, {
-      before: results[n - 1].table,
+      before,
       result: results[n],
-      step: state.recipe.steps[n - 1],
+      step,
       dataset: d,
       reduceMotion: state.reduceMotion,
+      walkthrough,
       isCurrent: () => token === animToken,
     }).then(done => {
       if (done) holder.replaceChildren(finalTable(d, results, n, true));

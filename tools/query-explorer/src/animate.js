@@ -80,11 +80,32 @@
     },
   };
 
-  async function playStep(holder, { before, result, step, dataset, reduceMotion, isCurrent }) {
-    if (reduceMotion) return true;
+  // Guided join: a dialog before each part of the animation. Returns true when
+  // the final table should be shown, false when a newer render took over.
+  async function walk(holder, before, phases, wt, isCurrent) {
+    const WAITS = [700, 1500]; // a short look at each part before the next dialog
+    holder.classList.add('walk');
+    if (wt.instant) holder.classList.add('instant');
+    holder.replaceChildren(renderTable(before)); // show the table as it was
+    for (let i = 0; i <= phases.length; i++) {
+      if (!isCurrent()) return false;
+      const answer = await wt.show(wt.texts[i]);
+      if (!isCurrent()) return false;
+      if (answer === 'skip') return true;
+      if (i === phases.length) break;
+      phases[i][0]();
+      if (!wt.instant) await wait(WAITS[i] || 700);
+    }
+    return isCurrent();
+  }
+
+  async function playStep(holder, { before, result, step, dataset, reduceMotion, isCurrent, walkthrough }) {
+    const wt = step.op === 'join' && walkthrough ? walkthrough : null;
+    if (reduceMotion && !wt) return true;
     const other = step.op === 'join' ? QE.loadTable(QE.findTableDef(dataset, step.table)) : null;
     const plan = visualPlan(step, before, result, other);
     const phases = PLAYERS[step.op](holder, before, plan, other, step);
+    if (wt) return walk(holder, before, phases, wt, isCurrent);
     for (const [run, ms] of phases) {
       if (!isCurrent()) return false;
       run();

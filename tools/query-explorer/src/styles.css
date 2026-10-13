@@ -55,7 +55,9 @@ input[type=checkbox]{accent-color:var(--teal); width:16px; height:16px;}
 .picker{display:flex; align-items:center; gap:8px;}
 .picker label{font-family:'Montserrat',sans-serif; font-weight:600; font-size:.75rem; text-transform:uppercase; letter-spacing:.12em; color:var(--muted);}
 .picker select{font-weight:700;}
-.motion{margin-left:auto; display:flex; align-items:center; gap:6px; font-size:.92rem;}
+.toggles{margin-left:auto; display:flex; flex-wrap:wrap; align-items:center; gap:6px 18px;}
+.motion{display:flex; align-items:center; gap:6px; font-size:.92rem;}
+.motion-note{flex-basis:100%; text-align:right; margin:0; color:var(--muted); font-size:.82rem;}
 .subline{margin:6px 0 0; color:var(--body);}
 .note{color:var(--muted); font-size:.88rem;}
 details.try{margin-top:12px; max-width:920px; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:10px 14px;}
@@ -143,10 +145,29 @@ tr.detail > td{background:var(--card); padding:6px 12px 10px 32px;}
 tr.detail .table-wrap{max-height:none; opacity:.8;}
 .reduce-motion table.data td{transition:background-color 1.2s;}
 .reduce-motion .join-stage .right{transition:none;}
+/* the join walkthrough keeps its motion even when "Reduce motion" is on */
+.reduce-motion .walk .join-stage .right{transition:transform 1.5s, opacity 1.5s;}
+.reduce-motion .walk tr.fade td{transition:opacity 1.2s;}
+/* the device itself asked for less motion: states change at once */
+.instant .join-stage .right, .instant table.data td, .instant tr.fade td{transition:none !important;}
+
+/* guided walkthrough dialog */
+.modal-backdrop{position:fixed; inset:0; z-index:50; display:flex; align-items:flex-end; justify-content:center; padding:16px; background:rgba(18,20,23,.3);}
+.modal{width:100%; max-width:520px; max-height:80vh; overflow:auto; background:var(--bg); color:var(--body); border:1px solid var(--line); border-top:5px solid var(--teal); border-radius:var(--radius); box-shadow:0 10px 30px rgba(0,0,0,.25); padding:16px 20px 18px;}
+.modal-head{display:flex; align-items:center; justify-content:space-between; gap:12px;}
+.modal h2{font-size:1.05rem; font-weight:700;}
+.modal-dots{display:flex; gap:6px; flex:none;}
+.modal-dots .dot{width:10px; height:10px; border-radius:50%; background:var(--card-2); border:1px solid var(--muted);}
+.modal-dots .dot.on{background:var(--teal); border-color:var(--teal);}
+.modal-step{font-size:.82rem; color:var(--muted);}
+.modal-body{margin:10px 0 14px; overflow-wrap:anywhere;}
+.modal-actions{display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px;}
+.btn-link{background:none; border:0; padding:6px 4px; cursor:pointer; color:var(--teal-ink); text-decoration:underline; font-weight:600;}
 
 @media (max-width:900px){
   .top{padding:16px;}
   .layout{grid-template-columns:minmax(0,1fr); padding:16px;}
-  .motion{margin-left:0;}
+  .toggles{margin-left:0;}
+  .motion-note{text-align:left;}
   .join-stage{grid-template-columns:minmax(0,1fr);}
 }

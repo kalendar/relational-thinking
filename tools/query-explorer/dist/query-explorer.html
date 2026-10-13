@@ -63,7 +63,9 @@ input[type=checkbox]{accent-color:var(--teal); width:16px; height:16px;}
 .picker{display:flex; align-items:center; gap:8px;}
 .picker label{font-family:'Montserrat',sans-serif; font-weight:600; font-size:.75rem; text-transform:uppercase; letter-spacing:.12em; color:var(--muted);}
 .picker select{font-weight:700;}
-.motion{margin-left:auto; display:flex; align-items:center; gap:6px; font-size:.92rem;}
+.toggles{margin-left:auto; display:flex; flex-wrap:wrap; align-items:center; gap:6px 18px;}
+.motion{display:flex; align-items:center; gap:6px; font-size:.92rem;}
+.motion-note{flex-basis:100%; text-align:right; margin:0; color:var(--muted); font-size:.82rem;}
 .subline{margin:6px 0 0; color:var(--body);}
 .note{color:var(--muted); font-size:.88rem;}
 details.try{margin-top:12px; max-width:920px; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:10px 14px;}
@@ -151,11 +153,30 @@ tr.detail > td{background:var(--card); padding:6px 12px 10px 32px;}
 tr.detail .table-wrap{max-height:none; opacity:.8;}
 .reduce-motion table.data td{transition:background-color 1.2s;}
 .reduce-motion .join-stage .right{transition:none;}
+/* the join walkthrough keeps its motion even when "Reduce motion" is on */
+.reduce-motion .walk .join-stage .right{transition:transform 1.5s, opacity 1.5s;}
+.reduce-motion .walk tr.fade td{transition:opacity 1.2s;}
+/* the device itself asked for less motion: states change at once */
+.instant .join-stage .right, .instant table.data td, .instant tr.fade td{transition:none !important;}
+
+/* guided walkthrough dialog */
+.modal-backdrop{position:fixed; inset:0; z-index:50; display:flex; align-items:flex-end; justify-content:center; padding:16px; background:rgba(18,20,23,.3);}
+.modal{width:100%; max-width:520px; max-height:80vh; overflow:auto; background:var(--bg); color:var(--body); border:1px solid var(--line); border-top:5px solid var(--teal); border-radius:var(--radius); box-shadow:0 10px 30px rgba(0,0,0,.25); padding:16px 20px 18px;}
+.modal-head{display:flex; align-items:center; justify-content:space-between; gap:12px;}
+.modal h2{font-size:1.05rem; font-weight:700;}
+.modal-dots{display:flex; gap:6px; flex:none;}
+.modal-dots .dot{width:10px; height:10px; border-radius:50%; background:var(--card-2); border:1px solid var(--muted);}
+.modal-dots .dot.on{background:var(--teal); border-color:var(--teal);}
+.modal-step{font-size:.82rem; color:var(--muted);}
+.modal-body{margin:10px 0 14px; overflow-wrap:anywhere;}
+.modal-actions{display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px;}
+.btn-link{background:none; border:0; padding:6px 4px; cursor:pointer; color:var(--teal-ink); text-decoration:underline; font-weight:600;}
 
 @media (max-width:900px){
   .top{padding:16px;}
   .layout{grid-template-columns:minmax(0,1fr); padding:16px;}
-  .motion{margin-left:0;}
+  .toggles{margin-left:0;}
+  .motion-note{text-align:left;}
   .join-stage{grid-template-columns:minmax(0,1fr);}
 }
 
@@ -677,6 +698,85 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
 
   const api = { COLORS, colorClass, visualPlan };
   if (node) module.exports = api;
+  else root.QE = Object.assign(root.QE || {}, api);
+})(this);
+
+// ---- narrate.js ----
+// Query Explorer: plain-language text for the guided join walkthrough. No DOM.
+(function (root) {
+  'use strict';
+
+  const n = x => x.toLocaleString('en-US');
+  const rows = x => `${n(x)} ${x === 1 ? 'row' : 'rows'}`;
+  const cols = x => `${n(x)} ${x === 1 ? 'column' : 'columns'}`;
+  const size = t => `${rows(t.rows.length)} × ${cols(t.columns.length)}`;
+  const title = i => `Join, step ${i} of 3`;
+
+  function tableLabel(t) {
+    return t.sources && t.sources.length > 1 ? 'your table so far' : `**${t.name}**`;
+  }
+
+  // Returns three { title, body } objects, one for each pause in the join animation.
+  function joinNarration({ step, before, other, result }) {
+    const trace = result.trace;
+    const out = result.table;
+    const left = tableLabel(before);
+    const right = `**${other.name}**`;
+    const leftN = before.rows.length;
+    const rightN = other.rows.length;
+    const sizeLine = `The result has **${size(out)}**.`;
+    let first;
+    let second;
+    let third;
+
+    if (trace.cartesian) {
+      const product = leftN * rightN;
+      first = `You are combining ${left} with ${right}. You chose not to match on anything, so every row of one table will be paired with every row of the other.`;
+      second = product === 0
+        ? `One of the tables has no rows, so there is nothing to pair up and the result will be empty.`
+        : `Every row is paired with every row: ${n(leftN)} × ${n(rightN)} = ${rows(product)}. Most of these rows are meaningless, because nothing says the rows belong together.`;
+      third = product === 0
+        ? `The result is empty. ${sizeLine}`
+        : `Each pair became one wider row. ${sizeLine} Because nothing was matched, most of those rows are meaningless. Try matching on a column the two tables share.`;
+    } else {
+      const same = step.leftColumn === step.rightColumn;
+      const how = same
+        ? `It will compare the \`${step.leftColumn}\` column in both tables.`
+        : `It will do this by matching \`${step.leftColumn}\` to \`${step.rightColumn}\`.`;
+      first = `You are combining ${left} with ${right}. Rows will be paired up when their values in the matching columns are the same. ${how}`;
+
+      const matchedLeft = leftN - trace.unmatchedLeft.length;
+      const matchedRight = rightN - trace.unmatchedRight.length;
+      const lostLeft = trace.unmatchedLeft.length;
+      const lostRight = trace.unmatchedRight.length;
+      if (trace.pairs.length === 0) {
+        second = `Nothing matched. No row in ${left} has a partner in ${right}, so every row would be dropped and the result will be empty.`;
+        third = `Nothing matched, so the result is empty. ${sizeLine} Check the columns you picked. They should hold the same kind of value, like an id that both tables share.`;
+      } else {
+        const found = `${n(matchedLeft)} of ${rows(leftN)} in ${left} found a match, and ${n(matchedRight)} of ${rows(rightN)} in ${right} found a match.`;
+        let dropped;
+        if (!lostLeft && !lostRight) dropped = 'Every row found a partner, so no rows will be dropped.';
+        else {
+          const parts = [];
+          if (lostLeft) parts.push(`${rows(lostLeft)} in ${left} found no match`);
+          if (lostRight) parts.push(`${rows(lostRight)} in ${right} found no match`);
+          const one = lostLeft + lostRight === 1;
+          dropped = `${parts.join(' and ')}. ${one ? 'That row has' : 'Those rows have'} a dashed outline and will be dropped, because only matching rows are kept.`;
+        }
+        second = `Rows with the same color and number are partners. ${found} ${dropped}`;
+        third = `Each matched pair became one wider row. ${sizeLine}`
+          + (same ? ` The \`${step.leftColumn}\` column appears only once, because both tables had it.` : '');
+      }
+    }
+    return [
+      { title: title(1), body: first },
+      { title: title(2), body: second },
+      { title: title(3), body: third },
+    ];
+  }
+
+  const api = { joinNarration };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.QE = Object.assign(root.QE || {}, api);
 })(this);
 
@@ -2075,6 +2175,82 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
   root.QE = Object.assign(QE, { renderTable, sizeText, renderCounter });
 })(this);
 
+// ---- modal.js ----
+// Query Explorer: one small dialog at a time, used by the join walkthrough.
+(function (root) {
+  'use strict';
+  const QE = root.QE;
+  const { h, rich } = QE;
+
+  let current = null; // { backdrop, finish }
+
+  function closeModal() {
+    if (current) current.finish('skip');
+  }
+
+  // Resolves to 'ok' or 'skip'. Escape and "Skip the rest" both mean 'skip'.
+  function showModal({ title, body, okLabel = 'Got it', skipLabel = 'Skip the rest', stepText = null, step = null, steps = null }) {
+    closeModal();
+    return new Promise(resolve => {
+      const previous = document.activeElement;
+      const appEl = document.getElementById('app');
+      const titleId = 'qe-modal-title';
+      const bodyId = 'qe-modal-body';
+      let done = false;
+
+      function finish(answer) {
+        if (done) return;
+        done = true;
+        current = null;
+        document.removeEventListener('keydown', onKey, true);
+        document.removeEventListener('focusin', onFocusIn, true);
+        backdrop.remove();
+        if (appEl) appEl.inert = false;
+        if (previous && previous.isConnected && typeof previous.focus === 'function') previous.focus();
+        resolve(answer);
+      }
+
+      const ok = h('button', { class: 'btn primary', type: 'button', onclick: () => finish('ok') }, okLabel);
+      const skip = h('button', { class: 'btn-link', type: 'button', onclick: () => finish('skip') }, skipLabel);
+      const dots = step !== null && steps
+        ? h('span', { class: 'modal-dots', 'aria-hidden': 'true' }, Array.from({ length: steps }, (_, i) => h('span', { class: 'dot' + (i === step ? ' on' : '') })))
+        : (stepText ? h('span', { class: 'modal-step' }, stepText) : null);
+      const dialog = h('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': titleId, 'aria-describedby': bodyId },
+        h('div', { class: 'modal-head' }, h('h2', { id: titleId }, title), dots),
+        h('p', { id: bodyId, class: 'modal-body' }, rich(body)),
+        h('div', { class: 'modal-actions' }, ok, skip));
+      const backdrop = h('div', { class: 'modal-backdrop' }, dialog);
+
+      function onKey(e) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          finish('skip');
+        } else if (e.key === 'Tab') {
+          e.preventDefault();
+          const order = [ok, skip];
+          const i = order.indexOf(document.activeElement);
+          const next = e.shiftKey ? (i <= 0 ? order.length - 1 : i - 1) : (i === order.length - 1 ? 0 : i + 1);
+          order[next].focus();
+        }
+      }
+      // If focus ever lands outside the dialog, bring it back.
+      function onFocusIn(e) {
+        if (!dialog.contains(e.target)) ok.focus();
+      }
+
+      current = { backdrop, finish };
+      if (appEl) appEl.inert = true;
+      document.body.append(backdrop);
+      document.addEventListener('keydown', onKey, true);
+      document.addEventListener('focusin', onFocusIn, true);
+      ok.focus();
+    });
+  }
+
+  root.QE = Object.assign(QE, { showModal, closeModal });
+})(this);
+
 // ---- recipe-view.js ----
 // Query Explorer: the recipe panel (step cards and step editors).
 (function (root) {
@@ -2389,11 +2565,32 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
     },
   };
 
-  async function playStep(holder, { before, result, step, dataset, reduceMotion, isCurrent }) {
-    if (reduceMotion) return true;
+  // Guided join: a dialog before each part of the animation. Returns true when
+  // the final table should be shown, false when a newer render took over.
+  async function walk(holder, before, phases, wt, isCurrent) {
+    const WAITS = [700, 1500]; // a short look at each part before the next dialog
+    holder.classList.add('walk');
+    if (wt.instant) holder.classList.add('instant');
+    holder.replaceChildren(renderTable(before)); // show the table as it was
+    for (let i = 0; i <= phases.length; i++) {
+      if (!isCurrent()) return false;
+      const answer = await wt.show(wt.texts[i]);
+      if (!isCurrent()) return false;
+      if (answer === 'skip') return true;
+      if (i === phases.length) break;
+      phases[i][0]();
+      if (!wt.instant) await wait(WAITS[i] || 700);
+    }
+    return isCurrent();
+  }
+
+  async function playStep(holder, { before, result, step, dataset, reduceMotion, isCurrent, walkthrough }) {
+    const wt = step.op === 'join' && walkthrough ? walkthrough : null;
+    if (reduceMotion && !wt) return true;
     const other = step.op === 'join' ? QE.loadTable(QE.findTableDef(dataset, step.table)) : null;
     const plan = visualPlan(step, before, result, other);
     const phases = PLAYERS[step.op](holder, before, plan, other, step);
+    if (wt) return walk(holder, before, phases, wt, isCurrent);
     for (const [run, ms] of phases) {
       if (!isCurrent()) return false;
       run();
@@ -2416,7 +2613,9 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
 
   let nextId = 1;
   let animToken = 0;
-  const reducedByDefault = !!(root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  // Asked live (not cached) so a change in the device setting is respected.
+  const deviceWantsLessMotion = () => !!(root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const reducedByDefault = deviceWantsLessMotion();
 
   const state = {
     datasetId: DATASETS[0].id,
@@ -2426,6 +2625,7 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
     draft: null,
     view: 'result', // 'result' | a table name
     reduceMotion: reducedByDefault,
+    explainJoins: true,
     showCollapsed: false,
     tryOpen: false,
     openHints: new Set(),
@@ -2511,6 +2711,7 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
       render();
     },
     setReduceMotion(on) { state.reduceMotion = on; render(); },
+    setExplainJoins(on) { state.explainJoins = on; render(); },
     setShowCollapsed(on) { state.showCollapsed = on; render(); },
     replay() { state.animate = state.selected; render(); },
   };
@@ -2527,6 +2728,14 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
       })));
   }
 
+  const MOTION_TITLE = 'Join walkthroughs keep their motion unless your device asks for less.';
+
+  function motionNote() {
+    if (!state.explainJoins) return null;
+    if (deviceWantsLessMotion()) return h('p', { class: 'motion-note' }, 'Your device asks for less motion, so join walkthroughs change instantly.');
+    return state.reduceMotion ? h('p', { class: 'motion-note' }, MOTION_TITLE) : null;
+  }
+
   function header(d) {
     return h('header', { class: 'top' },
       h('div', { class: 'top-row' },
@@ -2535,9 +2744,14 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
           h('label', { for: 'dataset' }, 'Data set'),
           h('select', { id: 'dataset', 'data-focus-key': 'dataset', onchange: e => actions.setDataset(e.target.value) },
             DATASETS.map(x => h('option', { value: x.id, selected: x.id === d.id }, x.name)))),
-        h('label', { class: 'motion' },
-          h('input', { type: 'checkbox', 'data-focus-key': 'motion', checked: state.reduceMotion, onchange: e => actions.setReduceMotion(e.target.checked) }),
-          'Reduce motion')),
+        h('div', { class: 'toggles' },
+          h('label', { class: 'motion' },
+            h('input', { type: 'checkbox', 'data-focus-key': 'explain', checked: state.explainJoins, onchange: e => actions.setExplainJoins(e.target.checked) }),
+            'Explain joins step by step'),
+          h('label', { class: 'motion', title: MOTION_TITLE },
+            h('input', { type: 'checkbox', 'data-focus-key': 'motion', checked: state.reduceMotion, onchange: e => actions.setReduceMotion(e.target.checked) }),
+            'Reduce motion'),
+          motionNote())),
       h('p', { class: 'subline' }, d.description, h('span', { class: 'note' }, ' · Real names, made-up numbers. All data is invented for practice.')),
       tryThis(d));
   }
@@ -2600,6 +2814,7 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
   }
 
   function render() {
+    QE.closeModal(); // a dialog from an older render must never outlive it
     animToken++;
     const active = document.activeElement;
     const focusKey = state.focus || (active && active.dataset ? active.dataset.focusKey : null);
@@ -2628,12 +2843,27 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
     const holder = document.getElementById('table-holder');
     if (!holder || state.view !== 'result' || n === 0 || results[n].status !== 'ok') return;
     const token = animToken;
+    const step = state.recipe.steps[n - 1];
+    const before = results[n - 1].table;
+    let walkthrough;
+    if (step.op === 'join' && state.explainJoins) {
+      const texts = QE.joinNarration({ step, before, other: QE.loadTable(QE.findTableDef(d, step.table)), result: results[n] });
+      walkthrough = {
+        texts,
+        instant: deviceWantsLessMotion(),
+        show: t => {
+          const i = texts.indexOf(t);
+          return QE.showModal({ title: t.title, body: t.body, step: i, steps: texts.length, stepText: `${i + 1} of ${texts.length}` });
+        },
+      };
+    }
     QE.playStep(holder, {
-      before: results[n - 1].table,
+      before,
       result: results[n],
-      step: state.recipe.steps[n - 1],
+      step,
       dataset: d,
       reduceMotion: state.reduceMotion,
+      walkthrough,
       isCurrent: () => token === animToken,
     }).then(done => {
       if (done) holder.replaceChildren(finalTable(d, results, n, true));
