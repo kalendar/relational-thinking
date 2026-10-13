@@ -1,0 +1,2898 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Query Explorer</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Nunito+Sans:wght@300;400;600;700;800&display=swap">
+<style>
+:root{
+  --bg:#FFFDFB; --card:#f7f7f6; --card-2:#efece6; --line:#e5e2da;
+  --ink:#121417; --body:#2b2e33; --muted:#6f6357;
+  --teal:#117c70; --teal-soft:#e3efec; --teal-ink:#0c5850;
+  --amber:#a15c00; --amber-soft:#fbeed9; --amber-ink:#7a4600;
+  --indigo:#4d4f8f; --indigo-soft:#e7e7f5; --indigo-ink:#37395f;
+  --rose:#a24a63; --rose-soft:#f6e5ea; --rose-ink:#7a374a;
+  --good:#166b45; --good-soft:#e0f2e8;
+  --bad:#b3261e; --bad-soft:#fbe4e2;
+  --warn:#a15c00; --warn-soft:#fbeed9;
+  --on-teal:#fff;
+  --radius:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#18191b; --card:#212327; --card-2:#26282d; --line:#34373d;
+    --ink:#f2f1ee; --body:#d7d4cd; --muted:#a8a296;
+    --teal:#3fc1af; --teal-soft:rgba(63,193,175,.14); --teal-ink:#8fe3d6;
+    --amber:#e3a13d; --amber-soft:rgba(227,161,61,.14); --amber-ink:#f0bd6f;
+    --indigo:#9497e0; --indigo-soft:rgba(148,151,224,.16); --indigo-ink:#b6b8ec;
+    --rose:#e28aa0; --rose-soft:rgba(226,138,160,.16); --rose-ink:#eeb0bf;
+    --good:#5cd196; --good-soft:rgba(92,209,150,.14);
+    --bad:#f2897f; --bad-soft:rgba(242,137,127,.16);
+    --warn:#e3a13d; --warn-soft:rgba(227,161,61,.14);
+    --on-teal:#18191b;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#18191b; --card:#212327; --card-2:#26282d; --line:#34373d;
+  --ink:#f2f1ee; --body:#d7d4cd; --muted:#a8a296;
+  --teal:#3fc1af; --teal-soft:rgba(63,193,175,.14); --teal-ink:#8fe3d6;
+  --amber:#e3a13d; --amber-soft:rgba(227,161,61,.14); --amber-ink:#f0bd6f;
+  --indigo:#9497e0; --indigo-soft:rgba(148,151,224,.16); --indigo-ink:#b6b8ec;
+  --rose:#e28aa0; --rose-soft:rgba(226,138,160,.16); --rose-ink:#eeb0bf;
+  --good:#5cd196; --good-soft:rgba(92,209,150,.14);
+  --bad:#f2897f; --bad-soft:rgba(242,137,127,.16);
+  --warn:#e3a13d; --warn-soft:rgba(227,161,61,.14);
+  --on-teal:#18191b;
+}
+
+*{box-sizing:border-box;}
+body{margin:0; background:var(--bg); color:var(--body); font-family:'Nunito Sans',system-ui,sans-serif; font-size:16px; line-height:1.5;}
+h1,h2,h3{font-family:'Montserrat',system-ui,sans-serif; color:var(--ink); margin:0;}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em; background:var(--card-2); color:var(--ink); padding:.05em .35em; border-radius:4px;}
+button,select,input{font:inherit; color:inherit;}
+:focus-visible{outline:3px solid var(--indigo); outline-offset:2px;}
+.sr-only{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap;}
+select,input[type=text],input[type=number],input[type=date]{background:var(--card); border:1px solid var(--line); border-radius:8px; padding:6px 10px; max-width:100%;}
+input[type=checkbox]{accent-color:var(--teal); width:16px; height:16px;}
+
+/* header */
+.top{padding:20px 24px 14px; border-bottom:1px solid var(--line);}
+.top-row{display:flex; flex-wrap:wrap; align-items:center; gap:12px 20px;}
+.top h1{font-weight:300; font-size:1.8rem; letter-spacing:-.01em;}
+.picker{display:flex; align-items:center; gap:8px;}
+.picker label{font-family:'Montserrat',sans-serif; font-weight:600; font-size:.75rem; text-transform:uppercase; letter-spacing:.12em; color:var(--muted);}
+.picker select{font-weight:700;}
+.toggles{margin-left:auto; display:flex; flex-wrap:wrap; align-items:center; gap:6px 18px;}
+.motion{display:flex; align-items:center; gap:6px; font-size:.92rem;}
+.motion-note{flex-basis:100%; text-align:right; margin:0; color:var(--muted); font-size:.82rem;}
+.subline{margin:6px 0 0; color:var(--body);}
+.note{color:var(--muted); font-size:.88rem;}
+details.try{margin-top:12px; max-width:920px; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:10px 14px;}
+details.try summary{cursor:pointer; font-family:'Montserrat',sans-serif; font-weight:600; color:var(--ink);}
+.try ol{margin:10px 0 4px; padding-left:1.4em;}
+.try li{margin-bottom:10px;}
+.hint{margin:6px 0 0; padding:8px 12px; background:var(--teal-soft); border-left:4px solid var(--teal); border-radius:6px;}
+
+/* buttons */
+.btn{border:1px solid var(--line); background:var(--card); border-radius:8px; padding:6px 12px; cursor:pointer; font-weight:600;}
+.btn:hover{background:var(--card-2);}
+.btn.primary{background:var(--teal); border-color:var(--teal); color:var(--on-teal);}
+.btn.primary:disabled{opacity:.45; cursor:not-allowed;}
+.btn.small{padding:3px 9px; font-size:.85rem;}
+
+/* layout */
+.layout{display:grid; grid-template-columns:minmax(300px,390px) minmax(0,1fr); gap:24px; padding:20px 24px 60px; align-items:start;}
+.recipe,.result{min-width:0;}
+.recipe h2,.result h2{font-size:.78rem; text-transform:uppercase; letter-spacing:.14em; color:var(--muted); font-weight:600; margin-bottom:10px;}
+
+/* recipe */
+.steps{list-style:none; margin:0 0 14px; padding:0; display:flex; flex-direction:column; gap:8px;}
+.step{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 12px;}
+.step.selected{border-color:var(--teal); border-left-width:6px; box-shadow:0 0 0 2px var(--teal-soft);}
+.step.selected .step-num{background:var(--ink); color:var(--bg);}
+.step.selected .step-op::before{content:'\25B8\00a0';}
+.step.editing{border-color:var(--teal); border-style:dashed;}
+.step.off .step-main{opacity:.55;}
+.step-main{display:flex; gap:10px; align-items:flex-start; width:100%; text-align:left; background:none; border:0; padding:0; cursor:pointer;}
+.step-num{flex:none; width:26px; height:26px; border-radius:50%; border:0; background:var(--card-2); display:grid; place-items:center; font-family:'Montserrat',sans-serif; font-weight:700; font-size:.8rem; color:var(--ink); cursor:pointer;}
+.step-op{display:flex; align-items:center; gap:5px; font-family:'Montserrat',sans-serif; font-weight:600; font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted);}
+.step-text{display:block;}
+.step-tools{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; padding-left:36px;}
+.warn-badge{display:block; margin:8px 0 0 36px; padding:6px 10px; background:var(--warn-soft); color:var(--amber-ink); border-radius:6px; font-size:.9rem;}
+.ops{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+.op-btn{display:flex; align-items:center; justify-content:center; gap:6px; padding:10px; border-radius:10px; border:1px solid var(--line); background:var(--card); font-family:'Montserrat',sans-serif; font-weight:600; color:var(--ink); cursor:pointer;}
+.op-btn:hover{background:var(--teal-soft); border-color:var(--teal);}
+.icon{width:16px; height:16px; flex:none;}
+.editor{margin-top:10px; padding:10px 0 0 36px; border-top:1px dashed var(--line); display:flex; flex-direction:column; gap:10px;}
+.editor .row{display:flex; flex-wrap:wrap; align-items:center; gap:8px;}
+.editor fieldset{border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin:0;}
+.editor legend{font-size:.85rem; color:var(--muted); padding:0 4px;}
+.checks{display:flex; flex-direction:column; gap:4px; max-height:220px; overflow:auto;}
+.checks label{display:flex; align-items:center; gap:6px;}
+.reason{font-size:.88rem; color:var(--muted); margin:0;}
+.suggested{font-size:.82rem; color:var(--good); font-weight:700;}
+
+/* result */
+.tabs{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;}
+.tab{border:1px solid var(--line); background:var(--card); border-radius:999px; padding:4px 12px; cursor:pointer; font-size:.9rem;}
+.tab[aria-selected="true"]{background:var(--ink); color:var(--bg); border-color:var(--ink);}
+.counter-row{display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-bottom:10px;}
+.counter{margin:0; font-family:'Montserrat',sans-serif; color:var(--muted);}
+.counter strong{color:var(--ink);}
+.alert{margin:0 0 10px; padding:8px 12px; border-radius:8px; background:var(--warn-soft); color:var(--amber-ink);}
+.alert.bad{background:var(--bad-soft); color:var(--bad);}
+#table-holder{scroll-margin-top:12px;}
+.table-wrap{overflow:auto; max-height:70vh; border:1px solid var(--line); border-radius:10px; background:var(--bg);}
+table.data{border-collapse:collapse; width:max-content; min-width:100%; font-size:.92rem;}
+table.data th{position:sticky; top:0; z-index:1; background:var(--card-2); color:var(--ink); text-align:left; padding:8px 12px; border-bottom:1px solid var(--line); white-space:nowrap;}
+table.data td{padding:6px 12px; border-bottom:1px solid var(--line); white-space:nowrap; transition:background-color .6s, opacity .4s, padding .4s, font-size .4s, line-height .4s;}
+table.data .num{text-align:right; font-variant-numeric:tabular-nums;}
+table.data td.empty{text-align:center; color:var(--muted); padding:24px; white-space:normal;}
+.badge{font-size:.8em; margin-left:4px;}
+.tag{display:inline-block; font-size:.72rem; font-weight:700; padding:1px 7px; border-radius:999px; margin-right:6px; background:var(--card-2); color:var(--ink); text-decoration:none;}
+
+/* highlight and animation states */
+tr.keep td{background:var(--good-soft);}
+tr.drop td{background:var(--bad-soft); color:var(--bad); text-decoration:line-through;}
+tr.collapse td{padding-top:0; padding-bottom:0; font-size:0; line-height:0; opacity:0; border-bottom-width:0;}
+.col-drop{background:var(--card-2) !important; color:var(--muted) !important; text-decoration:line-through;}
+.col-collapse{font-size:0 !important; padding-left:0 !important; padding-right:0 !important; opacity:0;}
+tr.nomatch td{outline:2px dashed var(--bad); outline-offset:-2px;}
+tr.fade td{opacity:.15; transition:opacity 1.2s;}
+tr.c0 td{background:var(--teal-soft);}
+tr.c1 td{background:var(--amber-soft);}
+tr.c2 td{background:var(--indigo-soft);}
+tr.c3 td{background:var(--rose-soft);}
+tr.c4 td{background:var(--good-soft);}
+.table-wrap:not(.highlight) tr.hl td{background:transparent; transition:background-color 1.2s;}
+.join-stage{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+.join-stage h3{font-size:.85rem; margin:0 0 6px;}
+.join-stage .right{transition:transform 1.5s, opacity 1.5s;}
+.join-stage.merge .right{transform:translateX(-40px); opacity:.35;}
+tr.detail > td{background:var(--card); padding:6px 12px 10px 32px;}
+tr.detail .table-wrap{max-height:none; opacity:.8;}
+.reduce-motion table.data td{transition:background-color 1.2s;}
+.reduce-motion .join-stage .right{transition:none;}
+/* the join walkthrough keeps its motion even when "Reduce motion" is on */
+.reduce-motion .walk .join-stage .right{transition:transform 1.5s, opacity 1.5s;}
+.reduce-motion .walk tr.fade td{transition:opacity 1.2s;}
+/* the device itself asked for less motion: states change at once */
+.instant .join-stage .right, .instant table.data td, .instant tr.fade td{transition:none !important;}
+
+/* guided walkthrough dialog */
+.modal-backdrop{position:fixed; inset:0; z-index:50; display:flex; align-items:flex-end; justify-content:center; padding:16px; background:rgba(18,20,23,.3);}
+.modal{width:100%; max-width:520px; max-height:80vh; overflow:auto; background:var(--bg); color:var(--body); border:1px solid var(--line); border-top:5px solid var(--teal); border-radius:var(--radius); box-shadow:0 10px 30px rgba(0,0,0,.25); padding:16px 20px 18px;}
+.modal-head{display:flex; align-items:center; justify-content:space-between; gap:12px;}
+.modal h2{font-size:1.05rem; font-weight:700;}
+.modal-dots{display:flex; gap:6px; flex:none;}
+.modal-dots .dot{width:10px; height:10px; border-radius:50%; background:var(--card-2); border:1px solid var(--muted);}
+.modal-dots .dot.on{background:var(--teal); border-color:var(--teal);}
+.modal-step{font-size:.82rem; color:var(--muted);}
+.modal-body{margin:10px 0 14px; overflow-wrap:anywhere;}
+.modal-actions{display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px;}
+.btn-link{background:none; border:0; padding:6px 4px; cursor:pointer; color:var(--teal-ink); text-decoration:underline; font-weight:600;}
+
+@media (max-width:900px){
+  .top{padding:16px;}
+  .layout{grid-template-columns:minmax(0,1fr); padding:16px;}
+  .toggles{margin-left:0;}
+  .motion-note{text-align:left;}
+  .join-stage{grid-template-columns:minmax(0,1fr);}
+}
+
+</style>
+</head>
+<body>
+<div id="app"></div>
+<noscript>This tool needs JavaScript turned on.</noscript>
+<script>
+// ---- engine.js ----
+// Query Explorer engine: tables and the four operations as pure functions. No DOM.
+(function (root) {
+  'use strict';
+
+  const CONDITIONS = {
+    text: [
+      { id: 'is', label: 'is' },
+      { id: 'is_not', label: 'is not' },
+      { id: 'is_one_of', label: 'is one of' },
+      { id: 'contains', label: 'contains' },
+    ],
+    number: [
+      { id: 'is', label: 'is' },
+      { id: 'is_not', label: 'is not' },
+      { id: 'more_than', label: 'is more than' },
+      { id: 'less_than', label: 'is less than' },
+      { id: 'at_least', label: 'is at least' },
+      { id: 'at_most', label: 'is at most' },
+      { id: 'between', label: 'is between' },
+    ],
+    date: [
+      { id: 'on', label: 'is on' },
+      { id: 'before', label: 'is before' },
+      { id: 'after', label: 'is after' },
+      { id: 'between', label: 'is between' },
+    ],
+  };
+
+  const SUMMARY_FUNCTIONS = [
+    { id: 'count', label: 'count of rows', prefix: 'number_of_rows', types: [] },
+    { id: 'total', label: 'total', prefix: 'total', types: ['number'] },
+    { id: 'average', label: 'average', prefix: 'average', types: ['number'] },
+    { id: 'lowest', label: 'lowest', prefix: 'lowest', types: ['number', 'date'] },
+    { id: 'highest', label: 'highest', prefix: 'highest', types: ['number', 'date'] },
+  ];
+
+  function loadTable(def) {
+    const columns = def.columns.map(c => ({ ...c, origin: def.name }));
+    const rows = def.rows.map(r => {
+      const row = {};
+      columns.forEach((c, i) => { row[c.name] = r[i]; });
+      return row;
+    });
+    return { name: def.name, sources: [def.name], columns, rows };
+  }
+
+  function getColumn(table, name) {
+    return table.columns.find(c => c.name === name) || null;
+  }
+
+  function findTableDef(dataset, name) {
+    return dataset.tables.find(t => t.name === name) || null;
+  }
+
+  function norm(v) {
+    return String(v).trim().toLowerCase();
+  }
+
+  function matches(value, type, f) {
+    const c = f.condition;
+    if (type === 'text') {
+      const v = norm(value);
+      switch (c) {
+        case 'is': return v === norm(f.value);
+        case 'is_not': return v !== norm(f.value);
+        case 'is_one_of': return (f.values || []).some(x => norm(x) === v);
+        case 'contains': return v.includes(norm(f.value));
+      }
+    }
+    if (type === 'number') {
+      const a = Number(f.value);
+      switch (c) {
+        case 'is': return value === a;
+        case 'is_not': return value !== a;
+        case 'more_than': return value > a;
+        case 'less_than': return value < a;
+        case 'at_least': return value >= a;
+        case 'at_most': return value <= a;
+        case 'between': {
+          const b = Number(f.value2);
+          return value >= Math.min(a, b) && value <= Math.max(a, b);
+        }
+      }
+    }
+    if (type === 'date') {
+      const a = f.value;
+      switch (c) {
+        case 'on': return value === a;
+        case 'before': return value < a;
+        case 'after': return value > a;
+        case 'between': {
+          const b = f.value2;
+          const lo = a < b ? a : b;
+          const hi = a < b ? b : a;
+          return value >= lo && value <= hi;
+        }
+      }
+    }
+    throw new Error(`Unknown condition "${c}" for a ${type} column`);
+  }
+
+  function filterTable(table, step) {
+    const type = getColumn(table, step.column).type;
+    const kept = [];
+    const dropped = [];
+    table.rows.forEach((row, i) => (matches(row[step.column], type, step) ? kept : dropped).push(i));
+    return { table: { ...table, rows: kept.map(i => table.rows[i]) }, trace: { kept, dropped } };
+  }
+
+  function projectTable(table, step) {
+    const keep = new Set(step.columns);
+    const columns = table.columns.filter(c => keep.has(c.name));
+    const rows = table.rows.map(r => {
+      const row = {};
+      columns.forEach(c => { row[c.name] = r[c.name]; });
+      return row;
+    });
+    return {
+      table: { ...table, columns, rows },
+      trace: { kept: columns.map(c => c.name), dropped: table.columns.filter(c => !keep.has(c.name)).map(c => c.name) },
+    };
+  }
+
+  function sameValue(a, b, type) {
+    return type === 'text' ? norm(a) === norm(b) : a === b;
+  }
+
+  function joinTable(left, right, step) {
+    const cartesian = !!step.cartesian;
+    const sameKey = !cartesian && step.leftColumn === step.rightColumn;
+    const rightKept = right.columns.filter(c => !(sameKey && c.name === step.rightColumn));
+    const leftNames = new Set(left.columns.map(c => c.name));
+    const clash = new Set(rightKept.filter(c => leftNames.has(c.name)).map(c => c.name));
+    const leftMap = left.columns.map(c => ({ from: c.name, col: clash.has(c.name) ? { ...c, name: `${c.origin}.${c.name}` } : c }));
+    const rightMap = rightKept.map(c => ({ from: c.name, col: clash.has(c.name) ? { ...c, name: `${right.name}.${c.name}` } : c }));
+    const type = cartesian ? null : getColumn(left, step.leftColumn).type;
+
+    const pairs = [];
+    const unmatchedLeft = [];
+    const matchedRight = new Set();
+    left.rows.forEach((lr, li) => {
+      let found = false;
+      right.rows.forEach((rr, ri) => {
+        if (cartesian || sameValue(lr[step.leftColumn], rr[step.rightColumn], type)) {
+          pairs.push([li, ri]);
+          matchedRight.add(ri);
+          found = true;
+        }
+      });
+      if (!found) unmatchedLeft.push(li);
+    });
+    const unmatchedRight = right.rows.map((_, i) => i).filter(i => !matchedRight.has(i));
+    const rows = pairs.map(([li, ri]) => {
+      const row = {};
+      leftMap.forEach(m => { row[m.col.name] = left.rows[li][m.from]; });
+      rightMap.forEach(m => { row[m.col.name] = right.rows[ri][m.from]; });
+      return row;
+    });
+    return {
+      table: {
+        name: left.name,
+        sources: [...left.sources, right.name],
+        columns: [...leftMap.map(m => m.col), ...rightMap.map(m => m.col)],
+        rows,
+      },
+      trace: { pairs, unmatchedLeft, unmatchedRight, cartesian },
+    };
+  }
+
+  function suggestJoinKey(current, other) {
+    for (const c of current.columns) {
+      for (const o of other.columns) {
+        if (c.name !== o.name) continue;
+        if (c.key === 'fk' && c.ref === other.name && o.key === 'pk') return { leftColumn: c.name, rightColumn: o.name };
+        if (o.key === 'fk' && o.ref === c.origin && c.key === 'pk') return { leftColumn: c.name, rightColumn: o.name };
+      }
+    }
+    return null;
+  }
+
+  function round2(n) {
+    return Math.round(n * 100) / 100;
+  }
+
+  function summarize(fn, rows, column) {
+    if (fn === 'count') return rows.length;
+    const vals = rows.map(r => r[column]).filter(v => v !== null && v !== undefined);
+    if (fn === 'total') return round2(vals.reduce((s, v) => s + v, 0));
+    if (!vals.length) return null;
+    if (fn === 'average') return round2(vals.reduce((s, v) => s + v, 0) / vals.length);
+    if (fn === 'lowest') return vals.reduce((m, v) => (v < m ? v : m));
+    if (fn === 'highest') return vals.reduce((m, v) => (v > m ? v : m));
+    throw new Error(`Unknown summary "${fn}"`);
+  }
+
+  function aggregateTable(table, step) {
+    const index = new Map();
+    const groups = [];
+    table.rows.forEach((row, i) => {
+      const key = JSON.stringify(step.groupBy.map(g => row[g]));
+      if (!index.has(key)) { index.set(key, groups.length); groups.push([]); }
+      groups[index.get(key)].push(i);
+    });
+    if (!step.groupBy.length && !groups.length) groups.push([]);
+
+    const groupCols = step.groupBy.map(g => getColumn(table, g));
+    const used = new Set(groupCols.map(c => c.name));
+    const sumCols = step.summaries.map(s => {
+      const fn = SUMMARY_FUNCTIONS.find(f => f.id === s.fn);
+      const base = s.fn === 'count' ? fn.prefix : `${fn.prefix}_${s.column.replace(/\./g, '_')}`;
+      let name = base;
+      for (let n = 2; used.has(name); n++) name = `${base}_${n}`;
+      used.add(name);
+      const type = s.fn === 'lowest' || s.fn === 'highest' ? getColumn(table, s.column).type : 'number';
+      return { name, type, origin: table.name, summary: s };
+    });
+
+    const rows = groups.map(members => {
+      const memberRows = members.map(i => table.rows[i]);
+      const row = {};
+      groupCols.forEach(c => { row[c.name] = memberRows[0][c.name]; });
+      sumCols.forEach(c => { row[c.name] = summarize(c.summary.fn, memberRows, c.summary.column); });
+      return row;
+    });
+    const columns = [...groupCols, ...sumCols.map(({ summary, ...c }) => c)];
+    return { table: { ...table, columns, rows }, trace: { groups } };
+  }
+
+  function blank(v) {
+    return v === undefined || v === null || String(v).trim() === '';
+  }
+
+  function notNumber(v) {
+    return blank(v) || !Number.isFinite(Number(v));
+  }
+
+  function incompleteReason(step, table) {
+    switch (step.op) {
+      case 'filter': {
+        if (blank(step.column)) return 'Pick a column.';
+        if (blank(step.condition)) return 'Pick a condition.';
+        if (step.condition === 'is_one_of') return step.values && step.values.length ? null : 'Pick at least one value.';
+        const two = step.condition === 'between';
+        if (blank(step.value) || (two && blank(step.value2))) return two ? 'Fill in both values.' : 'Pick a value.';
+        const col = table ? getColumn(table, step.column) : null;
+        if (col && col.type === 'number' && (notNumber(step.value) || (two && notNumber(step.value2)))) {
+          return 'Type a number, like 1500 (no commas).';
+        }
+        return null;
+      }
+      case 'project':
+        return step.columns && step.columns.length ? null : 'Keep at least one column.';
+      case 'join':
+        if (blank(step.table)) return 'Pick a table.';
+        if (!step.cartesian && (blank(step.leftColumn) || blank(step.rightColumn))) return 'Pick the columns to match.';
+        return null;
+      case 'aggregate':
+        if (!step.summaries || !step.summaries.length) return 'Add a calculation.';
+        if (step.summaries.some(s => s.fn !== 'count' && blank(s.column))) return 'Pick a column for each calculation.';
+        return null;
+    }
+    return 'Unknown step.';
+  }
+
+  function missingColumn(table, name) {
+    return getColumn(table, name) ? null : `This step uses \`${name}\`, which isn't in the table anymore.`;
+  }
+
+  function validateStep(table, step, dataset) {
+    switch (step.op) {
+      case 'filter': {
+        const missing = missingColumn(table, step.column);
+        if (missing) return missing;
+        const type = getColumn(table, step.column).type;
+        if (!CONDITIONS[type].some(c => c.id === step.condition)) return `\`${step.column}\` can't use the condition you picked anymore.`;
+        return null;
+      }
+      case 'project': {
+        for (const name of step.columns) {
+          const missing = missingColumn(table, name);
+          if (missing) return missing;
+        }
+        return null;
+      }
+      case 'join': {
+        const def = findTableDef(dataset, step.table);
+        if (!def) return `There's no table named **${step.table}** in this data set.`;
+        if (table.sources.includes(step.table)) return `**${step.table}** is already part of the table.`;
+        if (step.cartesian) return null;
+        const missing = missingColumn(table, step.leftColumn);
+        if (missing) return missing;
+        const right = def.columns.find(c => c.name === step.rightColumn);
+        if (!right) return `**${step.table}** has no column \`${step.rightColumn}\`.`;
+        if (getColumn(table, step.leftColumn).type !== right.type) {
+          return `\`${step.leftColumn}\` and \`${step.rightColumn}\` hold different kinds of values, so they can't be matched.`;
+        }
+        return null;
+      }
+      case 'aggregate': {
+        for (const name of step.groupBy) {
+          const missing = missingColumn(table, name);
+          if (missing) return missing;
+        }
+        for (const s of step.summaries) {
+          if (s.fn === 'count') continue;
+          const missing = missingColumn(table, s.column);
+          if (missing) return missing;
+          const fn = SUMMARY_FUNCTIONS.find(f => f.id === s.fn);
+          if (!fn.types.includes(getColumn(table, s.column).type)) return `You can't find the ${fn.label} of \`${s.column}\`.`;
+        }
+        return null;
+      }
+    }
+    return `Unknown step type "${step.op}".`;
+  }
+
+  function applyStep(table, step, dataset) {
+    switch (step.op) {
+      case 'filter': return filterTable(table, step);
+      case 'project': return projectTable(table, step);
+      case 'join': return joinTable(table, loadTable(findTableDef(dataset, step.table)), step);
+      case 'aggregate': return aggregateTable(table, step);
+    }
+    throw new Error(`Unknown step type "${step.op}"`);
+  }
+
+  function runRecipe(dataset, recipe) {
+    const start = loadTable(findTableDef(dataset, recipe.start));
+    const results = [{ status: 'ok', table: start, trace: null, message: null }];
+    let current = start;
+    for (const step of recipe.steps) {
+      if (step.on === false) {
+        results.push({ status: 'off', table: current, trace: null, message: null });
+        continue;
+      }
+      const problem = incompleteReason(step, current) || validateStep(current, step, dataset);
+      if (problem) {
+        results.push({ status: 'invalid', table: current, trace: null, message: problem });
+        continue;
+      }
+      const out = applyStep(current, step, dataset);
+      current = out.table;
+      results.push({ status: 'ok', table: out.table, trace: out.trace, message: null });
+    }
+    return results;
+  }
+
+  const api = {
+    CONDITIONS, SUMMARY_FUNCTIONS, loadTable, getColumn, findTableDef,
+    filterTable, projectTable, joinTable, suggestJoinKey, aggregateTable,
+    incompleteReason, validateStep, runRecipe,
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.QE = Object.assign(root.QE || {}, api);
+})(this);
+
+// ---- describe.js ----
+// Query Explorer: value formatting and plain-English step sentences. No DOM.
+(function (root) {
+  'use strict';
+  const engine = typeof module !== 'undefined' && module.exports ? require('./engine.js') : root.QE;
+
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const ALL_CONDITIONS = [].concat(...Object.values(engine.CONDITIONS));
+
+  function formatDate(iso) {
+    const [y, m, d] = String(iso).split('-').map(Number);
+    return `${MONTHS[m - 1]} ${d}, ${y}`;
+  }
+
+  function formatValue(value, column) {
+    if (value === null || value === undefined || value === '') return '—';
+    const type = column ? column.type : 'text';
+    if (type === 'date') return formatDate(value);
+    if (type === 'number') {
+      const n = Number(value);
+      if (column.key || column.plain) return String(n);
+      return n.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    }
+    return String(value);
+  }
+
+  const code = s => '`' + s + '`';
+  const bold = s => '**' + s + '**';
+
+  function listJoin(items) {
+    if (items.length <= 2) return items.join(' and ');
+    return items.slice(0, -1).join(', ') + ', and ' + items[items.length - 1];
+  }
+
+  function conditionLabel(id, type) {
+    const found = (engine.CONDITIONS[type] || []).find(c => c.id === id) || ALL_CONDITIONS.find(c => c.id === id);
+    return found ? found.label : id;
+  }
+
+  function describeStart(name) {
+    return 'Start with ' + bold(name);
+  }
+
+  function describeStep(step, input) {
+    switch (step.op) {
+      case 'filter': {
+        const col = input ? engine.getColumn(input, step.column) : null;
+        const shown = col || { type: 'text' };
+        const fmt = v => bold(formatValue(shown.type === 'number' ? Number(v) : v, shown));
+        let value;
+        if (step.condition === 'between') value = fmt(step.value) + ' and ' + fmt(step.value2);
+        else if (step.condition === 'is_one_of') value = (step.values || []).map(bold).join(', ');
+        else value = fmt(step.value);
+        return `Keep only rows where ${code(step.column)} ${conditionLabel(step.condition, shown.type)} ${value}`;
+      }
+      case 'project':
+        return 'Keep only the columns ' + step.columns.map(code).join(', ');
+      case 'join':
+        if (step.cartesian) return `Combine every row with every row of ${bold(step.table)}`;
+        if (step.leftColumn === step.rightColumn) return `Combine with ${bold(step.table)}, matching ${code(step.leftColumn)}`;
+        return `Combine with ${bold(step.table)}, matching ${code(step.leftColumn)} to ${code(step.rightColumn)}`;
+      case 'aggregate': {
+        const sums = listJoin(step.summaries.map(s => {
+          if (s.fn === 'count') return 'the count of rows';
+          const fn = engine.SUMMARY_FUNCTIONS.find(f => f.id === s.fn);
+          return `the ${fn.label} of ${code(s.column)}`;
+        }));
+        return step.groupBy.length
+          ? `Group by ${listJoin(step.groupBy.map(code))} and calculate ${sums}`
+          : `For the whole table, calculate ${sums}`;
+      }
+    }
+    return 'Unknown step';
+  }
+
+  function describeRecipe(dataset, recipe) {
+    const results = engine.runRecipe(dataset, recipe);
+    return [describeStart(recipe.start), ...recipe.steps.map((s, k) => describeStep(s, results[k].table))];
+  }
+
+  function parseRich(str) {
+    const parts = [];
+    const re = /\*\*(.+?)\*\*|`(.+?)`/g;
+    let last = 0;
+    let m;
+    while ((m = re.exec(str))) {
+      if (m.index > last) parts.push({ kind: 'text', text: str.slice(last, m.index) });
+      parts.push(m[1] !== undefined ? { kind: 'strong', text: m[1] } : { kind: 'code', text: m[2] });
+      last = re.lastIndex;
+    }
+    if (last < str.length) parts.push({ kind: 'text', text: str.slice(last) });
+    return parts;
+  }
+
+  const api = { formatValue, formatDate, describeStart, describeStep, describeRecipe, parseRich };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.QE = Object.assign(root.QE || {}, api);
+})(this);
+
+// ---- visual.js ----
+// Query Explorer: decides which rows and columns get which highlight. No DOM.
+(function (root) {
+  'use strict';
+  const node = typeof module !== 'undefined' && module.exports;
+  const engine = node ? require('./engine.js') : root.QE;
+  const describe = node ? require('./describe.js') : root.QE;
+
+  const COLORS = 5;
+  const keyOf = v => String(v).trim().toLowerCase();
+
+  function colorClass(id) {
+    return id === null || id === undefined ? null : 'c' + (id % COLORS);
+  }
+
+  function visualPlan(step, before, result, other) {
+    const trace = result.trace;
+    if (step.op === 'filter') {
+      const kept = new Set(trace.kept);
+      return {
+        op: 'filter',
+        beforeRows: before.rows.map((_, i) => (kept.has(i) ? 'keep' : 'drop')),
+        afterRows: result.table.rows.map(() => 'keep'),
+      };
+    }
+    if (step.op === 'project') {
+      return { op: 'project', dropped: trace.dropped, afterRows: result.table.rows.map(() => null) };
+    }
+    if (step.op === 'join') {
+      const leftMatch = before.rows.map(() => null);
+      const rightMatch = other.rows.map(() => null);
+      if (trace.cartesian) {
+        return { op: 'join', cartesian: true, leftMatch, rightMatch, afterRows: result.table.rows.map(() => null) };
+      }
+      const ids = new Map();
+      trace.pairs.forEach(([li, ri]) => {
+        const k = keyOf(before.rows[li][step.leftColumn]);
+        if (!ids.has(k)) ids.set(k, ids.size);
+        leftMatch[li] = ids.get(k);
+        rightMatch[ri] = ids.get(k);
+      });
+      return { op: 'join', cartesian: false, leftMatch, rightMatch, afterRows: trace.pairs.map(([li]) => colorClass(leftMatch[li])) };
+    }
+    if (step.op === 'aggregate') {
+      const rowGroup = before.rows.map(() => null);
+      trace.groups.forEach((g, gi) => g.forEach(i => { rowGroup[i] = gi; }));
+      const labels = trace.groups.map(g => (step.groupBy.length && g.length
+        ? step.groupBy.map(c => describe.formatValue(before.rows[g[0]][c], engine.getColumn(before, c))).join(' · ')
+        : 'All rows'));
+      return { op: 'aggregate', order: trace.groups.flat(), rowGroup, labels, afterRows: trace.groups.map((_, gi) => colorClass(gi)) };
+    }
+    throw new Error(`Unknown step type "${step.op}"`);
+  }
+
+  const api = { COLORS, colorClass, visualPlan };
+  if (node) module.exports = api;
+  else root.QE = Object.assign(root.QE || {}, api);
+})(this);
+
+// ---- narrate.js ----
+// Query Explorer: plain-language text for the guided join walkthrough. No DOM.
+(function (root) {
+  'use strict';
+
+  const n = x => x.toLocaleString('en-US');
+  const rows = x => `${n(x)} ${x === 1 ? 'row' : 'rows'}`;
+  const cols = x => `${n(x)} ${x === 1 ? 'column' : 'columns'}`;
+  const size = t => `${rows(t.rows.length)} × ${cols(t.columns.length)}`;
+  const title = i => `Join, step ${i} of 3`;
+
+  function tableLabel(t) {
+    return t.sources && t.sources.length > 1 ? 'your table so far' : `**${t.name}**`;
+  }
+
+  // Returns three { title, body } objects, one for each pause in the join animation.
+  function joinNarration({ step, before, other, result }) {
+    const trace = result.trace;
+    const out = result.table;
+    const left = tableLabel(before);
+    const right = `**${other.name}**`;
+    const leftN = before.rows.length;
+    const rightN = other.rows.length;
+    const sizeLine = `The result has **${size(out)}**.`;
+    let first;
+    let second;
+    let third;
+
+    if (trace.cartesian) {
+      const product = leftN * rightN;
+      first = `You are combining ${left} with ${right}. You chose not to match on anything, so every row of one table will be paired with every row of the other.`;
+      second = product === 0
+        ? `One of the tables has no rows, so there is nothing to pair up and the result will be empty.`
+        : `Every row is paired with every row: ${n(leftN)} × ${n(rightN)} = ${rows(product)}. Most of these rows are meaningless, because nothing says the rows belong together.`;
+      third = product === 0
+        ? `The result is empty. ${sizeLine}`
+        : `Each pair became one wider row. ${sizeLine} Because nothing was matched, most of those rows are meaningless. Try matching on a column the two tables share.`;
+    } else {
+      const same = step.leftColumn === step.rightColumn;
+      const how = same
+        ? `It will compare the \`${step.leftColumn}\` column in both tables.`
+        : `It will do this by matching \`${step.leftColumn}\` to \`${step.rightColumn}\`.`;
+      first = `You are combining ${left} with ${right}. Rows will be paired up when their values in the matching columns are the same. ${how}`;
+
+      const matchedLeft = leftN - trace.unmatchedLeft.length;
+      const matchedRight = rightN - trace.unmatchedRight.length;
+      const lostLeft = trace.unmatchedLeft.length;
+      const lostRight = trace.unmatchedRight.length;
+      if (leftN === 0 || rightN === 0) {
+        const empty = leftN === 0 ? left : right;
+        second = `${empty} has no rows, so there is nothing to match and the result will be empty.`;
+        third = `The result is empty. ${sizeLine}`;
+      } else if (trace.pairs.length === 0) {
+        second = `Nothing matched. No row in ${left} has a partner in ${right}, so every row would be dropped and the result will be empty.`;
+        third = `Nothing matched, so the result is empty. ${sizeLine} Check the columns you picked. They should hold the same kind of value, like an id that both tables share.`;
+      } else {
+        const found = `${n(matchedLeft)} of ${rows(leftN)} in ${left} found a match, and ${n(matchedRight)} of ${rows(rightN)} in ${right} found a match.`;
+        let dropped;
+        if (!lostLeft && !lostRight) dropped = 'Every row found a partner, so no rows will be dropped.';
+        else {
+          const parts = [];
+          if (lostLeft) parts.push(`${rows(lostLeft)} in ${left} found no match`);
+          if (lostRight) parts.push(`${rows(lostRight)} in ${right} found no match`);
+          const one = lostLeft + lostRight === 1;
+          dropped = `${parts.join(' and ')}. ${one ? 'That row has' : 'Those rows have'} a dashed outline and will be dropped, because only matching rows are kept.`;
+        }
+        second = `Rows with the same color and number are partners. ${found} ${dropped}`;
+        const repeats = [];
+        if (trace.pairs.length > matchedLeft) repeats.push(left);
+        if (trace.pairs.length > matchedRight) repeats.push(right);
+        const more = repeats.length
+          ? ` Some rows in ${repeats.join(' and ')} matched more than one partner, so they appear once for each partner.`
+          : '';
+        third = `Each matched pair became one wider row. ${sizeLine}${more}`
+          + (same ? ` The \`${step.leftColumn}\` column appears only once, because both tables had it.` : '');
+      }
+    }
+    return [
+      { title: title(1), body: first },
+      { title: title(2), body: second },
+      { title: title(3), body: third },
+    ];
+  }
+
+  const api = { joinNarration };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.QE = Object.assign(root.QE || {}, api);
+})(this);
+
+// ---- datasets/01-spotify.js ----
+(function (root) {
+  'use strict';
+  const dataset = {
+    id: 'spotify',
+    name: 'Spotify Streams',
+    description: 'Artists · Songs · Streams',
+    start: 'Streams',
+    tables: [
+      {
+        name: 'Artists',
+        columns: [
+          { name: 'artist_id', type: 'number', key: 'pk' },
+          { name: 'artist_name', type: 'text' },
+          { name: 'genre', type: 'text' },
+          { name: 'home_country', type: 'text' },
+        ],
+        rows: [
+          [1, 'Bad Bunny', 'Latin', 'Puerto Rico'],
+          [2, 'Taylor Swift', 'Pop', 'United States'],
+          [3, 'Kendrick Lamar', 'Hip-Hop', 'United States'],
+          [4, 'SZA', 'R&B', 'United States'],
+          [5, 'Karol G', 'Latin', 'Colombia'],
+          [6, 'Drake', 'Hip-Hop', 'Canada'],
+          [7, 'Olivia Rodrigo', 'Pop', 'United States'],
+          [8, 'Doechii', 'Hip-Hop', 'United States'],
+        ],
+      },
+      {
+        name: 'Songs',
+        columns: [
+          { name: 'song_id', type: 'number', key: 'pk' },
+          { name: 'song_title', type: 'text' },
+          { name: 'artist_id', type: 'number', key: 'fk', ref: 'Artists' },
+          { name: 'release_date', type: 'date' },
+          { name: 'duration_sec', type: 'number' },
+        ],
+        rows: [
+          [1, 'DtMF', 1, '2025-01-05', 237],
+          [2, 'Tití Me Preguntó', 1, '2022-05-06', 243],
+          [3, 'Anti-Hero', 2, '2022-10-21', 200],
+          [4, 'Cruel Summer', 2, '2019-08-23', 178],
+          [5, 'Not Like Us', 3, '2024-05-04', 274],
+          [6, 'luther', 3, '2024-11-22', 177],
+          [7, 'Kill Bill', 4, '2022-12-09', 153],
+          [8, 'Saturn', 4, '2024-02-22', 186],
+          [9, 'TQG', 5, '2023-02-24', 198],
+          [10, 'Si Antes Te Hubiera Conocido', 5, '2024-06-21', 196],
+          [11, "God's Plan", 6, '2018-01-19', 199],
+          [12, 'NOKIA', 6, '2025-02-14', 241],
+          [13, 'drivers license', 7, '2021-01-08', 242],
+          [14, 'vampire', 7, '2023-06-30', 219],
+        ],
+      },
+      {
+        name: 'Streams',
+        columns: [
+          { name: 'stream_id', type: 'number', key: 'pk' },
+          { name: 'song_id', type: 'number', key: 'fk', ref: 'Songs' },
+          { name: 'stream_date', type: 'date' },
+          { name: 'stream_count', type: 'number' },
+        ],
+        rows: [
+          [1, 1, '2026-03-02', 2150000],
+          [2, 5, '2026-03-02', 1980000],
+          [3, 3, '2026-03-05', 1420000],
+          [4, 9, '2026-03-05', 1310000],
+          [5, 2, '2026-03-09', 1760000],
+          [6, 7, '2026-03-09', 1120000],
+          [7, 12, '2026-03-12', 1650000],
+          [8, 13, '2026-03-12', 890000],
+          [9, 6, '2026-03-16', 1540000],
+          [10, 1, '2026-03-16', 2040000],
+          [11, 4, '2026-03-20', 1230000],
+          [12, 10, '2026-03-20', 1180000],
+          [13, 11, '2026-03-24', 970000],
+          [14, 14, '2026-03-24', 1060000],
+          [15, 5, '2026-03-28', 1870000],
+          [16, 3, '2026-03-28', 1390000],
+          [17, 1, '2026-04-02', 1920000],
+          [18, 6, '2026-04-02', 1610000],
+          [19, 9, '2026-04-06', 1270000],
+          [20, 12, '2026-04-06', 1580000],
+          [21, 7, '2026-04-10', 1090000],
+          [22, 2, '2026-04-10', 1700000],
+          [23, 14, '2026-04-14', 1150000],
+          [24, 13, '2026-04-14', 840000],
+        ],
+      },
+    ],
+    questions: [
+      {
+        text: 'Which artist had the most total streams in March 2026?',
+        recipe: {
+          start: 'Streams',
+          steps: [
+            { op: 'filter', column: 'stream_date', condition: 'between', value: '2026-03-01', value2: '2026-03-31' },
+            { op: 'join', table: 'Songs', leftColumn: 'song_id', rightColumn: 'song_id' },
+            { op: 'join', table: 'Artists', leftColumn: 'artist_id', rightColumn: 'artist_id' },
+            { op: 'aggregate', groupBy: ['artist_name'], summaries: [{ fn: 'total', column: 'stream_count' }] },
+          ],
+        },
+      },
+      {
+        text: 'What are the titles and release dates of all Latin songs?',
+        recipe: {
+          start: 'Songs',
+          steps: [
+            { op: 'join', table: 'Artists', leftColumn: 'artist_id', rightColumn: 'artist_id' },
+            { op: 'filter', column: 'genre', condition: 'is', value: 'Latin' },
+            { op: 'project', columns: ['song_title', 'release_date'] },
+          ],
+        },
+      },
+      {
+        text: 'How many songs does each artist have?',
+        note: 'Is anyone missing? Why?',
+        recipe: {
+          start: 'Artists',
+          steps: [
+            { op: 'join', table: 'Songs', leftColumn: 'artist_id', rightColumn: 'artist_id' },
+            { op: 'aggregate', groupBy: ['artist_name'], summaries: [{ fn: 'count' }] },
+          ],
+        },
+      },
+    ],
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = dataset;
+  else (root.QE_DATASETS = root.QE_DATASETS || []).push(dataset);
+})(this);
+
+// ---- datasets/02-concert.js ----
+(function (root) {
+  'use strict';
+  const dataset = {
+    id: 'concert',
+    name: 'Concert Tour',
+    description: 'Venues · Shows · TicketSales',
+    start: 'TicketSales',
+    tables: [
+      {
+        name: 'Venues',
+        columns: [
+          { name: 'venue_id', type: 'number', key: 'pk' },
+          { name: 'venue_name', type: 'text' },
+          { name: 'city', type: 'text' },
+          { name: 'state', type: 'text' },
+          { name: 'capacity', type: 'number' },
+        ],
+        rows: [
+          [1, 'Mountain Health Arena', 'Huntington', 'WV', 8500],
+          [2, 'Madison Square Garden', 'New York', 'NY', 19500],
+          [3, 'Ryman Auditorium', 'Nashville', 'TN', 2360],
+          [4, 'Red Rocks Amphitheatre', 'Morrison', 'CO', 9500],
+          [5, 'United Center', 'Chicago', 'IL', 23500],
+          [6, 'Hollywood Bowl', 'Los Angeles', 'CA', 17500],
+          [7, 'Climate Pledge Arena', 'Seattle', 'WA', 17000],
+          [8, 'Gillette Stadium', 'Foxborough', 'MA', 65000],
+        ],
+      },
+      {
+        name: 'Shows',
+        columns: [
+          { name: 'show_id', type: 'number', key: 'pk' },
+          { name: 'venue_id', type: 'number', key: 'fk', ref: 'Venues' },
+          { name: 'artist_name', type: 'text' },
+          { name: 'show_date', type: 'date' },
+        ],
+        rows: [
+          [1, 1, 'Zach Bryan', '2026-06-12'],
+          [2, 2, 'Billie Eilish', '2026-06-20'],
+          [3, 5, 'Sabrina Carpenter', '2026-06-27'],
+          [4, 6, 'Tyler, The Creator', '2026-07-08'],
+          [5, 3, 'Chappell Roan', '2026-07-11'],
+          [6, 8, 'Morgan Wallen', '2026-07-18'],
+          [7, 7, 'Post Malone', '2026-07-25'],
+          [8, 1, 'Morgan Wallen', '2026-08-01'],
+          [9, 2, 'Sabrina Carpenter', '2026-08-06'],
+          [10, 5, 'Billie Eilish', '2026-08-14'],
+          [11, 6, 'Chappell Roan', '2026-08-22'],
+        ],
+      },
+      {
+        name: 'TicketSales',
+        columns: [
+          { name: 'sale_id', type: 'number', key: 'pk' },
+          { name: 'show_id', type: 'number', key: 'fk', ref: 'Shows' },
+          { name: 'ticket_type', type: 'text' },
+          { name: 'quantity', type: 'number' },
+          { name: 'price_each', type: 'number' },
+        ],
+        rows: [
+          [1, 1, 'GA', 1800, 70],
+          [2, 1, 'Floor', 700, 165],
+          [3, 1, 'VIP', 150, 275],
+          [4, 2, 'GA', 1500, 120],
+          [5, 2, 'Floor', 900, 240],
+          [6, 2, 'VIP', 200, 450],
+          [7, 3, 'GA', 1900, 110],
+          [8, 3, 'Floor', 1200, 260],
+          [9, 3, 'VIP', 300, 520],
+          [10, 4, 'GA', 1400, 95],
+          [11, 4, 'Floor', 800, 210],
+          [12, 5, 'GA', 1000, 85],
+          [13, 5, 'VIP', 80, 350],
+          [14, 6, 'GA', 2000, 140],
+          [15, 6, 'Floor', 1100, 290],
+          [16, 6, 'VIP', 250, 600],
+          [17, 7, 'GA', 1600, 105],
+          [18, 7, 'Floor', 500, 185],
+          [19, 8, 'GA', 1300, 60],
+          [20, 8, 'VIP', 100, 300],
+          [21, 9, 'GA', 1700, 150],
+          [22, 9, 'Floor', 950, 280],
+          [23, 10, 'GA', 1450, 130],
+          [24, 10, 'VIP', 180, 480],
+        ],
+      },
+    ],
+    questions: [
+      {
+        text: 'How many tickets were sold in each city?',
+        recipe: {
+          start: 'TicketSales',
+          steps: [
+            { op: 'join', table: 'Shows', leftColumn: 'show_id', rightColumn: 'show_id' },
+            { op: 'join', table: 'Venues', leftColumn: 'venue_id', rightColumn: 'venue_id' },
+            { op: 'aggregate', groupBy: ['city'], summaries: [{ fn: 'total', column: 'quantity' }] },
+          ],
+        },
+      },
+      {
+        text: 'Which shows sold VIP tickets priced above $300?',
+        recipe: {
+          start: 'TicketSales',
+          steps: [
+            { op: 'filter', column: 'ticket_type', condition: 'is', value: 'VIP' },
+            { op: 'filter', column: 'price_each', condition: 'more_than', value: '300' },
+            { op: 'join', table: 'Shows', leftColumn: 'show_id', rightColumn: 'show_id' },
+            { op: 'project', columns: ['artist_name', 'show_date', 'price_each'] },
+          ],
+        },
+      },
+      {
+        text: 'What is the average ticket price for each ticket type?',
+        recipe: {
+          start: 'TicketSales',
+          steps: [
+            { op: 'aggregate', groupBy: ['ticket_type'], summaries: [{ fn: 'average', column: 'price_each' }] },
+          ],
+        },
+      },
+    ],
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = dataset;
+  else (root.QE_DATASETS = root.QE_DATASETS || []).push(dataset);
+})(this);
+
+// ---- datasets/03-netflix.js ----
+(function (root) {
+  'use strict';
+  const dataset = {
+    id: 'netflix',
+    name: 'Netflix Binge',
+    description: 'Series · Episodes · ViewingSessions',
+    start: 'ViewingSessions',
+    tables: [
+      {
+        name: 'Series',
+        columns: [
+          { name: 'series_id', type: 'number', key: 'pk' },
+          { name: 'series_title', type: 'text' },
+          { name: 'genre', type: 'text' },
+          { name: 'release_year', type: 'number', plain: true },
+        ],
+        rows: [
+          [1, 'Stranger Things', 'Sci-Fi', 2016],
+          [2, 'Wednesday', 'Fantasy', 2022],
+          [3, 'Squid Game', 'Thriller', 2021],
+          [4, 'Bridgerton', 'Drama', 2020],
+          [5, 'Outer Banks', 'Thriller', 2020],
+          [6, 'Cobra Kai', 'Comedy', 2018],
+          [7, 'Ginny & Georgia', 'Drama', 2021],
+          [8, 'Adolescence', 'Drama', 2025],
+        ],
+      },
+      {
+        name: 'Episodes',
+        columns: [
+          { name: 'episode_id', type: 'number', key: 'pk' },
+          { name: 'series_id', type: 'number', key: 'fk', ref: 'Series' },
+          { name: 'season', type: 'number', plain: true },
+          { name: 'episode_number', type: 'number', plain: true },
+          { name: 'runtime_min', type: 'number' },
+        ],
+        rows: [
+          [1, 1, 1, 1, 50],
+          [2, 1, 1, 2, 55],
+          [3, 1, 2, 1, 48],
+          [4, 2, 1, 1, 58],
+          [5, 2, 1, 2, 47],
+          [6, 3, 1, 1, 60],
+          [7, 3, 1, 2, 62],
+          [8, 4, 1, 1, 62],
+          [9, 4, 1, 2, 56],
+          [10, 5, 1, 1, 52],
+          [11, 5, 1, 2, 49],
+          [12, 6, 1, 1, 30],
+          [13, 6, 1, 2, 32],
+          [14, 7, 1, 1, 55],
+          [15, 7, 1, 2, 50],
+          [16, 8, 1, 1, 51],
+          [17, 8, 1, 2, 54],
+        ],
+      },
+      {
+        name: 'ViewingSessions',
+        columns: [
+          { name: 'session_id', type: 'number', key: 'pk' },
+          { name: 'episode_id', type: 'number', key: 'fk', ref: 'Episodes' },
+          { name: 'viewer_name', type: 'text' },
+          { name: 'watch_date', type: 'date' },
+          { name: 'minutes_watched', type: 'number' },
+        ],
+        rows: [
+          [1, 1, 'Maya', '2026-01-04', 50],
+          [2, 2, 'Maya', '2026-01-04', 55],
+          [3, 4, 'Chris', '2026-01-09', 58],
+          [4, 6, 'Priya', '2026-01-11', 60],
+          [5, 7, 'Priya', '2026-01-11', 62],
+          [6, 10, 'Devon', '2026-01-15', 52],
+          [7, 1, 'Jordan', '2026-01-18', 50],
+          [8, 8, 'Maya', '2026-01-22', 62],
+          [9, 12, 'Chris', '2026-01-25', 30],
+          [10, 13, 'Chris', '2026-01-25', 32],
+          [11, 14, 'Priya', '2026-01-30', 55],
+          [12, 6, 'Jordan', '2026-02-03', 60],
+          [13, 7, 'Jordan', '2026-02-04', 62],
+          [14, 3, 'Devon', '2026-02-07', 40],
+          [15, 16, 'Maya', '2026-02-09', 51],
+          [16, 12, 'Maya', '2026-02-09', 30],
+          [17, 9, 'Jordan', '2026-02-14', 56],
+          [18, 11, 'Chris', '2026-02-16', 49],
+          [19, 5, 'Priya', '2026-02-20', 47],
+          [20, 15, 'Devon', '2026-02-23', 50],
+          [21, 2, 'Jordan', '2026-02-27', 55],
+          [22, 10, 'Priya', '2026-03-03', 45],
+          [23, 16, 'Jordan', '2026-03-08', 51],
+          [24, 3, 'Maya', '2026-03-14', 48],
+          [25, 8, 'Devon', '2026-03-20', 62],
+        ],
+      },
+    ],
+    questions: [
+      {
+        text: 'How many total minutes were watched for each series?',
+        recipe: {
+          start: 'ViewingSessions',
+          steps: [
+            { op: 'join', table: 'Episodes', leftColumn: 'episode_id', rightColumn: 'episode_id' },
+            { op: 'join', table: 'Series', leftColumn: 'series_id', rightColumn: 'series_id' },
+            { op: 'aggregate', groupBy: ['series_title'], summaries: [{ fn: 'total', column: 'minutes_watched' }] },
+          ],
+        },
+      },
+      {
+        text: 'What did Jordan watch in February 2026?',
+        recipe: {
+          start: 'ViewingSessions',
+          steps: [
+            { op: 'filter', column: 'viewer_name', condition: 'is', value: 'Jordan' },
+            { op: 'filter', column: 'watch_date', condition: 'between', value: '2026-02-01', value2: '2026-02-28' },
+            { op: 'join', table: 'Episodes', leftColumn: 'episode_id', rightColumn: 'episode_id' },
+            { op: 'join', table: 'Series', leftColumn: 'series_id', rightColumn: 'series_id' },
+            { op: 'project', columns: ['series_title', 'season', 'episode_number', 'watch_date'] },
+          ],
+        },
+      },
+      {
+        text: 'What is the average episode runtime for each genre?',
+        recipe: {
+          start: 'Episodes',
+          steps: [
+            { op: 'join', table: 'Series', leftColumn: 'series_id', rightColumn: 'series_id' },
+            { op: 'aggregate', groupBy: ['genre'], summaries: [{ fn: 'average', column: 'runtime_min' }] },
+          ],
+        },
+      },
+    ],
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = dataset;
+  else (root.QE_DATASETS = root.QE_DATASETS || []).push(dataset);
+})(this);
+
+// ---- datasets/04-basketball.js ----
+(function (root) {
+  'use strict';
+  const dataset = {
+    id: 'basketball',
+    name: 'Thundering Herd Basketball',
+    description: 'Players · Games · BoxScores',
+    start: 'BoxScores',
+    tables: [
+      {
+        name: 'Players',
+        columns: [
+          { name: 'player_id', type: 'number', key: 'pk' },
+          { name: 'player_name', type: 'text' },
+          { name: 'position', type: 'text' },
+          { name: 'class_year', type: 'text' },
+          { name: 'jersey_number', type: 'number', plain: true },
+        ],
+        rows: [
+          [1, 'Marcus Reed', 'Guard', 'Senior', 1],
+          [2, 'Darius Cole', 'Guard', 'Junior', 3],
+          [3, 'Tyler Briggs', 'Forward', 'Sophomore', 11],
+          [4, 'Jalen Ortiz', 'Guard', 'Freshman', 5],
+          [5, 'Caleb Winters', 'Forward', 'Senior', 23],
+          [6, 'Andre Mason', 'Center', 'Junior', 34],
+          [7, 'Noah Pruitt', 'Forward', 'Freshman', 14],
+          [8, 'Isaiah Foster', 'Center', 'Sophomore', 42],
+          [9, 'Devin Hale', 'Guard', 'Sophomore', 12],
+          [10, 'Eli Thornton', 'Forward', 'Redshirt Freshman', 21],
+        ],
+      },
+      {
+        name: 'Games',
+        columns: [
+          { name: 'game_id', type: 'number', key: 'pk' },
+          { name: 'opponent', type: 'text' },
+          { name: 'game_date', type: 'date' },
+          { name: 'home_away', type: 'text' },
+          { name: 'result', type: 'text' },
+        ],
+        rows: [
+          [1, 'Georgia Southern', '2026-01-03', 'Home', 'W'],
+          [2, 'Old Dominion', '2026-01-08', 'Away', 'L'],
+          [3, 'App State', '2026-01-15', 'Home', 'W'],
+          [4, 'James Madison', '2026-01-22', 'Away', 'L'],
+          [5, 'Coastal Carolina', '2026-01-29', 'Home', 'W'],
+          [6, 'Texas State', '2026-02-05', 'Away', 'W'],
+          [7, 'Arkansas State', '2026-02-12', 'Home', 'L'],
+          [8, 'Troy', '2026-02-19', 'Away', 'W'],
+        ],
+      },
+      {
+        name: 'BoxScores',
+        columns: [
+          { name: 'box_id', type: 'number', key: 'pk' },
+          { name: 'game_id', type: 'number', key: 'fk', ref: 'Games' },
+          { name: 'player_id', type: 'number', key: 'fk', ref: 'Players' },
+          { name: 'points', type: 'number' },
+          { name: 'rebounds', type: 'number' },
+          { name: 'assists', type: 'number' },
+        ],
+        rows: [
+          [1, 1, 1, 24, 4, 6],
+          [2, 1, 5, 15, 9, 2],
+          [3, 1, 6, 8, 7, 1],
+          [4, 2, 2, 12, 3, 5],
+          [5, 2, 3, 10, 6, 1],
+          [6, 2, 8, 6, 8, 0],
+          [7, 3, 1, 18, 3, 7],
+          [8, 3, 4, 21, 4, 3],
+          [9, 3, 6, 14, 10, 0],
+          [10, 4, 2, 9, 2, 4],
+          [11, 4, 5, 16, 7, 2],
+          [12, 4, 9, 5, 1, 3],
+          [13, 5, 1, 22, 5, 8],
+          [14, 5, 3, 13, 6, 2],
+          [15, 5, 8, 11, 9, 1],
+          [16, 6, 4, 7, 3, 2],
+          [17, 6, 5, 27, 11, 1],
+          [18, 6, 7, 10, 4, 0],
+          [19, 7, 2, 22, 3, 6],
+          [20, 7, 6, 12, 8, 1],
+          [21, 7, 9, 0, 1, 2],
+          [22, 8, 1, 32, 6, 5],
+          [23, 8, 7, 9, 5, 1],
+          [24, 8, 8, 20, 12, 2],
+        ],
+      },
+    ],
+    questions: [
+      {
+        text: 'Who scored the most total points this season?',
+        recipe: {
+          start: 'BoxScores',
+          steps: [
+            { op: 'join', table: 'Players', leftColumn: 'player_id', rightColumn: 'player_id' },
+            { op: 'aggregate', groupBy: ['player_name'], summaries: [{ fn: 'total', column: 'points' }] },
+          ],
+        },
+      },
+      {
+        text: 'What is the average number of points for each position in home games?',
+        recipe: {
+          start: 'BoxScores',
+          steps: [
+            { op: 'join', table: 'Games', leftColumn: 'game_id', rightColumn: 'game_id' },
+            { op: 'filter', column: 'home_away', condition: 'is', value: 'Home' },
+            { op: 'join', table: 'Players', leftColumn: 'player_id', rightColumn: 'player_id' },
+            { op: 'aggregate', groupBy: ['position'], summaries: [{ fn: 'average', column: 'points' }] },
+          ],
+        },
+      },
+      {
+        text: 'In the games the Herd won, which players scored 20 or more points?',
+        recipe: {
+          start: 'BoxScores',
+          steps: [
+            { op: 'filter', column: 'points', condition: 'at_least', value: '20' },
+            { op: 'join', table: 'Games', leftColumn: 'game_id', rightColumn: 'game_id' },
+            { op: 'filter', column: 'result', condition: 'is', value: 'W' },
+            { op: 'join', table: 'Players', leftColumn: 'player_id', rightColumn: 'player_id' },
+            { op: 'project', columns: ['player_name', 'opponent', 'points'] },
+          ],
+        },
+      },
+    ],
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = dataset;
+  else (root.QE_DATASETS = root.QE_DATASETS || []).push(dataset);
+})(this);
+
+// ---- datasets/05-dining.js ----
+(function (root) {
+  'use strict';
+  const dataset = {
+    id: 'dining',
+    name: 'Campus Dining',
+    description: 'Students · DiningHalls · MealSwipes',
+    start: 'MealSwipes',
+    tables: [
+      {
+        name: 'Students',
+        columns: [
+          { name: 'student_id', type: 'number', key: 'pk' },
+          { name: 'first_name', type: 'text' },
+          { name: 'meal_plan', type: 'text' },
+          { name: 'residence_hall', type: 'text' },
+        ],
+        rows: [
+          [1, 'Maya', 'Unlimited', 'Maple Hall'],
+          [2, 'Jordan', '14 per week', 'Cedar Hall'],
+          [3, 'Aaliyah', 'Block 100', 'Riverside Hall'],
+          [4, 'Carlos', 'Unlimited', 'Hilltop Hall'],
+          [5, 'Priya', '14 per week', 'Maple Hall'],
+          [6, 'Tyler', 'Block 100', 'Cedar Hall'],
+          [7, 'Sofia', 'Unlimited', 'Riverside Hall'],
+          [8, 'Devon', '14 per week', 'Hilltop Hall'],
+          [9, 'Emma', 'Block 100', 'Maple Hall'],
+          [10, 'Marcus', 'Block 100', 'Commuter'],
+        ],
+      },
+      {
+        name: 'DiningHalls',
+        columns: [
+          { name: 'hall_id', type: 'number', key: 'pk' },
+          { name: 'hall_name', type: 'text' },
+          { name: 'campus_area', type: 'text' },
+          { name: 'seats', type: 'number' },
+        ],
+        rows: [
+          [1, 'Herd Commons', 'Central Campus', 450],
+          [2, 'Late Night @ the Union', 'Student Union', 120],
+          [3, 'Twin Towers Grill', 'North Campus', 200],
+          [4, 'Green Machine Cafe', 'Science Quad', 80],
+          [5, 'Bison Bowl', 'South Campus', 160],
+          [6, 'The Thunder Deli', 'Central Campus', 90],
+          [7, 'Hilltop Kitchen', 'North Campus', 140],
+          [8, 'Sunrise Smoothie Bar', 'Rec Center', 40],
+        ],
+      },
+      {
+        name: 'MealSwipes',
+        columns: [
+          { name: 'swipe_id', type: 'number', key: 'pk' },
+          { name: 'student_id', type: 'number', key: 'fk', ref: 'Students' },
+          { name: 'hall_id', type: 'number', key: 'fk', ref: 'DiningHalls' },
+          { name: 'swipe_date', type: 'date' },
+          { name: 'meal_period', type: 'text' },
+        ],
+        rows: [
+          [1, 1, 1, '2026-02-02', 'Breakfast'],
+          [2, 2, 1, '2026-02-02', 'Lunch'],
+          [3, 3, 3, '2026-02-02', 'Dinner'],
+          [4, 4, 2, '2026-02-03', 'Late Night'],
+          [5, 5, 1, '2026-02-03', 'Dinner'],
+          [6, 1, 5, '2026-02-04', 'Lunch'],
+          [7, 6, 7, '2026-02-04', 'Dinner'],
+          [8, 7, 2, '2026-02-05', 'Late Night'],
+          [9, 2, 4, '2026-02-05', 'Breakfast'],
+          [10, 8, 1, '2026-02-06', 'Lunch'],
+          [11, 9, 3, '2026-02-09', 'Dinner'],
+          [12, 3, 1, '2026-02-09', 'Breakfast'],
+          [13, 4, 6, '2026-02-10', 'Lunch'],
+          [14, 5, 2, '2026-02-10', 'Late Night'],
+          [15, 6, 5, '2026-02-11', 'Dinner'],
+          [16, 1, 1, '2026-02-12', 'Dinner'],
+          [17, 7, 7, '2026-02-12', 'Lunch'],
+          [18, 8, 3, '2026-02-13', 'Breakfast'],
+          [19, 9, 1, '2026-02-16', 'Lunch'],
+          [20, 2, 5, '2026-02-17', 'Dinner'],
+          [21, 3, 6, '2026-02-18', 'Lunch'],
+          [22, 4, 4, '2026-02-19', 'Breakfast'],
+          [23, 5, 1, '2026-02-20', 'Lunch'],
+          [24, 6, 2, '2026-02-23', 'Late Night'],
+          [25, 7, 3, '2026-02-24', 'Dinner'],
+        ],
+      },
+    ],
+    questions: [
+      {
+        text: 'Which dining hall gets the most swipes at dinner?',
+        recipe: {
+          start: 'MealSwipes',
+          steps: [
+            { op: 'filter', column: 'meal_period', condition: 'is', value: 'Dinner' },
+            { op: 'join', table: 'DiningHalls', leftColumn: 'hall_id', rightColumn: 'hall_id' },
+            { op: 'aggregate', groupBy: ['hall_name'], summaries: [{ fn: 'count' }] },
+          ],
+        },
+      },
+      {
+        text: 'How many swipes came from each meal plan?',
+        recipe: {
+          start: 'MealSwipes',
+          steps: [
+            { op: 'join', table: 'Students', leftColumn: 'student_id', rightColumn: 'student_id' },
+            { op: 'aggregate', groupBy: ['meal_plan'], summaries: [{ fn: 'count' }] },
+          ],
+        },
+      },
+      {
+        text: 'Who ate late-night meals, and where?',
+        recipe: {
+          start: 'MealSwipes',
+          steps: [
+            { op: 'filter', column: 'meal_period', condition: 'is', value: 'Late Night' },
+            { op: 'join', table: 'Students', leftColumn: 'student_id', rightColumn: 'student_id' },
+            { op: 'join', table: 'DiningHalls', leftColumn: 'hall_id', rightColumn: 'hall_id' },
+            { op: 'project', columns: ['first_name', 'hall_name', 'swipe_date'] },
+          ],
+        },
+      },
+    ],
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = dataset;
+  else (root.QE_DATASETS = root.QE_DATASETS || []).push(dataset);
+})(this);
+
+// ---- datasets/06-fantasy.js ----
+(function (root) {
+  'use strict';
+  const dataset = {
+    id: 'fantasy',
+    name: 'Fantasy Football League',
+    description: 'FantasyTeams · NFLPlayers · WeeklyPoints',
+    start: 'WeeklyPoints',
+    tables: [
+      {
+        name: 'FantasyTeams',
+        columns: [
+          { name: 'team_id', type: 'number', key: 'pk' },
+          { name: 'team_name', type: 'text' },
+          { name: 'manager_name', type: 'text' },
+        ],
+        rows: [
+          [1, 'Mahomes Alone', 'Alex'],
+          [2, 'Bijan Mustard', 'Brooke'],
+          [3, 'Allen Wrench', 'Chris'],
+          [4, 'Hurts So Good', 'Dana'],
+          [5, 'Kelce Me Maybe', 'Evan'],
+          [6, 'Gibbs Me a Break', 'Faith'],
+          [7, 'Jefferson Airplane', 'Grant'],
+          [8, 'Chase Your Dreams', 'Hannah'],
+        ],
+      },
+      {
+        name: 'NFLPlayers',
+        columns: [
+          { name: 'player_id', type: 'number', key: 'pk' },
+          { name: 'player_name', type: 'text' },
+          { name: 'position', type: 'text' },
+          { name: 'nfl_team', type: 'text' },
+          { name: 'team_id', type: 'number', key: 'fk', ref: 'FantasyTeams' },
+        ],
+        rows: [
+          [1, 'Patrick Mahomes', 'QB', 'Kansas City Chiefs', 1],
+          [2, 'Travis Kelce', 'TE', 'Kansas City Chiefs', 5],
+          [3, 'Josh Allen', 'QB', 'Buffalo Bills', 3],
+          [4, 'CeeDee Lamb', 'WR', 'Dallas Cowboys', 4],
+          [5, 'Saquon Barkley', 'RB', 'Philadelphia Eagles', 2],
+          [6, 'Bijan Robinson', 'RB', 'Atlanta Falcons', 2],
+          [7, 'Derrick Henry', 'RB', 'Baltimore Ravens', 4],
+          [8, 'Jahmyr Gibbs', 'RB', 'Detroit Lions', 6],
+          [9, 'Ja\'Marr Chase', 'WR', 'Cincinnati Bengals', 8],
+          [10, 'Justin Jefferson', 'WR', 'Minnesota Vikings', 7],
+          [11, 'Puka Nacua', 'WR', 'Los Angeles Rams', 6],
+          [12, 'Lamar Jackson', 'QB', 'Baltimore Ravens', 3],
+          [13, 'Christian McCaffrey', 'RB', 'San Francisco 49ers', 8],
+        ],
+      },
+      {
+        name: 'WeeklyPoints',
+        columns: [
+          { name: 'points_id', type: 'number', key: 'pk' },
+          { name: 'player_id', type: 'number', key: 'fk', ref: 'NFLPlayers' },
+          { name: 'week', type: 'number', plain: true },
+          { name: 'game_date', type: 'date' },
+          { name: 'fantasy_points', type: 'number' },
+        ],
+        rows: [
+          [1, 1, 1, '2026-09-13', 24.6],
+          [2, 2, 1, '2026-09-13', 9.4],
+          [3, 3, 1, '2026-09-13', 31.4],
+          [4, 4, 1, '2026-09-13', 18.7],
+          [5, 5, 1, '2026-09-13', 21.5],
+          [6, 6, 1, '2026-09-13', 26.2],
+          [7, 7, 1, '2026-09-13', 16.3],
+          [8, 8, 1, '2026-09-13', 20.8],
+          [9, 9, 1, '2026-09-13', 15.2],
+          [10, 10, 1, '2026-09-13', 12.9],
+          [11, 11, 1, '2026-09-13', 22.6],
+          [12, 12, 1, '2026-09-13', 29],
+          [13, 1, 2, '2026-09-20', 19.2],
+          [14, 2, 2, '2026-09-20', 12.1],
+          [15, 3, 2, '2026-09-20', 27.8],
+          [16, 4, 2, '2026-09-20', 22.3],
+          [17, 5, 2, '2026-09-20', 14.8],
+          [18, 6, 2, '2026-09-20', 17.9],
+          [19, 7, 2, '2026-09-20', 24.1],
+          [20, 8, 2, '2026-09-20', 28.4],
+          [21, 9, 2, '2026-09-20', 11.6],
+          [22, 10, 2, '2026-09-20', 19.5],
+          [23, 11, 2, '2026-09-20', 8.4],
+          [24, 12, 2, '2026-09-20', 33.6],
+        ],
+      },
+    ],
+    questions: [
+      {
+        text: 'Which fantasy team scored the most total points?',
+        recipe: {
+          start: 'WeeklyPoints',
+          steps: [
+            { op: 'join', table: 'NFLPlayers', leftColumn: 'player_id', rightColumn: 'player_id' },
+            { op: 'join', table: 'FantasyTeams', leftColumn: 'team_id', rightColumn: 'team_id' },
+            { op: 'aggregate', groupBy: ['team_name'], summaries: [{ fn: 'total', column: 'fantasy_points' }] },
+          ],
+        },
+      },
+      {
+        text: 'Which players had a week with 25 or more points?',
+        recipe: {
+          start: 'WeeklyPoints',
+          steps: [
+            { op: 'filter', column: 'fantasy_points', condition: 'at_least', value: '25' },
+            { op: 'join', table: 'NFLPlayers', leftColumn: 'player_id', rightColumn: 'player_id' },
+            { op: 'project', columns: ['player_name', 'week', 'fantasy_points'] },
+          ],
+        },
+      },
+      {
+        text: 'What is the average weekly score for each position?',
+        recipe: {
+          start: 'WeeklyPoints',
+          steps: [
+            { op: 'join', table: 'NFLPlayers', leftColumn: 'player_id', rightColumn: 'player_id' },
+            { op: 'aggregate', groupBy: ['position'], summaries: [{ fn: 'average', column: 'fantasy_points' }] },
+          ],
+        },
+      },
+    ],
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = dataset;
+  else (root.QE_DATASETS = root.QE_DATASETS || []).push(dataset);
+})(this);
+
+// ---- datasets/07-boxoffice.js ----
+(function (root) {
+  'use strict';
+  const dataset = {
+    id: 'boxoffice',
+    name: 'Box Office Weekend',
+    description: 'Studios · Movies · WeekendGrosses',
+    start: 'WeekendGrosses',
+    tables: [
+      {
+        name: 'Studios',
+        columns: [
+          { name: 'studio_id', type: 'number', key: 'pk' },
+          { name: 'studio_name', type: 'text' },
+          { name: 'headquarters', type: 'text' },
+        ],
+        rows: [
+          [1, 'Warner Bros.', 'Burbank, CA'],
+          [2, 'Disney', 'Burbank, CA'],
+          [3, 'Universal', 'Universal City, CA'],
+          [4, 'Paramount', 'Hollywood, CA'],
+          [5, 'Sony Pictures', 'Culver City, CA'],
+          [6, 'Lionsgate', 'Santa Monica, CA'],
+          [7, 'A24', 'New York, NY'],
+          [8, 'Neon', 'New York, NY'],
+        ],
+      },
+      {
+        name: 'Movies',
+        columns: [
+          { name: 'movie_id', type: 'number', key: 'pk' },
+          { name: 'movie_title', type: 'text' },
+          { name: 'studio_id', type: 'number', key: 'fk', ref: 'Studios' },
+          { name: 'genre', type: 'text' },
+          { name: 'rating', type: 'text' },
+          { name: 'release_date', type: 'date' },
+        ],
+        rows: [
+          [1, 'A Minecraft Movie', 1, 'Adventure', 'PG', '2025-04-04'],
+          [2, 'Sinners', 1, 'Horror', 'R', '2025-04-18'],
+          [3, 'Lilo & Stitch', 2, 'Family', 'PG', '2025-05-23'],
+          [4, 'Mission: Impossible – The Final Reckoning', 4, 'Action', 'PG-13', '2025-05-23'],
+          [5, 'How to Train Your Dragon', 3, 'Family', 'PG', '2025-06-13'],
+          [6, '28 Years Later', 5, 'Horror', 'R', '2025-06-20'],
+          [7, 'Jurassic World Rebirth', 3, 'Adventure', 'PG-13', '2025-07-02'],
+          [8, 'Superman', 1, 'Superhero', 'PG-13', '2025-07-11'],
+          [9, 'The Fantastic Four: First Steps', 2, 'Superhero', 'PG-13', '2025-07-25'],
+          [10, 'Weapons', 1, 'Horror', 'R', '2025-08-08'],
+        ],
+      },
+      {
+        name: 'WeekendGrosses',
+        columns: [
+          { name: 'gross_id', type: 'number', key: 'pk' },
+          { name: 'movie_id', type: 'number', key: 'fk', ref: 'Movies' },
+          { name: 'weekend_date', type: 'date' },
+          { name: 'gross_millions', type: 'number' },
+          { name: 'theaters', type: 'number' },
+        ],
+        rows: [
+          [1, 1, '2025-04-04', 163, 4175],
+          [2, 1, '2025-04-11', 66.5, 4210],
+          [3, 2, '2025-04-18', 48, 3618],
+          [4, 2, '2025-04-25', 34.2, 3650],
+          [5, 3, '2025-05-23', 146, 4410],
+          [6, 3, '2025-05-30', 53.4, 4400],
+          [7, 3, '2025-06-06', 32.1, 4300],
+          [8, 4, '2025-05-23', 64, 4100],
+          [9, 4, '2025-05-30', 27.3, 3900],
+          [10, 5, '2025-06-13', 84.5, 4300],
+          [11, 5, '2025-06-20', 38.9, 4250],
+          [12, 6, '2025-06-20', 30, 3500],
+          [13, 6, '2025-06-27', 10.5, 3200],
+          [14, 7, '2025-07-04', 147, 4308],
+          [15, 7, '2025-07-11', 40.4, 4300],
+          [16, 7, '2025-07-18', 24.8, 4100],
+          [17, 8, '2025-07-11', 125, 4135],
+          [18, 8, '2025-07-18', 55.1, 4150],
+          [19, 8, '2025-07-25', 22.6, 3900],
+          [20, 9, '2025-07-25', 117.5, 4175],
+          [21, 9, '2025-08-01', 40, 4200],
+          [22, 10, '2025-08-08', 43.5, 3200],
+          [23, 10, '2025-08-15', 25.2, 3300],
+        ],
+      },
+    ],
+    questions: [
+      {
+        text: 'How much did each studio earn in total?',
+        recipe: {
+          start: 'WeekendGrosses',
+          steps: [
+            { op: 'join', table: 'Movies', leftColumn: 'movie_id', rightColumn: 'movie_id' },
+            { op: 'join', table: 'Studios', leftColumn: 'studio_id', rightColumn: 'studio_id' },
+            { op: 'aggregate', groupBy: ['studio_name'], summaries: [{ fn: 'total', column: 'gross_millions' }] },
+          ],
+        },
+      },
+      {
+        text: 'Which PG-13 movies had a weekend over $50 million?',
+        recipe: {
+          start: 'WeekendGrosses',
+          steps: [
+            { op: 'filter', column: 'gross_millions', condition: 'more_than', value: '50' },
+            { op: 'join', table: 'Movies', leftColumn: 'movie_id', rightColumn: 'movie_id' },
+            { op: 'filter', column: 'rating', condition: 'is', value: 'PG-13' },
+            { op: 'project', columns: ['movie_title', 'weekend_date', 'gross_millions'] },
+          ],
+        },
+      },
+      {
+        text: "What was each movie's best weekend?",
+        recipe: {
+          start: 'WeekendGrosses',
+          steps: [
+            { op: 'join', table: 'Movies', leftColumn: 'movie_id', rightColumn: 'movie_id' },
+            { op: 'aggregate', groupBy: ['movie_title'], summaries: [{ fn: 'highest', column: 'gross_millions' }] },
+          ],
+        },
+      },
+    ],
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = dataset;
+  else (root.QE_DATASETS = root.QE_DATASETS || []).push(dataset);
+})(this);
+
+// ---- datasets/08-esports.js ----
+(function (root) {
+  'use strict';
+  const dataset = {
+    id: 'esports',
+    name: 'Esports Tournament',
+    description: 'Teams · Gamers · MatchStats',
+    start: 'MatchStats',
+    tables: [
+      {
+        name: 'Teams',
+        columns: [
+          { name: 'team_id', type: 'number', key: 'pk' },
+          { name: 'team_name', type: 'text' },
+          { name: 'region', type: 'text' },
+        ],
+        rows: [
+          [1, 'Herd Esports', 'East'],
+          [2, 'Ridge Runners GG', 'East'],
+          [3, 'Lakeshore Legends', 'Midwest'],
+          [4, 'Prairie Storm', 'Midwest'],
+          [5, 'Desert Owls', 'West'],
+          [6, 'Pacific Surge', 'West'],
+          [7, 'Bayou Blitz', 'South'],
+          [8, 'Peach State Pulse', 'South'],
+        ],
+      },
+      {
+        name: 'Gamers',
+        columns: [
+          { name: 'gamer_id', type: 'number', key: 'pk' },
+          { name: 'gamertag', type: 'text' },
+          { name: 'team_id', type: 'number', key: 'fk', ref: 'Teams' },
+          { name: 'role', type: 'text' },
+        ],
+        rows: [
+          [1, 'ClutchCarl', 1, 'Duelist'],
+          [2, 'FrostByte', 1, 'Controller'],
+          [3, 'MapleStrike', 2, 'Initiator'],
+          [4, 'VoltVixen', 2, 'Duelist'],
+          [5, 'PixelPanda', 3, 'Sentinel'],
+          [6, 'QuietStorm', 3, 'Controller'],
+          [7, 'NovaNinja', 4, 'Duelist'],
+          [8, 'TurboTaco', 4, 'Initiator'],
+          [9, 'CobaltKid', 5, 'Sentinel'],
+          [10, 'SkyHopper', 5, 'Duelist'],
+          [11, 'EmberFox', 6, 'Controller'],
+          [12, 'RiftRunner', 6, 'Initiator'],
+          [13, 'LunaBlitz', 7, 'Duelist'],
+          [14, 'GlitchGoat', 7, 'Sentinel'],
+          [15, 'ZenZebra', 8, 'Controller'],
+          [16, 'HoneyBadger7', 8, 'Initiator'],
+          [17, 'BenchBuddy', 1, 'Sentinel'],
+        ],
+      },
+      {
+        name: 'MatchStats',
+        columns: [
+          { name: 'stat_id', type: 'number', key: 'pk' },
+          { name: 'gamer_id', type: 'number', key: 'fk', ref: 'Gamers' },
+          { name: 'match_date', type: 'date' },
+          { name: 'map_name', type: 'text' },
+          { name: 'kills', type: 'number' },
+          { name: 'deaths', type: 'number' },
+          { name: 'assists', type: 'number' },
+        ],
+        rows: [
+          [1, 1, '2026-03-07', 'Ascent', 24, 10, 4],
+          [2, 2, '2026-03-07', 'Ascent', 11, 13, 9],
+          [3, 3, '2026-03-07', 'Bind', 9, 14, 12],
+          [4, 4, '2026-03-07', 'Bind', 17, 11, 5],
+          [5, 5, '2026-03-07', 'Haven', 8, 16, 10],
+          [6, 6, '2026-03-07', 'Haven', 6, 15, 14],
+          [7, 7, '2026-03-07', 'Lotus', 21, 12, 3],
+          [8, 8, '2026-03-07', 'Lotus', 13, 12, 11],
+          [9, 9, '2026-03-07', 'Split', 7, 17, 8],
+          [10, 10, '2026-03-07', 'Split', 19, 14, 4],
+          [11, 11, '2026-03-08', 'Sunset', 10, 12, 13],
+          [12, 12, '2026-03-08', 'Sunset', 12, 11, 15],
+          [13, 13, '2026-03-08', 'Ascent', 28, 9, 2],
+          [14, 14, '2026-03-08', 'Ascent', 5, 19, 7],
+          [15, 15, '2026-03-08', 'Bind', 4, 22, 9],
+          [16, 16, '2026-03-08', 'Bind', 14, 13, 12],
+          [17, 1, '2026-03-08', 'Haven', 20, 8, 6],
+          [18, 2, '2026-03-08', 'Haven', 9, 15, 11],
+          [19, 4, '2026-03-08', 'Lotus', 16, 12, 5],
+          [20, 7, '2026-03-08', 'Split', 15, 10, 1],
+          [21, 10, '2026-03-08', 'Sunset', 15, 13, 3],
+          [22, 13, '2026-03-08', 'Lotus', 22, 11, 4],
+          [23, 5, '2026-03-08', 'Sunset', 6, 18, 10],
+          [24, 8, '2026-03-08', 'Split', 12, 14, 14],
+          [25, 12, '2026-03-08', 'Ascent', 10, 16, 13],
+        ],
+      },
+    ],
+    questions: [
+      {
+        text: 'Which team got the most total kills?',
+        recipe: {
+          start: 'MatchStats',
+          steps: [
+            { op: 'join', table: 'Gamers', leftColumn: 'gamer_id', rightColumn: 'gamer_id' },
+            { op: 'join', table: 'Teams', leftColumn: 'team_id', rightColumn: 'team_id' },
+            { op: 'aggregate', groupBy: ['team_name'], summaries: [{ fn: 'total', column: 'kills' }] },
+          ],
+        },
+      },
+      {
+        text: 'Which gamers had 20 or more kills in a match?',
+        recipe: {
+          start: 'MatchStats',
+          steps: [
+            { op: 'filter', column: 'kills', condition: 'at_least', value: '20' },
+            { op: 'join', table: 'Gamers', leftColumn: 'gamer_id', rightColumn: 'gamer_id' },
+            { op: 'project', columns: ['gamertag', 'map_name', 'kills'] },
+          ],
+        },
+      },
+      {
+        text: 'What is the average number of assists for each role?',
+        recipe: {
+          start: 'MatchStats',
+          steps: [
+            { op: 'join', table: 'Gamers', leftColumn: 'gamer_id', rightColumn: 'gamer_id' },
+            { op: 'aggregate', groupBy: ['role'], summaries: [{ fn: 'average', column: 'assists' }] },
+          ],
+        },
+      },
+    ],
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = dataset;
+  else (root.QE_DATASETS = root.QE_DATASETS || []).push(dataset);
+})(this);
+
+// ---- datasets/09-tiktok.js ----
+(function (root) {
+  'use strict';
+  const dataset = {
+    id: 'tiktok',
+    name: 'TikTok Creators & Memes',
+    description: 'Creators · Videos · DailyViews',
+    start: 'DailyViews',
+    tables: [
+      {
+        name: 'Creators',
+        columns: [
+          { name: 'creator_id', type: 'number', key: 'pk' },
+          { name: 'handle', type: 'text' },
+          { name: 'niche', type: 'text' },
+          { name: 'follower_count', type: 'number' },
+        ],
+        rows: [
+          [1, '@dormroomchef', 'Food', 184000],
+          [2, '@sleepyseniorsam', 'Comedy', 52000],
+          [3, '@quadquips', 'Comedy', 310000],
+          [4, '@twirlwithtess', 'Dance', 895000],
+          [5, '@lootboxlenny', 'Gaming', 27500],
+          [6, '@finalsweekfiona', 'Comedy', 8400],
+          [7, '@ramenrachel', 'Food', 2300],
+          [8, '@stepbystepsyd', 'Dance', 61000],
+        ],
+      },
+      {
+        name: 'Videos',
+        columns: [
+          { name: 'video_id', type: 'number', key: 'pk' },
+          { name: 'creator_id', type: 'number', key: 'fk', ref: 'Creators' },
+          { name: 'caption', type: 'text' },
+          { name: 'meme_format', type: 'text' },
+          { name: 'post_date', type: 'date' },
+        ],
+        rows: [
+          [1, 1, 'Five dollar dorm ramen upgrade', 'Tutorial', '2026-04-02'],
+          [2, 2, 'POV: your alarm goes off during finals week', 'POV', '2026-04-03'],
+          [3, 3, 'A day in the life of a quad squirrel', 'Day in the Life', '2026-04-05'],
+          [4, 4, 'Learning the new dance in the hallway', 'Tutorial', '2026-04-06'],
+          [5, 5, 'Get ready with me for a tournament', 'Get Ready With Me', '2026-04-08'],
+          [6, 3, 'Storytime: I walked into the wrong lecture', 'Storytime', '2026-04-10'],
+          [7, 6, 'POV: the library closes in five minutes', 'POV', '2026-04-12'],
+          [8, 1, 'Get ready with me for a cookout', 'Get Ready With Me', '2026-04-14'],
+          [9, 4, 'Dance duet with my roommate', 'Duet', '2026-04-17'],
+          [10, 2, 'Storytime: the group project that worked', 'Storytime', '2026-04-20'],
+          [11, 8, 'Day in the life of a dance major', 'Day in the Life', '2026-04-23'],
+          [12, 5, 'Duet with my favorite streamer', 'Duet', '2026-04-27'],
+        ],
+      },
+      {
+        name: 'DailyViews',
+        columns: [
+          { name: 'view_id', type: 'number', key: 'pk' },
+          { name: 'video_id', type: 'number', key: 'fk', ref: 'Videos' },
+          { name: 'view_date', type: 'date' },
+          { name: 'views', type: 'number' },
+          { name: 'likes', type: 'number' },
+        ],
+        rows: [
+          [1, 1, '2026-04-03', 85000, 6800],
+          [2, 1, '2026-04-05', 42000, 3400],
+          [3, 2, '2026-04-04', 120000, 12600],
+          [4, 2, '2026-04-06', 64000, 6100],
+          [5, 3, '2026-04-06', 910000, 91000],
+          [6, 3, '2026-04-08', 2400000, 264000],
+          [7, 4, '2026-04-07', 1800000, 144000],
+          [8, 4, '2026-04-09', 950000, 76000],
+          [9, 5, '2026-04-09', 14000, 1400],
+          [10, 6, '2026-04-11', 560000, 61000],
+          [11, 6, '2026-04-13', 230000, 25000],
+          [12, 7, '2026-04-13', 3200, 320],
+          [13, 8, '2026-04-15', 76000, 5900],
+          [14, 8, '2026-04-16', 31000, 2500],
+          [15, 9, '2026-04-18', 1300000, 104000],
+          [16, 9, '2026-04-19', 700000, 52500],
+          [17, 10, '2026-04-21', 47000, 4700],
+          [18, 10, '2026-04-23', 22000, 2000],
+          [19, 11, '2026-04-24', 38000, 3100],
+          [20, 11, '2026-04-26', 19000, 1500],
+          [21, 12, '2026-04-28', 8500, 850],
+          [22, 12, '2026-04-30', 4100, 380],
+          [23, 1, '2026-04-08', 17000, 1300],
+          [24, 5, '2026-04-11', 9200, 930],
+          [25, 7, '2026-04-14', 1000, 90],
+        ],
+      },
+    ],
+    questions: [
+      {
+        text: 'Which meme format gets the most views?',
+        recipe: {
+          start: 'DailyViews',
+          steps: [
+            { op: 'join', table: 'Videos', leftColumn: 'video_id', rightColumn: 'video_id' },
+            { op: 'aggregate', groupBy: ['meme_format'], summaries: [{ fn: 'total', column: 'views' }] },
+          ],
+        },
+      },
+      {
+        text: 'How many total likes did each creator get?',
+        recipe: {
+          start: 'DailyViews',
+          steps: [
+            { op: 'join', table: 'Videos', leftColumn: 'video_id', rightColumn: 'video_id' },
+            { op: 'join', table: 'Creators', leftColumn: 'creator_id', rightColumn: 'creator_id' },
+            { op: 'aggregate', groupBy: ['handle'], summaries: [{ fn: 'total', column: 'likes' }] },
+          ],
+        },
+      },
+      {
+        text: 'What did comedy creators post in the first half of April 2026?',
+        recipe: {
+          start: 'Videos',
+          steps: [
+            { op: 'filter', column: 'post_date', condition: 'between', value: '2026-04-01', value2: '2026-04-15' },
+            { op: 'join', table: 'Creators', leftColumn: 'creator_id', rightColumn: 'creator_id' },
+            { op: 'filter', column: 'niche', condition: 'is', value: 'Comedy' },
+            { op: 'project', columns: ['handle', 'caption', 'post_date'] },
+          ],
+        },
+      },
+    ],
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = dataset;
+  else (root.QE_DATASETS = root.QE_DATASETS || []).push(dataset);
+})(this);
+
+// ---- datasets/10-festival.js ----
+(function (root) {
+  'use strict';
+  const dataset = {
+    id: 'festival',
+    name: 'Music Festival Lineup',
+    description: 'Stages · Acts · SetTimes',
+    start: 'SetTimes',
+    tables: [
+      {
+        name: 'Stages',
+        columns: [
+          { name: 'stage_id', type: 'number', key: 'pk' },
+          { name: 'stage_name', type: 'text' },
+          { name: 'stage_capacity', type: 'number' },
+        ],
+        rows: [
+          [1, 'Main Stage', 60000],
+          [2, 'Sahara Tent', 15000],
+          [3, 'Riverside Stage', 22000],
+          [4, 'Garden Stage', 8000],
+          [5, 'The Dome', 12000],
+          [6, 'Lakeside Stage', 18000],
+          [7, 'Forest Stage', 3500],
+          [8, 'Pier Stage', 1500],
+        ],
+      },
+      {
+        name: 'Acts',
+        columns: [
+          { name: 'act_id', type: 'number', key: 'pk' },
+          { name: 'act_name', type: 'text' },
+          { name: 'genre', type: 'text' },
+          { name: 'headliner', type: 'text' },
+        ],
+        rows: [
+          [1, 'Sabrina Carpenter', 'Pop', 'Yes'],
+          [2, 'Tyler, The Creator', 'Hip-Hop', 'Yes'],
+          [3, 'Chappell Roan', 'Pop', 'Yes'],
+          [4, 'Billie Eilish', 'Pop', 'Yes'],
+          [5, 'Fred again..', 'Electronic', 'No'],
+          [6, 'Charli xcx', 'Electropop', 'No'],
+          [7, 'Zach Bryan', 'Country', 'No'],
+          [8, 'Doja Cat', 'Hip-Hop', 'No'],
+          [9, 'Tems', 'R&B', 'No'],
+          [10, 'Gracie Abrams', 'Indie Pop', 'No'],
+          [11, 'Benson Boone', 'Pop', 'No'],
+          [12, 'Kaytranada', 'Electronic', 'No'],
+          [13, 'Remi Wolf', 'Funk Pop', 'No'],
+          [14, 'Djo', 'Indie Rock', 'No'],
+          [15, 'Role Model', 'Indie Pop', 'No'],
+        ],
+      },
+      {
+        name: 'SetTimes',
+        columns: [
+          { name: 'set_id', type: 'number', key: 'pk' },
+          { name: 'act_id', type: 'number', key: 'fk', ref: 'Acts' },
+          { name: 'stage_id', type: 'number', key: 'fk', ref: 'Stages' },
+          { name: 'festival_date', type: 'date' },
+          { name: 'set_length_min', type: 'number' },
+        ],
+        rows: [
+          [1, 1, 1, '2026-04-10', 90],
+          [2, 2, 1, '2026-04-11', 105],
+          [3, 3, 1, '2026-04-12', 90],
+          [4, 4, 1, '2026-04-12', 100],
+          [5, 5, 2, '2026-04-10', 75],
+          [6, 6, 1, '2026-04-11', 75],
+          [7, 7, 3, '2026-04-11', 60],
+          [8, 8, 5, '2026-04-10', 60],
+          [9, 9, 4, '2026-04-12', 50],
+          [10, 10, 6, '2026-04-11', 55],
+          [11, 11, 3, '2026-04-12', 60],
+          [12, 12, 2, '2026-04-12', 80],
+          [13, 13, 7, '2026-04-10', 45],
+          [14, 14, 8, '2026-04-11', 45],
+        ],
+      },
+    ],
+    questions: [
+      {
+        text: 'How many minutes of music does each stage host?',
+        recipe: {
+          start: 'SetTimes',
+          steps: [
+            { op: 'join', table: 'Stages', leftColumn: 'stage_id', rightColumn: 'stage_id' },
+            { op: 'aggregate', groupBy: ['stage_name'], summaries: [{ fn: 'total', column: 'set_length_min' }] },
+          ],
+        },
+      },
+      {
+        text: 'Which acts play the Main Stage on Saturday?',
+        recipe: {
+          start: 'SetTimes',
+          steps: [
+            { op: 'filter', column: 'festival_date', condition: 'on', value: '2026-04-11' },
+            { op: 'join', table: 'Stages', leftColumn: 'stage_id', rightColumn: 'stage_id' },
+            { op: 'filter', column: 'stage_name', condition: 'is', value: 'Main Stage' },
+            { op: 'join', table: 'Acts', leftColumn: 'act_id', rightColumn: 'act_id' },
+            { op: 'project', columns: ['act_name', 'set_length_min'] },
+          ],
+        },
+      },
+      {
+        text: 'How many headliners play each day?',
+        recipe: {
+          start: 'SetTimes',
+          steps: [
+            { op: 'join', table: 'Acts', leftColumn: 'act_id', rightColumn: 'act_id' },
+            { op: 'filter', column: 'headliner', condition: 'is', value: 'Yes' },
+            { op: 'aggregate', groupBy: ['festival_date'], summaries: [{ fn: 'count' }] },
+          ],
+        },
+      },
+    ],
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = dataset;
+  else (root.QE_DATASETS = root.QE_DATASETS || []).push(dataset);
+})(this);
+
+// ---- dom.js ----
+// Query Explorer: tiny DOM helpers. Never uses innerHTML.
+(function (root) {
+  'use strict';
+  const QE = root.QE;
+
+  function h(tag, attrs, ...children) {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v === null || v === undefined || v === false) continue;
+      if (k === 'class') el.className = v;
+      else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+      else if (v === true) el.setAttribute(k, '');
+      else el.setAttribute(k, v);
+    }
+    for (const c of children.flat(Infinity)) {
+      if (c === null || c === undefined || c === false) continue;
+      el.append(c instanceof Node ? c : String(c));
+    }
+    return el;
+  }
+
+  function rich(str) {
+    return QE.parseRich(str).map(p => (p.kind === 'strong' ? h('strong', null, p.text) : p.kind === 'code' ? h('code', null, p.text) : p.text));
+  }
+
+  const ICON_PATHS = {
+    filter: 'M3 4h18l-7 9v6l-4 2v-8z',
+    project: 'M4 4h4v16H4zM10 4h4v16h-4zM16 4h4v16h-4z',
+    join: 'M10 14a4 4 0 0 1 0-5.6l3-3a4 4 0 0 1 5.6 5.6l-1.5 1.5M14 10a4 4 0 0 1 0 5.6l-3 3a4 4 0 0 1-5.6-5.6l1.5-1.5',
+    aggregate: 'M12 3l9 5-9 5-9-5zM3 13l9 5 9-5',
+  };
+
+  function icon(op) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('class', 'icon');
+    svg.setAttribute('aria-hidden', 'true');
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', ICON_PATHS[op]);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', 'currentColor');
+    path.setAttribute('stroke-width', '2');
+    path.setAttribute('stroke-linejoin', 'round');
+    svg.append(path);
+    return svg;
+  }
+
+  root.QE = Object.assign(QE, { h, rich, icon });
+})(this);
+
+// ---- table-view.js ----
+// Query Explorer: draws a table and the size counter.
+(function (root) {
+  'use strict';
+  const QE = root.QE;
+  const { h } = QE;
+
+  function keyBadge(col) {
+    if (col.key === 'pk') return h('span', { class: 'badge', title: 'Primary key', 'aria-label': 'primary key' }, '🔑');
+    if (col.key === 'fk') return h('span', { class: 'badge', title: `Foreign key to ${col.ref}`, 'aria-label': `foreign key to ${col.ref}` }, '🔗');
+    return null;
+  }
+
+  function cls(...names) {
+    const s = names.filter(Boolean).join(' ');
+    return s || null;
+  }
+
+  function renderTable(table, opts = {}) {
+    const colClass = name => (opts.colClass ? opts.colClass(name) : null);
+    const head = h('tr', null, table.columns.map(c =>
+      h('th', { scope: 'col', class: cls(c.type === 'number' && 'num', colClass(c.name)) }, h('code', null, c.name), keyBadge(c))));
+    const body = [];
+    table.rows.forEach((row, i) => {
+      body.push(h('tr', { class: opts.rowClass ? opts.rowClass(i) : null, 'data-row': String(opts.rowKey ? opts.rowKey(i) : i) },
+        table.columns.map((c, ci) => h('td', { class: cls(c.type === 'number' && 'num', colClass(c.name)) },
+          ci === 0 && opts.rowTag ? opts.rowTag(i) : null,
+          QE.formatValue(row[c.name], c)))));
+      if (opts.afterRow) body.push(...opts.afterRow(i));
+    });
+    if (!table.rows.length) {
+      body.push(h('tr', null, h('td', { class: 'empty', colspan: String(Math.max(1, table.columns.length)) }, opts.emptyMessage || 'No rows.')));
+    }
+    return h('div', { class: cls('table-wrap', opts.wrapClass) },
+      h('table', { class: 'data' }, h('thead', null, head), h('tbody', null, body)));
+  }
+
+  function sizeText(t) {
+    const r = t.rows.length;
+    const c = t.columns.length;
+    return `${r.toLocaleString('en-US')} ${r === 1 ? 'row' : 'rows'} × ${c} ${c === 1 ? 'column' : 'columns'}`;
+  }
+
+  function renderCounter(before, after) {
+    if (!before) return h('p', { class: 'counter' }, h('strong', null, sizeText(after)));
+    return h('p', { class: 'counter', 'aria-live': 'polite' },
+      sizeText(before), h('span', { 'aria-hidden': 'true' }, ' → '), h('span', { class: 'sr-only' }, ' becomes '), h('strong', null, sizeText(after)));
+  }
+
+  root.QE = Object.assign(QE, { renderTable, sizeText, renderCounter });
+})(this);
+
+// ---- modal.js ----
+// Query Explorer: one small dialog at a time, used by the join walkthrough.
+(function (root) {
+  'use strict';
+  const QE = root.QE;
+  const { h, rich } = QE;
+
+  let current = null; // { backdrop, finish }
+
+  function closeModal() {
+    if (current) current.finish('skip');
+  }
+
+  // Resolves to 'ok' or 'skip'. Escape and "Skip the rest" both mean 'skip'.
+  function showModal({ title, body, okLabel = 'Got it', skipLabel = 'Skip the rest', stepText = null, step = null, steps = null }) {
+    closeModal();
+    return new Promise(resolve => {
+      const previous = document.activeElement;
+      const appEl = document.getElementById('app');
+      const titleId = 'qe-modal-title';
+      const bodyId = 'qe-modal-body';
+      let done = false;
+
+      function finish(answer) {
+        if (done) return;
+        done = true;
+        current = null;
+        document.removeEventListener('keydown', onKey, true);
+        document.removeEventListener('focusin', onFocusIn, true);
+        backdrop.remove();
+        if (appEl) appEl.inert = false;
+        if (previous && previous.isConnected && typeof previous.focus === 'function') previous.focus({ preventScroll: true });
+        resolve(answer);
+      }
+
+      const ok = h('button', { class: 'btn primary', type: 'button', onclick: () => finish('ok') }, okLabel);
+      const skip = h('button', { class: 'btn-link', type: 'button', onclick: () => finish('skip') }, skipLabel);
+      const dots = step !== null && steps
+        ? h('span', { class: 'modal-dots', 'aria-hidden': 'true' }, Array.from({ length: steps }, (_, i) => h('span', { class: 'dot' + (i === step ? ' on' : '') })))
+        : (stepText ? h('span', { class: 'modal-step' }, stepText) : null);
+      const dialog = h('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': titleId, 'aria-describedby': bodyId },
+        h('div', { class: 'modal-head' }, h('h2', { id: titleId }, title), dots),
+        h('p', { id: bodyId, class: 'modal-body' }, rich(body)),
+        h('div', { class: 'modal-actions' }, ok, skip));
+      const backdrop = h('div', { class: 'modal-backdrop' }, dialog);
+
+      function onKey(e) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          finish('skip');
+        } else if (e.key === 'Tab') {
+          e.preventDefault();
+          const order = [ok, skip];
+          const i = order.indexOf(document.activeElement);
+          const next = e.shiftKey ? (i <= 0 ? order.length - 1 : i - 1) : (i === order.length - 1 ? 0 : i + 1);
+          order[next].focus();
+        }
+      }
+      // If focus ever lands outside the dialog, bring it back.
+      function onFocusIn(e) {
+        if (!dialog.contains(e.target)) ok.focus({ preventScroll: true });
+      }
+
+      current = { backdrop, finish };
+      if (appEl) appEl.inert = true;
+      document.body.append(backdrop);
+      document.addEventListener('keydown', onKey, true);
+      document.addEventListener('focusin', onFocusIn, true);
+      ok.focus({ preventScroll: true });
+    });
+  }
+
+  root.QE = Object.assign(QE, { showModal, closeModal });
+})(this);
+
+// ---- recipe-view.js ----
+// Query Explorer: the recipe panel (step cards and step editors).
+(function (root) {
+  'use strict';
+  const QE = root.QE;
+  const { h, rich, icon } = QE;
+
+  const OPS = [
+    { op: 'filter', label: 'Filter' },
+    { op: 'project', label: 'Project' },
+    { op: 'join', label: 'Join' },
+    { op: 'aggregate', label: 'Aggregate' },
+  ];
+  const opLabel = op => OPS.find(o => o.op === op).label;
+
+  function newDraft(op, input) {
+    if (op === 'filter') return { op, column: '', condition: '', value: '', value2: '', values: [] };
+    if (op === 'project') return { op, columns: input.columns.map(c => c.name) };
+    if (op === 'join') return { op, table: '', leftColumn: '', rightColumn: '', cartesian: false };
+    return { op, groupBy: [], summaries: [{ fn: 'count', column: '' }] };
+  }
+
+  function select(key, value, options, onchange, label, disabled) {
+    return h('select', { 'data-focus-key': key, 'aria-label': label, disabled: !!disabled, onchange: e => onchange(e.target.value) },
+      h('option', { value: '', disabled: true, selected: !options.some(o => String(o.value) === String(value)) }, 'Choose…'),
+      options.map(o => h('option', { value: o.value, selected: String(o.value) === String(value) }, o.label)));
+  }
+
+  function distinct(input, name) {
+    return [...new Set(input.rows.map(r => r[name]))].sort((a, b) => String(a).localeCompare(String(b)));
+  }
+
+  // Why Apply is blocked: a blank field, or a name the table no longer has.
+  function blockReason(ctx, input) {
+    const d = ctx.state.draft;
+    return QE.incompleteReason(d, input) || QE.validateStep(input, d, ctx.dataset);
+  }
+
+  // Typing in a box updates the draft without redrawing, so the cursor stays put.
+  function liveUpdate(ctx, input, patch) {
+    Object.assign(ctx.state.draft, patch);
+    const reason = blockReason(ctx, input);
+    const btn = document.getElementById('apply-btn');
+    if (btn) btn.disabled = !!reason;
+    const note = document.getElementById('apply-reason');
+    if (note) note.replaceChildren(...(reason ? rich(reason) : []));
+  }
+
+  function onEnter(ctx, input) {
+    return e => {
+      if (e.key === 'Enter' && !blockReason(ctx, input)) ctx.actions.applyDraft();
+    };
+  }
+
+  function valueControl(d, col, input, ctx) {
+    const { actions } = ctx;
+    if (col.type === 'text' && d.condition === 'is_one_of') {
+      return h('fieldset', null, h('legend', null, 'Pick one or more'), h('div', { class: 'checks' },
+        distinct(input, col.name).map(v => h('label', null,
+          h('input', { type: 'checkbox', 'data-focus-key': 'f-one-' + v, checked: d.values.includes(v),
+            onchange: e => actions.updateDraft({ values: e.target.checked ? [...d.values, v] : d.values.filter(x => x !== v) }) }),
+          v))));
+    }
+    if (col.type === 'text' && d.condition === 'contains') {
+      return h('div', { class: 'row' }, h('input', { type: 'text', 'data-focus-key': 'f-val', 'aria-label': 'Text to look for', value: d.value,
+        oninput: e => liveUpdate(ctx, input, { value: e.target.value }), onkeydown: onEnter(ctx, input) }));
+    }
+    if (col.type === 'text') {
+      return h('div', { class: 'row' }, select('f-val', d.value, distinct(input, col.name).map(v => ({ value: v, label: v })), v => actions.updateDraft({ value: v }), 'Value'));
+    }
+    const attrs = col.type === 'number' ? { type: 'text', inputmode: 'decimal' } : { type: 'date' };
+    const box = (key, field, label) => h('input', { ...attrs, 'data-focus-key': key, 'aria-label': label, value: d[field],
+      oninput: e => liveUpdate(ctx, input, { [field]: e.target.value }), onkeydown: onEnter(ctx, input) });
+    return d.condition === 'between'
+      ? h('div', { class: 'row' }, box('f-val', 'value', 'From'), 'and', box('f-val2', 'value2', 'To'))
+      : h('div', { class: 'row' }, box('f-val', 'value', 'Value'));
+  }
+
+  function filterEditor(d, input, ctx) {
+    const { actions } = ctx;
+    const col = QE.getColumn(input, d.column);
+    const parts = [h('div', { class: 'row' }, 'Keep only rows where',
+      select('f-col', d.column, input.columns.map(c => ({ value: c.name, label: c.name })), v => {
+        const type = QE.getColumn(input, v).type;
+        actions.updateDraft({ column: v, condition: QE.CONDITIONS[type][0].id, value: '', value2: '', values: [] });
+      }, 'Column'),
+      col ? select('f-cond', d.condition, QE.CONDITIONS[col.type].map(c => ({ value: c.id, label: c.label })),
+        v => actions.updateDraft({ condition: v, value: '', value2: '', values: [] }), 'Condition') : null)];
+    if (col && d.condition) parts.push(valueControl(d, col, input, ctx));
+    return parts;
+  }
+
+  function checkList(legend, input, chosen, keyPrefix, onchange) {
+    return h('fieldset', null, h('legend', null, legend), h('div', { class: 'checks' },
+      input.columns.map(c => h('label', null,
+        h('input', { type: 'checkbox', 'data-focus-key': keyPrefix + c.name, checked: chosen.includes(c.name),
+          onchange: e => onchange(input.columns.map(x => x.name).filter(n => (n === c.name ? e.target.checked : chosen.includes(n)))) }),
+        h('code', null, c.name)))));
+  }
+
+  function projectEditor(d, input, { actions }) {
+    return checkList('Keep only these columns', input, d.columns, 'p-', columns => actions.updateDraft({ columns }));
+  }
+
+  function joinEditor(d, input, { dataset, actions }) {
+    const choices = dataset.tables.filter(t => !input.sources.includes(t.name));
+    const parts = [h('div', { class: 'row' }, 'Combine with',
+      choices.length
+        ? select('j-table', d.table, choices.map(t => ({ value: t.name, label: t.name })), v => {
+          const s = QE.suggestJoinKey(input, QE.loadTable(QE.findTableDef(dataset, v)));
+          actions.updateDraft({ table: v, leftColumn: s ? s.leftColumn : '', rightColumn: s ? s.rightColumn : '', cartesian: false });
+        }, 'Table')
+        : h('span', { class: 'reason' }, 'Every table in this data set is already combined into this table.'))];
+    if (!d.table || !choices.some(t => t.name === d.table)) return parts;
+    const other = QE.loadTable(QE.findTableDef(dataset, d.table));
+    const s = QE.suggestJoinKey(input, other);
+    const left = QE.getColumn(input, d.leftColumn);
+    const isSuggested = s && !d.cartesian && s.leftColumn === d.leftColumn && s.rightColumn === d.rightColumn;
+    parts.push(h('div', { class: 'row' }, 'matching',
+      select('j-left', d.leftColumn, input.columns.map(c => ({ value: c.name, label: c.name })), v => {
+        const type = QE.getColumn(input, v).type;
+        const keepRight = other.columns.some(c => c.name === d.rightColumn && c.type === type);
+        actions.updateDraft({ leftColumn: v, rightColumn: keepRight ? d.rightColumn : '' });
+      }, 'Column in the current table', d.cartesian),
+      'equals',
+      select('j-right', d.rightColumn, other.columns.filter(c => !left || c.type === left.type).map(c => ({ value: c.name, label: c.name })),
+        v => actions.updateDraft({ rightColumn: v }), `Column in ${d.table}`, d.cartesian),
+      isSuggested ? h('span', { class: 'suggested' }, '✓ suggested') : null));
+    if (!s) parts.push(h('p', { class: 'reason' }, "These tables don't share a key."));
+    parts.push(h('label', null,
+      h('input', { type: 'checkbox', 'data-focus-key': 'j-cart', checked: d.cartesian, onchange: e => actions.updateDraft({ cartesian: e.target.checked }) }),
+      " Don't match on anything"));
+    return parts;
+  }
+
+  function aggregateEditor(d, input, { actions }) {
+    const setSummaries = summaries => actions.updateDraft({ summaries });
+    return [
+      checkList('Group by (leave all unchecked to summarize the whole table)', input, d.groupBy, 'g-', groupBy => actions.updateDraft({ groupBy })),
+      h('fieldset', null, h('legend', null, 'Calculate'),
+        d.summaries.map((s, i) => {
+          const fn = QE.SUMMARY_FUNCTIONS.find(f => f.id === s.fn);
+          const cols = input.columns.filter(c => fn.types.includes(c.type));
+          return h('div', { class: 'row' },
+            select('s-fn-' + i, s.fn, QE.SUMMARY_FUNCTIONS.map(f => ({ value: f.id, label: f.label })), v => {
+              const next = QE.SUMMARY_FUNCTIONS.find(f => f.id === v);
+              const keep = input.columns.some(c => c.name === s.column && next.types.includes(c.type));
+              setSummaries(d.summaries.map((x, j) => (j === i ? { fn: v, column: keep ? s.column : '' } : x)));
+            }, 'Calculation'),
+            s.fn === 'count' ? null : ['of', select('s-col-' + i, s.column, cols.map(c => ({ value: c.name, label: c.name })),
+              v => setSummaries(d.summaries.map((x, j) => (j === i ? { ...x, column: v } : x))), 'Column')],
+            d.summaries.length > 1
+              ? h('button', { class: 'btn small', type: 'button', 'data-focus-key': 's-del-' + i, 'aria-label': 'Remove this calculation',
+                onclick: () => setSummaries(d.summaries.filter((_, j) => j !== i)) }, '✕')
+              : null);
+        }),
+        d.summaries.length < 3
+          ? h('button', { class: 'btn small', type: 'button', 'data-focus-key': 's-add', onclick: () => setSummaries([...d.summaries, { fn: 'count', column: '' }]) }, '+ Add a calculation')
+          : null),
+    ];
+  }
+
+  const EDITORS = { filter: filterEditor, project: projectEditor, join: joinEditor, aggregate: aggregateEditor };
+
+  function editor(ctx, input) {
+    const { state, actions } = ctx;
+    const reason = blockReason(ctx, input);
+    return h('div', { class: 'editor' },
+      EDITORS[state.draft.op](state.draft, input, ctx),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn primary', type: 'button', id: 'apply-btn', 'data-focus-key': 'apply', disabled: !!reason, onclick: actions.applyDraft }, 'Apply'),
+        h('button', { class: 'btn', type: 'button', 'data-focus-key': 'cancel', onclick: actions.cancelDraft }, 'Cancel'),
+        h('span', { class: 'reason', id: 'apply-reason', 'aria-live': 'polite' }, reason ? rich(reason) : '')));
+  }
+
+  function startCard({ state, dataset, actions }) {
+    return h('li', { class: 'step' + (state.selected === 0 ? ' selected' : '') },
+      h('div', { class: 'step-main' },
+        h('button', { class: 'step-num', type: 'button', 'data-focus-key': 'step-0', 'aria-label': 'Show the starting table', onclick: () => actions.selectStep(0) }, '0'),
+        h('span', null,
+          h('span', { class: 'step-op' }, 'Start'),
+          h('label', { class: 'step-text' }, 'Start with ',
+            h('select', { 'data-focus-key': 'start', onchange: e => actions.setStart(e.target.value) },
+              dataset.tables.map(t => h('option', { value: t.name, selected: t.name === state.recipe.start }, t.name)))))));
+  }
+
+  function stepCard(ctx, step, n) {
+    const { state, results, actions } = ctx;
+    const r = results[n];
+    const input = results[n - 1].table;
+    const off = step.on === false;
+    return h('li', { class: ['step', state.selected === n ? 'selected' : '', off ? 'off' : ''].join(' ') },
+      h('button', { class: 'step-main', type: 'button', 'data-focus-key': 'step-' + n, 'aria-pressed': String(state.selected === n), onclick: () => actions.selectStep(n) },
+        h('span', { class: 'step-num' }, String(n)),
+        h('span', null,
+          h('span', { class: 'step-op' }, icon(step.op), opLabel(step.op), off ? ' (turned off)' : ''),
+          h('span', { class: 'step-text' }, rich(QE.describeStep(step, input))))),
+      r.status === 'invalid' ? h('span', { class: 'warn-badge', role: 'note' }, '⚠ ', rich(r.message)) : null,
+      state.editing === n
+        ? editor(ctx, input)
+        : h('div', { class: 'step-tools' },
+          h('button', { class: 'btn small', type: 'button', 'data-focus-key': 'edit-' + n, onclick: () => actions.editStep(n) }, 'Edit'),
+          h('button', { class: 'btn small', type: 'button', 'data-focus-key': 'toggle-' + n, onclick: () => actions.toggleStep(n) }, off ? 'Turn on' : 'Turn off'),
+          h('button', { class: 'btn small', type: 'button', 'data-focus-key': 'delete-' + n, onclick: () => actions.deleteStep(n) }, 'Delete')));
+  }
+
+  function newCard(ctx) {
+    const { state, results } = ctx;
+    const n = state.recipe.steps.length + 1;
+    return h('li', { class: 'step editing' },
+      h('div', { class: 'step-main' },
+        h('span', { class: 'step-num' }, String(n)),
+        h('span', null, h('span', { class: 'step-op' }, icon(state.draft.op), 'New ' + opLabel(state.draft.op).toLowerCase() + ' step'))),
+      editor(ctx, results[results.length - 1].table));
+  }
+
+  function renderRecipePanel(ctx) {
+    const { state, actions } = ctx;
+    const items = [startCard(ctx)];
+    state.recipe.steps.forEach((step, k) => items.push(stepCard(ctx, step, k + 1)));
+    if (state.editing === 'new') items.push(newCard(ctx));
+    return h('section', { class: 'recipe', 'aria-label': 'Recipe' },
+      h('h2', null, 'Recipe'),
+      h('ol', { class: 'steps' }, items),
+      h('div', { class: 'ops', role: 'group', 'aria-label': 'Add a step' },
+        OPS.map(o => h('button', { class: 'op-btn', type: 'button', 'data-focus-key': 'add-' + o.op, onclick: () => actions.addStep(o.op) }, icon(o.op), o.label))));
+  }
+
+  root.QE = Object.assign(QE, { newDraft, renderRecipePanel });
+})(this);
+
+// ---- animate.js ----
+// Query Explorer: short animations that show what each step did.
+(function (root) {
+  'use strict';
+  const QE = root.QE;
+  const { h, renderTable, visualPlan, colorClass } = QE;
+
+  const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  // Slide rows from their old spots to their new ones after `change` redraws them.
+  function flip(holder, change) {
+    const old = new Map();
+    holder.querySelectorAll('tbody tr').forEach(tr => old.set(tr.dataset.row, tr.getBoundingClientRect().top));
+    change();
+    holder.querySelectorAll('tbody tr').forEach(tr => {
+      const top = old.get(tr.dataset.row);
+      if (top === undefined) return;
+      const dy = top - tr.getBoundingClientRect().top;
+      if (!dy) return;
+      tr.style.transition = 'none';
+      tr.style.transform = `translateY(${dy}px)`;
+      tr.getBoundingClientRect();
+      requestAnimationFrame(() => {
+        tr.style.transition = 'transform .6s ease';
+        tr.style.transform = '';
+      });
+    });
+  }
+
+  const PLAYERS = {
+    filter(holder, before, plan) {
+      return [
+        [() => holder.replaceChildren(renderTable(before, {
+          rowClass: i => plan.beforeRows[i],
+          rowTag: i => (plan.beforeRows[i] === 'drop' ? h('span', { class: 'tag', 'aria-label': 'removed' }, '✕') : null),
+        })), 700],
+        [() => holder.querySelectorAll('tr.drop').forEach(tr => tr.classList.add('collapse')), 450],
+      ];
+    },
+
+    project(holder, before, plan) {
+      const dropped = new Set(plan.dropped);
+      return [
+        [() => holder.replaceChildren(renderTable(before, { colClass: name => (dropped.has(name) ? 'col-drop' : null) })), 700],
+        [() => holder.querySelectorAll('.col-drop').forEach(el => el.classList.add('col-collapse')), 450],
+      ];
+    },
+
+    join(holder, before, plan, other, step) {
+      const tag = id => h('span', { class: 'tag' }, id === null ? 'no match — dropped' : '#' + (id + 1));
+      const side = (title, table, match, cls) => h('div', { class: cls }, h('h3', null, title),
+        renderTable(table, plan.cartesian ? {} : {
+          rowClass: i => (match[i] === null ? 'nomatch' : colorClass(match[i])),
+          rowTag: i => tag(match[i]),
+        }));
+      let stage;
+      return [
+        [() => {
+          stage = h('div', { class: 'join-stage' }, side('Current table', before, plan.leftMatch, 'left'), side(step.table, other, plan.rightMatch, 'right'));
+          holder.replaceChildren(stage);
+        }, plan.cartesian ? 2700 : 3300],
+        [() => {
+          stage.classList.add('merge');
+          stage.querySelectorAll('tr.nomatch').forEach(tr => tr.classList.add('fade'));
+        }, 1500],
+      ];
+    },
+
+    aggregate(holder, before, plan) {
+      const view = order => renderTable({ ...before, rows: order.map(i => before.rows[i]) }, {
+        rowKey: k => order[k],
+        rowClass: k => colorClass(plan.rowGroup[order[k]]),
+        rowTag: k => h('span', { class: 'tag' }, plan.labels[plan.rowGroup[order[k]]]),
+      });
+      const firsts = new Set(plan.order.filter((i, k) => k === 0 || plan.rowGroup[plan.order[k - 1]] !== plan.rowGroup[i]));
+      return [
+        [() => holder.replaceChildren(view(before.rows.map((_, i) => i))), 600],
+        [() => flip(holder, () => holder.replaceChildren(view(plan.order))), 750],
+        [() => holder.querySelectorAll('tbody tr').forEach(tr => { if (!firsts.has(Number(tr.dataset.row))) tr.classList.add('collapse'); }), 450],
+      ];
+    },
+  };
+
+  // Guided join: a dialog before each part of the animation. Returns true when
+  // the final table should be shown, false when a newer render took over.
+  async function walk(holder, before, phases, wt, isCurrent) {
+    const WAITS = [700, 1500]; // a short look at each part before the next dialog
+    holder.classList.add('walk');
+    if (wt.instant) holder.classList.add('instant');
+    try {
+      holder.replaceChildren(renderTable(before)); // show the table as it was
+      for (let i = 0; i <= phases.length; i++) {
+        if (!isCurrent()) return false;
+        const answer = await wt.show(wt.texts[i]);
+        if (!isCurrent()) return false;
+        if (answer === 'skip') return true;
+        if (i === phases.length) break;
+        phases[i][0]();
+        if (!wt.instant) await wait(WAITS[i] || 700);
+      }
+      return isCurrent();
+    } finally {
+      holder.classList.remove('walk', 'instant'); // every way out, so nothing stale is left behind
+    }
+  }
+
+  async function playStep(holder, { before, result, step, dataset, reduceMotion, isCurrent, walkthrough }) {
+    const wt = step.op === 'join' && walkthrough ? walkthrough : null;
+    if (reduceMotion && !wt) return true;
+    const other = step.op === 'join' ? QE.loadTable(QE.findTableDef(dataset, step.table)) : null;
+    const plan = visualPlan(step, before, result, other);
+    const phases = PLAYERS[step.op](holder, before, plan, other, step);
+    if (wt) return walk(holder, before, phases, wt, isCurrent);
+    for (const [run, ms] of phases) {
+      if (!isCurrent()) return false;
+      run();
+      await wait(ms);
+    }
+    return isCurrent();
+  }
+
+  root.QE = Object.assign(QE, { playStep });
+})(this);
+
+// ---- app.js ----
+// Query Explorer: app state, actions, and the main render.
+(function (root) {
+  'use strict';
+  const QE = root.QE;
+  const { h, rich } = QE;
+  const DATASETS = root.QE_DATASETS || [];
+  const appEl = document.getElementById('app');
+
+  let nextId = 1;
+  let animToken = 0;
+  // Asked live (not cached) so a change in the device setting is respected.
+  const deviceWantsLessMotion = () => !!(root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const reducedByDefault = deviceWantsLessMotion();
+
+  const state = {
+    datasetId: DATASETS[0].id,
+    recipe: { start: DATASETS[0].start, steps: [] },
+    selected: 0,
+    editing: null, // null | 'new' | step number
+    draft: null,
+    view: 'result', // 'result' | a table name
+    reduceMotion: reducedByDefault,
+    explainJoins: true,
+    showCollapsed: false,
+    tryOpen: false,
+    openHints: new Set(),
+    animate: null, // step number to animate after the next render
+    focus: null, // data-focus-key to focus after the next render
+  };
+
+  const dataset = () => DATASETS.find(d => d.id === state.datasetId);
+
+  const actions = {
+    setDataset(id) {
+      if (state.recipe.steps.length && !root.confirm('Switching data sets clears your recipe. Continue?')) { render(); return; }
+      const d = DATASETS.find(x => x.id === id);
+      Object.assign(state, { datasetId: id, recipe: { start: d.start, steps: [] }, selected: 0, editing: null, draft: null, view: 'result', showCollapsed: false, openHints: new Set() });
+      render();
+    },
+    setStart(name) {
+      Object.assign(state, { selected: 0, editing: null, draft: null, view: 'result' });
+      state.recipe.start = name;
+      render();
+    },
+    selectStep(n) { state.selected = n; state.view = 'result'; render(); },
+    // Rule: any action that changes the recipe or opens another editor drops the open draft,
+    // so a draft is never kept against a table it was not built for.
+    addStep(op) {
+      const results = QE.runRecipe(dataset(), state.recipe);
+      state.draft = QE.newDraft(op, results[results.length - 1].table);
+      state.editing = 'new';
+      state.focus = '@editor';
+      render();
+    },
+    editStep(n) {
+      const draft = JSON.parse(JSON.stringify(state.recipe.steps[n - 1]));
+      // Drop names the table no longer has, so the editor shows only what can be kept.
+      const names = QE.runRecipe(dataset(), state.recipe)[n - 1].table.columns.map(c => c.name);
+      if (draft.op === 'project') draft.columns = draft.columns.filter(c => names.includes(c));
+      if (draft.op === 'aggregate') draft.groupBy = draft.groupBy.filter(c => names.includes(c));
+      state.draft = draft;
+      state.editing = n;
+      state.focus = '@editor';
+      render();
+    },
+    updateDraft(patch) { Object.assign(state.draft, patch); render(); },
+    applyDraft() {
+      const steps = state.recipe.steps;
+      let n;
+      if (state.editing === 'new') {
+        steps.push({ ...state.draft, id: nextId++, on: true });
+        n = steps.length;
+      } else {
+        n = state.editing;
+        steps[n - 1] = { ...state.draft, id: steps[n - 1].id, on: steps[n - 1].on };
+      }
+      Object.assign(state, { editing: null, draft: null, selected: n, view: 'result', animate: n, focus: 'step-' + n });
+      render();
+    },
+    cancelDraft() {
+      state.focus = state.editing === 'new' ? 'add-' + state.draft.op : 'edit-' + state.editing;
+      state.editing = null;
+      state.draft = null;
+      render();
+    },
+    toggleStep(n) {
+      const step = state.recipe.steps[n - 1];
+      step.on = step.on === false;
+      state.editing = null;
+      state.draft = null;
+      state.selected = n;
+      render();
+    },
+    deleteStep(n) {
+      state.recipe.steps.splice(n - 1, 1);
+      if (state.selected >= n) state.selected = Math.max(0, state.selected - 1);
+      state.editing = null;
+      state.draft = null;
+      state.focus = 'add-filter';
+      render();
+    },
+    setView(v) { state.view = v; render(); },
+    toggleHint(key) {
+      if (state.openHints.has(key)) state.openHints.delete(key);
+      else state.openHints.add(key);
+      render();
+    },
+    setReduceMotion(on) { state.reduceMotion = on; render(); },
+    setExplainJoins(on) { state.explainJoins = on; render(); },
+    setShowCollapsed(on) { state.showCollapsed = on; render(); },
+    replay() { state.animate = state.selected; render(); },
+  };
+
+  function tryThis(d) {
+    return h('details', { class: 'try', open: state.tryOpen, ontoggle: e => { state.tryOpen = e.target.open; } },
+      h('summary', null, `Try this (${d.questions.length} questions)`),
+      h('ol', null, d.questions.map((q, i) => {
+        const key = d.id + ':' + i;
+        const open = state.openHints.has(key);
+        return h('li', null, q.text, ' ',
+          h('button', { class: 'btn small', type: 'button', 'data-focus-key': 'hint-' + i, 'aria-expanded': String(open), onclick: () => actions.toggleHint(key) }, open ? 'Hide hint' : 'Show hint'),
+          open ? h('p', { class: 'hint' }, rich(QE.describeRecipe(d, q.recipe).join(' → ')), q.note ? ` (${q.note})` : '') : null);
+      })));
+  }
+
+  const MOTION_TITLE = 'Join walkthroughs keep their motion unless your device asks for less.';
+
+  function motionNote() {
+    if (!state.explainJoins) return null;
+    if (deviceWantsLessMotion()) return h('p', { class: 'motion-note' }, 'Your device asks for less motion, so join walkthroughs change instantly.');
+    return state.reduceMotion ? h('p', { class: 'motion-note' }, MOTION_TITLE) : null;
+  }
+
+  function header(d) {
+    return h('header', { class: 'top' },
+      h('div', { class: 'top-row' },
+        h('h1', null, 'Query Explorer'),
+        h('div', { class: 'picker' },
+          h('label', { for: 'dataset' }, 'Data set'),
+          h('select', { id: 'dataset', 'data-focus-key': 'dataset', onchange: e => actions.setDataset(e.target.value) },
+            DATASETS.map(x => h('option', { value: x.id, selected: x.id === d.id }, x.name)))),
+        h('div', { class: 'toggles' },
+          h('label', { class: 'motion' },
+            h('input', { type: 'checkbox', 'data-focus-key': 'explain', checked: state.explainJoins, onchange: e => actions.setExplainJoins(e.target.checked) }),
+            'Explain joins step by step'),
+          h('label', { class: 'motion', title: MOTION_TITLE },
+            h('input', { type: 'checkbox', 'data-focus-key': 'motion', checked: state.reduceMotion, onchange: e => actions.setReduceMotion(e.target.checked) }),
+            'Reduce motion'),
+          motionNote())),
+      h('p', { class: 'subline' }, d.description, h('span', { class: 'note' }, ' · Real names, made-up numbers. All data is invented for practice.')),
+      tryThis(d));
+  }
+
+  function emptyMessage(results, i) {
+    let k = i;
+    while (k > 0 && results[k - 1].table.rows.length === 0) k--;
+    return k === 0 ? 'This table has no rows.' : `No rows left. Step ${k} removed them all. Try changing it.`;
+  }
+
+  function finalTable(d, results, i, highlight) {
+    const r = results[i];
+    const step = i > 0 ? state.recipe.steps[i - 1] : null;
+    const ok = step && r.status === 'ok';
+    const opts = { emptyMessage: emptyMessage(results, i) };
+    if (highlight && ok) {
+      const before = results[i - 1].table;
+      const other = step.op === 'join' ? QE.loadTable(QE.findTableDef(d, step.table)) : null;
+      const plan = QE.visualPlan(step, before, r, other);
+      opts.rowClass = k => (plan.afterRows[k] ? 'hl ' + plan.afterRows[k] : null);
+      opts.wrapClass = 'highlight';
+    }
+    if (ok && step.op === 'aggregate' && state.showCollapsed) {
+      const before = results[i - 1].table;
+      opts.afterRow = k => [h('tr', { class: 'detail' }, h('td', { colspan: String(r.table.columns.length) },
+        QE.renderTable({ ...before, rows: r.trace.groups[k].map(j => before.rows[j]) }, { emptyMessage: 'No rows went into this summary.' })))];
+    }
+    const view = QE.renderTable(r.table, opts);
+    if (opts.wrapClass) setTimeout(() => view.classList.remove('highlight'), 2000);
+    return view;
+  }
+
+  function resultPanel(d, results) {
+    const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'What to show' },
+      [['result', 'Recipe result'], ...d.tables.map(t => [t.name, t.name])].map(([v, label]) =>
+        h('button', { class: 'tab', role: 'tab', type: 'button', 'data-focus-key': 'tab-' + v, 'aria-selected': String(state.view === v), onclick: () => actions.setView(v) }, label)));
+    const body = [];
+    if (state.view !== 'result') {
+      const t = QE.loadTable(QE.findTableDef(d, state.view));
+      body.push(h('p', { class: 'counter' }, h('strong', null, QE.sizeText(t)), ` · the original ${t.name} table`),
+        h('div', { id: 'table-holder' }, QE.renderTable(t)));
+    } else {
+      const i = state.selected;
+      const r = results[i];
+      const step = i > 0 ? state.recipe.steps[i - 1] : null;
+      const ok = step && r.status === 'ok';
+      body.push(h('div', { class: 'counter-row' },
+        h('strong', null, `Step ${i}`),
+        QE.renderCounter(ok ? results[i - 1].table : null, r.table),
+        ok ? h('button', { class: 'btn small', type: 'button', 'data-focus-key': 'replay', onclick: actions.replay }, '↻ Replay') : null,
+        ok && step.op === 'aggregate'
+          ? h('label', null, h('input', { type: 'checkbox', 'data-focus-key': 'collapsed', checked: state.showCollapsed, onchange: e => actions.setShowCollapsed(e.target.checked) }), ' Show the rows in each group')
+          : null));
+      if (r.status === 'off') body.push(h('p', { class: 'alert' }, 'This step is turned off, so the table is unchanged.'));
+      if (r.status === 'invalid') body.push(h('p', { class: 'alert' }, '⚠ ', rich(r.message), ' This step was skipped.'));
+      if (ok && r.trace.cartesian) body.push(h('p', { class: 'alert bad' }, 'Every row was paired with every row of the other table. Most of these rows are meaningless.'));
+      body.push(h('div', { id: 'table-holder' }, finalTable(d, results, i, false)));
+    }
+    return h('section', { class: 'result', 'aria-label': 'Result' }, h('h2', null, 'Result'), tabs, body);
+  }
+
+  function render() {
+    QE.closeModal(); // a dialog from an older render must never outlive it
+    animToken++;
+    const active = document.activeElement;
+    const focusKey = state.focus || (active && active.dataset ? active.dataset.focusKey : null);
+    state.focus = null;
+    const d = dataset();
+    const results = QE.runRecipe(d, state.recipe);
+    if (state.selected > results.length - 1) state.selected = results.length - 1;
+    document.body.classList.toggle('reduce-motion', state.reduceMotion);
+    appEl.replaceChildren(header(d), h('main', { class: 'layout' },
+      QE.renderRecipePanel({ state, dataset: d, results, actions }),
+      resultPanel(d, results)));
+    if (focusKey) {
+      const el = focusKey === '@editor'
+        ? appEl.querySelector('.editor select:not(:disabled), .editor input:not(:disabled), .editor button:not(:disabled)')
+        : appEl.querySelector(`[data-focus-key="${CSS.escape(focusKey)}"]`);
+      if (el) el.focus();
+    }
+    if (state.animate !== null) {
+      const n = state.animate;
+      state.animate = null;
+      afterRender(d, results, n);
+    }
+  }
+
+  function afterRender(d, results, n) {
+    const holder = document.getElementById('table-holder');
+    if (!holder || state.view !== 'result' || n === 0 || results[n].status !== 'ok') return;
+    const token = animToken;
+    const step = state.recipe.steps[n - 1];
+    const before = results[n - 1].table;
+    let walkthrough;
+    if (step.op === 'join' && state.explainJoins) {
+      const texts = QE.joinNarration({ step, before, other: QE.loadTable(QE.findTableDef(d, step.table)), result: results[n] });
+      walkthrough = {
+        texts,
+        instant: deviceWantsLessMotion(),
+        show: t => {
+          const i = texts.indexOf(t);
+          return QE.showModal({ title: t.title, body: t.body, step: i, steps: texts.length, stepText: `${i + 1} of ${texts.length}` });
+        },
+      };
+    }
+    if (walkthrough) holder.scrollIntoView({ block: 'start' }); // keep the tables in view while dialogs talk about them
+    QE.playStep(holder, {
+      before,
+      result: results[n],
+      step,
+      dataset: d,
+      reduceMotion: state.reduceMotion,
+      walkthrough,
+      isCurrent: () => token === animToken,
+    }).then(done => {
+      if (done) holder.replaceChildren(finalTable(d, results, n, true));
+    }).catch(() => {
+      // Something went wrong mid-walkthrough: never leave a dialog or an inert page behind.
+      QE.closeModal();
+      if (token === animToken) holder.replaceChildren(finalTable(d, results, n, false));
+    });
+  }
+
+  render();
+})(this);
+
+</script>
+</body>
+</html>

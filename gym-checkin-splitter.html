@@ -1,0 +1,941 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gym Check-In Splitter</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Nunito+Sans:wght@300;400;600;700;800&display=swap">
+<style>
+  :root{
+    --bg:#FFFDFB; --card:#f7f7f6; --card-2:#efece6; --line:#e5e2da;
+    --ink:#121417; --body:#2b2e33; --muted:#8b7e71;
+    --teal:#117c70; --teal-soft:#e3efec; --teal-ink:#0c5850;
+    --amber:#a15c00; --amber-soft:#fbeed9; --amber-ink:#7a4600;
+    --indigo:#4d4f8f; --indigo-soft:#e7e7f5; --indigo-ink:#37395f;
+    --rose:#a24a63; --rose-soft:#f6e5ea; --rose-ink:#7a374a;
+    --good:#166b45; --good-soft:#e0f2e8;
+    --bad:#b3261e; --bad-soft:#fbe4e2;
+    --warn:#a15c00; --warn-soft:#fbeed9;
+    --shadow:0 18px 40px -28px rgba(18,20,23,.35);
+    --radius:14px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#18191b; --card:#212327; --card-2:#26282d; --line:#34373d;
+      --ink:#f2f1ee; --body:#d7d4cd; --muted:#9c968c;
+      --teal:#3fc1af; --teal-soft:rgba(63,193,175,.14); --teal-ink:#8fe3d6;
+      --amber:#e3a13d; --amber-soft:rgba(227,161,61,.14); --amber-ink:#f0bd6f;
+      --indigo:#9497e0; --indigo-soft:rgba(148,151,224,.16); --indigo-ink:#b6b8ec;
+      --rose:#e28aa0; --rose-soft:rgba(226,138,160,.16); --rose-ink:#eeb0bf;
+      --good:#5cd196; --good-soft:rgba(92,209,150,.14);
+      --bad:#f2897f; --bad-soft:rgba(242,137,127,.16);
+      --warn:#e3a13d; --warn-soft:rgba(227,161,61,.14);
+      --shadow:0 18px 40px -24px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#18191b; --card:#212327; --card-2:#26282d; --line:#34373d;
+    --ink:#f2f1ee; --body:#d7d4cd; --muted:#9c968c;
+    --teal:#3fc1af; --teal-soft:rgba(63,193,175,.14); --teal-ink:#8fe3d6;
+    --amber:#e3a13d; --amber-soft:rgba(227,161,61,.14); --amber-ink:#f0bd6f;
+    --indigo:#9497e0; --indigo-soft:rgba(148,151,224,.16); --indigo-ink:#b6b8ec;
+    --rose:#e28aa0; --rose-soft:rgba(226,138,160,.16); --rose-ink:#eeb0bf;
+    --good:#5cd196; --good-soft:rgba(92,209,150,.14);
+    --bad:#f2897f; --bad-soft:rgba(242,137,127,.16);
+    --warn:#e3a13d; --warn-soft:rgba(227,161,61,.14);
+    --shadow:0 18px 40px -24px rgba(0,0,0,.6);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg); color:var(--body);
+    font-family:'Nunito Sans',system-ui,sans-serif;
+    padding-inline:20px; padding-block:28px 60px;
+    max-width:1180px; margin:0 auto;
+  }
+  h1,h2,h3{font-family:'Montserrat',system-ui,sans-serif; color:var(--ink); margin:0;}
+  .kicker{
+    font-family:'Montserrat',system-ui,sans-serif; font-weight:600; text-transform:uppercase;
+    letter-spacing:.16em; font-size:.72rem; color:var(--muted); display:block; margin-bottom:.5em;
+  }
+  .rule{width:56px; height:4px; background:var(--teal); border-radius:2px; margin:14px 0 18px;}
+  p{line-height:1.55;}
+
+  header.top{max-width:760px; margin-bottom:28px;}
+  header.top h1{font-weight:300; font-size:clamp(1.9rem,4vw,2.6rem); letter-spacing:-.01em;}
+  header.top p{color:var(--body); font-size:1rem;}
+  header.top .setup{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px 18px; margin-top:16px; font-size:.95rem;
+  }
+  header.top .setup strong{color:var(--ink);}
+
+  section{margin-top:34px;}
+  section > h2{font-weight:300; font-size:1.4rem; margin-bottom:4px;}
+  section > .sub{color:var(--muted); font-size:.92rem; margin-bottom:16px;}
+
+  /* ---- source table ---- */
+  .source-wrap{
+    border:1px solid var(--line); border-radius:var(--radius); background:var(--card);
+    overflow-x:auto; box-shadow:var(--shadow);
+  }
+  table.source{border-collapse:collapse; width:100%; font-size:.88rem; min-width:700px;}
+  table.source th, table.source td{padding:10px 12px; text-align:left; white-space:nowrap;}
+  table.source thead th{
+    font-family:'Montserrat',system-ui,sans-serif; font-weight:600; font-size:.72rem;
+    text-transform:uppercase; letter-spacing:.06em; color:var(--ink);
+    border-bottom:2px solid var(--line); cursor:grab; user-select:none;
+    background:var(--card); position:sticky; top:0;
+  }
+  table.source thead th .col-inner{
+    display:flex; align-items:center; gap:7px; padding:5px 8px; border-radius:8px;
+    border:1.5px dashed var(--line); transition:background .15s,border-color .15s;
+  }
+  table.source thead th .col-inner:hover{background:var(--card-2);}
+  table.source thead th.armed .col-inner{border-color:var(--teal); background:var(--teal-soft); box-shadow:0 0 0 1px var(--teal);}
+  table.source thead th.placed .col-inner{border-style:solid; opacity:.55;}
+  table.source thead th .dot{width:9px; height:9px; border-radius:50%; flex:none; background:var(--line);}
+  table.source tbody tr:nth-child(even){background:var(--card-2);}
+  table.source tbody td{border-bottom:1px solid var(--line); color:var(--body); font-variant-numeric:tabular-nums;}
+  table.source tbody tr:last-child td{border-bottom:none;}
+
+  /* ---- workspace ---- */
+  .toolbar{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:16px;}
+  .btn{
+    font-family:'Montserrat',system-ui,sans-serif; font-weight:600; font-size:.82rem;
+    letter-spacing:.02em; border-radius:10px; border:1.5px solid var(--teal); background:var(--teal);
+    color:#fff; padding:9px 16px; cursor:pointer; transition:transform .1s,opacity .15s;
+  }
+  .btn:hover{opacity:.9;}
+  .btn:active{transform:scale(.98);}
+  .btn.ghost{background:transparent; color:var(--teal);}
+  .btn.subtle{
+    background:var(--card); color:var(--body); border-color:var(--line);
+    font-weight:600; font-size:.78rem; padding:6px 11px;
+  }
+  .btn.subtle:hover{border-color:var(--muted);}
+  .btn.small{padding:5px 10px; font-size:.74rem; border-radius:8px;}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+
+  .hint-empty{
+    border:1.5px dashed var(--line); border-radius:var(--radius); padding:30px 18px;
+    text-align:center; color:var(--muted); font-size:.94rem;
+  }
+
+  .bins{display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:18px;}
+
+  .bin{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:16px; display:flex; flex-direction:column; gap:12px;
+    border-top:5px solid var(--accent,var(--teal)); transition:box-shadow .15s;
+  }
+  .bin.dragover{box-shadow:0 0 0 2px var(--accent,var(--teal)), var(--shadow);}
+  .bin-head{display:flex; align-items:center; gap:8px;}
+  .bin-head .dot{width:10px; height:10px; border-radius:50%; background:var(--accent,var(--teal)); flex:none;}
+  .bin-head input.name{
+    flex:1; min-width:0; font-family:'Montserrat',system-ui,sans-serif; font-weight:600; font-size:1rem;
+    color:var(--ink); border:none; background:transparent; padding:2px 4px; border-radius:6px;
+  }
+  .bin-head input.name:focus{outline:2px solid var(--accent,var(--teal)); background:var(--card-2);}
+  .bin-head .del{
+    background:none; border:none; color:var(--muted); cursor:pointer; font-size:.95rem;
+    padding:2px 6px; border-radius:6px; line-height:1;
+  }
+  .bin-head .del:hover{color:var(--bad); background:var(--bad-soft);}
+
+  .dropzone{
+    min-height:52px; border:1.5px dashed var(--line); border-radius:10px; padding:8px;
+    display:flex; flex-wrap:wrap; gap:6px; align-items:flex-start; align-content:flex-start;
+    background:var(--bg);
+  }
+  .dropzone.empty::after{content:"Drop or click a column here"; color:var(--muted); font-size:.82rem; padding:6px 2px;}
+  .dropzone.can-drop{border-color:var(--accent,var(--teal)); background:var(--accent-soft,var(--teal-soft));}
+
+  .chip{
+    display:inline-flex; align-items:center; gap:5px; background:var(--card-2); border:1px solid var(--line);
+    border-radius:20px; padding:4px 6px 4px 10px; font-size:.78rem; font-weight:600; color:var(--ink);
+    font-family:'Nunito Sans',sans-serif;
+  }
+  .chip.fk{border-style:dashed; background:transparent;}
+  .chip.key{background:var(--good-soft); border-color:var(--good); color:var(--good);}
+  .chip button{
+    background:none; border:none; cursor:pointer; color:var(--muted); font-size:.85rem; line-height:1;
+    padding:2px 3px; border-radius:50%;
+  }
+  .chip button:hover{color:var(--bad);}
+  .chip .star{color:var(--muted); cursor:pointer; font-size:.85rem;}
+  .chip .star:hover{color:var(--good);}
+  .chip.key .star{color:var(--good);}
+  .chip .fk-badge{
+    font-size:.62rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted);
+    border:1px solid var(--line); border-radius:5px; padding:1px 4px;
+  }
+
+  .link-row{display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
+  .link-form{display:flex; gap:6px; flex-wrap:wrap; align-items:center; background:var(--card-2); border-radius:10px; padding:8px;}
+  select{
+    font-family:'Nunito Sans',sans-serif; font-size:.8rem; border-radius:8px; border:1px solid var(--line);
+    background:var(--bg); color:var(--body); padding:6px 8px;
+  }
+
+  .preview{border-top:1px solid var(--line); padding-top:10px;}
+  .preview .label{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;}
+  .preview .label span.n{font-family:'Montserrat',sans-serif; font-weight:600; font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted);}
+  .preview .label span.count{font-family:'Montserrat',sans-serif; font-weight:700; font-size:.78rem; color:var(--accent,var(--teal));}
+  .preview-table-wrap{overflow-x:auto; border-radius:8px; border:1px solid var(--line);}
+  table.preview-table{border-collapse:collapse; width:100%; font-size:.72rem; min-width:100%;}
+  table.preview-table th, table.preview-table td{padding:5px 8px; text-align:left; white-space:nowrap; border-bottom:1px solid var(--line);}
+  table.preview-table th{background:var(--card-2); font-weight:700; color:var(--ink); font-family:'Nunito Sans',sans-serif;}
+  table.preview-table tbody tr:last-child td{border-bottom:none;}
+
+  .status{display:flex; flex-direction:column; gap:6px;}
+  .badge{
+    display:inline-flex; align-items:center; gap:6px; font-size:.78rem; font-weight:700;
+    padding:5px 10px; border-radius:8px; width:fit-content;
+  }
+  .badge .ico{width:14px; height:14px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-size:.65rem; color:#fff;}
+  .badge.good{background:var(--good-soft); color:var(--good);}
+  .badge.good .ico{background:var(--good);}
+  .badge.warn{background:var(--warn-soft); color:var(--warn-ink,var(--warn));}
+  .badge.warn .ico{background:var(--warn);}
+  .badge.bad{background:var(--bad-soft); color:var(--bad);}
+  .badge.bad .ico{background:var(--bad);}
+  .note{font-size:.78rem; color:var(--muted); line-height:1.4;}
+
+  /* accent color classes */
+  .c-teal{--accent:var(--teal); --accent-soft:var(--teal-soft);}
+  .c-amber{--accent:var(--amber); --accent-soft:var(--amber-soft);}
+  .c-indigo{--accent:var(--indigo); --accent-soft:var(--indigo-soft);}
+  .c-rose{--accent:var(--rose); --accent-soft:var(--rose-soft);}
+
+  /* ---- summary ---- */
+  .summary{
+    margin-top:32px; background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:20px;
+  }
+  .summary-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:20px;}
+  .stat .n{font-family:'Montserrat',sans-serif; font-weight:300; font-size:2.1rem; color:var(--ink); line-height:1; font-variant-numeric:tabular-nums;}
+  .stat .l{font-size:.78rem; color:var(--muted); margin-top:4px;}
+  .table-status-list{display:flex; flex-direction:column; gap:8px;}
+  .table-status-row{display:flex; align-items:center; gap:8px; font-size:.85rem;}
+  .table-status-row .dot{width:9px; height:9px; border-radius:50%; flex:none;}
+  .done-banner{
+    display:flex; align-items:flex-start; gap:12px; padding:14px 16px; border-radius:12px; margin-bottom:22px;
+    font-size:.92rem; line-height:1.55; border:1px solid var(--line);
+  }
+  .done-banner.good{background:var(--good-soft); border-color:var(--good);}
+  .done-banner.warn{background:var(--bg);}
+  .done-banner .icon{
+    width:26px; height:26px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center;
+    font-family:'Montserrat',sans-serif; font-weight:700; font-size:.85rem; color:#fff; margin-top:1px;
+  }
+  .done-banner.good .icon{background:var(--good);}
+  .done-banner.warn .icon{background:var(--warn);}
+  .done-banner h3{font-family:'Montserrat',sans-serif; font-size:1.02rem; font-weight:700; margin:0 0 5px; color:var(--ink);}
+  .done-banner.good h3{color:var(--good);}
+  .done-banner ul{margin:2px 0 0; padding-left:18px; color:var(--body);}
+  .done-banner li{margin-bottom:4px;}
+  .done-banner p{margin:0; color:var(--body);}
+
+  @media (max-width:520px){
+    body{padding-inline:16px;}
+    .bins{grid-template-columns:1fr;}
+  }
+</style>
+
+<header class="top">
+  <span class="kicker">Relational Thinking &middot; Practice</span>
+  <h1>Gym Check-In Splitter</h1>
+  <div class="rule"></div>
+  <p>The Rec Center scans everyone's ID when they walk in and logs it in one spreadsheet: who, when, for how long, and what they came to do. It works fine &mdash; until someone's major gets typed differently on two different rows. Your job: split this one table into smaller tables so every fact is stored in exactly one place, then show how the new tables connect. This one's the simplest version yet &mdash; it only takes two tables.</p>
+  <div class="setup">
+    <strong>How to play:</strong> Drag a column name (or click it, then click a table) into a table below. Click <span style="white-space:nowrap">&#9733;</span> on a column to make it that table's key &mdash; the column that never repeats. Once two tables have keys, use <strong>Link to another table</strong> to connect them. No ER diagram needed &mdash; we're doing that next week.
+  </div>
+</header>
+
+<section>
+  <h2>The flat table</h2>
+  <div class="sub">12 real Rec Center check-ins. Drag any column header down into a table.</div>
+  <div class="source-wrap">
+    <table class="source" id="sourceTable">
+      <thead><tr id="sourceHeadRow"></tr></thead>
+      <tbody id="sourceBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="toolbar">
+    <div>
+      <h2>Your tables</h2>
+      <div class="sub" style="margin-bottom:0;">Build as many as you need.</div>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn subtle" id="resetBtn" type="button">Start over</button>
+      <button class="btn" id="addTableBtn" type="button">+ New table</button>
+    </div>
+  </div>
+  <div id="binsWrap"></div>
+</section>
+
+<section class="summary" id="summary"></section>
+
+<section id="referenceSection" hidden>
+  <h2>Reference solution</h2>
+  <div class="sub">Here's the structure this exercise was built around. Yours doesn't have to look identical &mdash; natural keys vs. made-up ID columns is a style choice &mdash; but the same columns should have ended up grouped the same way.</div>
+  <div id="referenceWrap"></div>
+</section>
+
+<script>
+(function(){
+  "use strict";
+
+  var COLUMN_DEFS = [
+    {key:"CheckInID", label:"Check-In ID"},
+    {key:"StudentName", label:"Student Name"},
+    {key:"StudentEmail", label:"Student Email"},
+    {key:"Major", label:"Major"},
+    {key:"CheckInDate", label:"Date"},
+    {key:"CheckInTime", label:"Time"},
+    {key:"DurationMinutes", label:"Duration (min)"},
+    {key:"ActivityType", label:"Activity"}
+  ];
+  var COLUMN_LABEL = {};
+  COLUMN_DEFS.forEach(function(c){ COLUMN_LABEL[c.key] = c.label; });
+  var ALL_COLS = COLUMN_DEFS.map(function(c){return c.key;});
+
+  var ROWS = [
+    {CheckInID:"CHK-4001", StudentName:"Jordan Blake",  StudentEmail:"jblake@marshall.edu",  Major:"Business Analytics", CheckInDate:"9/8",  CheckInTime:"6:15 AM", DurationMinutes:"45", ActivityType:"Weights"},
+    {CheckInID:"CHK-4002", StudentName:"Maya Chen",     StudentEmail:"mchen@marshall.edu",   Major:"Finance",            CheckInDate:"9/8",  CheckInTime:"7:30 AM", DurationMinutes:"60", ActivityType:"Cardio"},
+    {CheckInID:"CHK-4003", StudentName:"DeShawn Carter", StudentEmail:"dcarter@marshall.edu", Major:"Marketing",         CheckInDate:"9/8",  CheckInTime:"4:00 PM", DurationMinutes:"90", ActivityType:"Basketball"},
+    {CheckInID:"CHK-4004", StudentName:"Jordan Blake",  StudentEmail:"jblake@marshall.edu",  Major:"Business Analytics", CheckInDate:"9/9",  CheckInTime:"6:20 AM", DurationMinutes:"50", ActivityType:"Cardio"},
+    {CheckInID:"CHK-4005", StudentName:"Emily Ruiz",    StudentEmail:"eruiz@marshall.edu",   Major:"Business Analytics", CheckInDate:"9/9",  CheckInTime:"5:45 PM", DurationMinutes:"30", ActivityType:"Yoga"},
+    {CheckInID:"CHK-4006", StudentName:"Maya Chen",     StudentEmail:"mchen@marshall.edu",   Major:"Finance",            CheckInDate:"9/10", CheckInTime:"7:00 AM", DurationMinutes:"55", ActivityType:"Weights"},
+    {CheckInID:"CHK-4007", StudentName:"DeShawn Carter", StudentEmail:"dcarter@marshall.edu", Major:"Marketing",         CheckInDate:"9/10", CheckInTime:"4:30 PM", DurationMinutes:"75", ActivityType:"Basketball"},
+    {CheckInID:"CHK-4008", StudentName:"Jordan Blake",  StudentEmail:"jblake@marshall.edu",  Major:"Business Analytics", CheckInDate:"9/11", CheckInTime:"6:10 AM", DurationMinutes:"40", ActivityType:"Weights"},
+    {CheckInID:"CHK-4009", StudentName:"Emily Ruiz",    StudentEmail:"eruiz@marshall.edu",   Major:"Business Analytics", CheckInDate:"9/11", CheckInTime:"6:00 PM", DurationMinutes:"35", ActivityType:"Yoga"},
+    {CheckInID:"CHK-4010", StudentName:"Maya Chen",     StudentEmail:"mchen@marshall.edu",   Major:"Finance",            CheckInDate:"9/12", CheckInTime:"7:15 AM", DurationMinutes:"65", ActivityType:"Cardio"},
+    {CheckInID:"CHK-4011", StudentName:"DeShawn Carter", StudentEmail:"dcarter@marshall.edu", Major:"Marketing",         CheckInDate:"9/12", CheckInTime:"5:00 PM", DurationMinutes:"80", ActivityType:"Basketball"},
+    {CheckInID:"CHK-4012", StudentName:"Emily Ruiz",    StudentEmail:"eruiz@marshall.edu",   Major:"Business Analytics", CheckInDate:"9/13", CheckInTime:"6:30 PM", DurationMinutes:"25", ActivityType:"Yoga"}
+  ];
+
+  var COLORS = ["c-teal","c-amber","c-indigo","c-rose"];
+
+  var state = {
+    tables: [],       // {id, name, colorClass, homeCols:[key], keyCol:key|null, fks:[{col,targetId}]}
+    nextId: 1,
+    armedCol: null,   // column key currently "armed" for click-to-place
+    linkOpenFor: null // table id whose link form is open
+  };
+
+  // ---------- helpers ----------
+  function assignedHomeCols(){
+    var set = {};
+    state.tables.forEach(function(t){ t.homeCols.forEach(function(c){ set[c] = t.id; }); });
+    return set;
+  }
+  function unassignedCols(){
+    var assigned = assignedHomeCols();
+    return ALL_COLS.filter(function(c){ return !(c in assigned); });
+  }
+  function tableById(id){
+    for (var i=0;i<state.tables.length;i++){ if(state.tables[i].id===id) return state.tables[i]; }
+    return null;
+  }
+  function projectedCols(t){
+    return t.homeCols.concat(t.fks.map(function(f){return f.col;}));
+  }
+  function dedupeProjection(cols){
+    if (cols.length===0) return [];
+    var seen = {}; var out = [];
+    ROWS.forEach(function(r){
+      var key = cols.map(function(c){ return r[c]; }).join("");
+      if (!seen[key]){ seen[key]=true; var o={}; cols.forEach(function(c){o[c]=r[c];}); out.push(o); }
+    });
+    return out;
+  }
+  function dedupedRows(t){
+    return dedupeProjection(projectedCols(t));
+  }
+  function distinctCount(rows, col){
+    var s = {};
+    rows.forEach(function(r){ s[r[col]] = true; });
+    return Object.keys(s).length;
+  }
+  function keyStatus(t, rows){
+    if (!t.keyCol) return "none";
+    if (rows.length===0) return "none";
+    return distinctCount(rows, t.keyCol) === rows.length ? "valid" : "invalid";
+  }
+  function detectClusters(t, rows){
+    if (rows.length < 2) return [];
+    var candidates = t.homeCols.filter(function(c){ return c !== t.keyCol; });
+    var clusters = [];
+    candidates.forEach(function(a){
+      var dc = distinctCount(rows, a);
+      if (dc >= rows.length || dc < 1) return; // doesn't repeat, not a driver
+      var map = {}; var ok = true;
+      var det = [];
+      candidates.forEach(function(b){
+        if (b===a) return;
+        var m = {}; var fine = true;
+        for (var i=0;i<rows.length;i++){
+          var av = rows[i][a], bv = rows[i][b];
+          if (m.hasOwnProperty(av)){
+            if (m[av] !== bv){ fine=false; break; }
+          } else { m[av] = bv; }
+        }
+        if (fine) det.push(b);
+      });
+      if (det.length>0){ clusters.push({driver:a, cols:[a].concat(det)}); }
+    });
+    // merge overlapping clusters
+    var merged = [];
+    clusters.forEach(function(cl){
+      var target = null;
+      for (var i=0;i<merged.length;i++){
+        var overlap = cl.cols.some(function(c){ return merged[i].colsSet[c]; });
+        if (overlap){ target = merged[i]; break; }
+      }
+      if (!target){
+        target = {colsSet:{}, cols:[], drivers:[]};
+        merged.push(target);
+      }
+      cl.cols.forEach(function(c){ if(!target.colsSet[c]){ target.colsSet[c]=true; target.cols.push(c); } });
+      target.drivers.push(cl.driver);
+    });
+    return merged.map(function(m){
+      // report a column that was actually shown to determine the others —
+      // never guess by distinct-value count, which can name the wrong side of the dependency
+      var uniqueDrivers = m.drivers.filter(function(d,i){ return m.drivers.indexOf(d)===i; });
+      return {driver: uniqueDrivers[0], cols:m.cols};
+    }).filter(function(m){ return m.cols.length>=2; });
+  }
+
+  function connectedComponents(){
+    var parent = {};
+    state.tables.forEach(function(t){ parent[t.id]=t.id; });
+    function find(x){ while(parent[x]!==x){ x=parent[x]; } return x; }
+    function union(a,b){ var ra=find(a), rb=find(b); if(ra!==rb) parent[ra]=rb; }
+    state.tables.forEach(function(t){ t.fks.forEach(function(fk){ union(t.id, fk.targetId); }); });
+    var groups = {};
+    state.tables.forEach(function(t){ var r=find(t.id); (groups[r]=groups[r]||[]).push(t.id); });
+    return Object.keys(groups).map(function(k){ return groups[k]; });
+  }
+
+  function computeDoneState(){
+    var reasons = [];
+    if (state.tables.length===0){
+      reasons.push("You haven’t built any tables yet — drag a column down to start.");
+      return reasons;
+    }
+    var unassigned = unassignedCols();
+    if (unassigned.length>0){
+      reasons.push((unassigned.length===1 ? "1 column still needs" : unassigned.length+" columns still need") +
+        " a table: " + unassigned.map(function(c){return COLUMN_LABEL[c];}).join(", ") + ".");
+    }
+    state.tables.forEach(function(t){
+      var rows = dedupedRows(t);
+      var ks = keyStatus(t, rows);
+      if (ks==="none") reasons.push("“"+t.name+"” needs a key — click ★ on the column that never repeats.");
+      else if (ks==="invalid") reasons.push("“"+t.name+"’s” key ("+COLUMN_LABEL[t.keyCol]+") still repeats — pick a different column.");
+      if (detectClusters(t, rows).length>0){
+        reasons.push("“"+t.name+"” looks like it’s still hiding a table inside it — see the note on that card.");
+      }
+    });
+    if (state.tables.length>1){
+      var comps = connectedComponents();
+      if (comps.length>1){
+        comps.sort(function(a,b){ return b.length-a.length; });
+        var stranded = [];
+        for (var i=1;i<comps.length;i++){
+          comps[i].forEach(function(id){ var t=tableById(id); if(t) stranded.push(t.name); });
+        }
+        reasons.push(stranded.join(", ") + " " + (stranded.length===1?"isn’t":"aren’t") +
+          " linked to the rest — nothing points to " + (stranded.length===1?"it":"them") +
+          " with a foreign key, so you can’t get from a check-in to " + (stranded.length===1?"it":"them") + ".");
+      }
+    }
+    return reasons;
+  }
+
+  // ---------- rendering: source table ----------
+  function renderSource(){
+    var head = document.getElementById("sourceHeadRow");
+    var assigned = assignedHomeCols();
+    head.innerHTML = "";
+    COLUMN_DEFS.forEach(function(c){
+      var th = document.createElement("th");
+      var placedTableId = assigned[c.key];
+      th.className = (placedTableId ? "placed " : "") + (state.armedCol===c.key ? "armed" : "");
+      th.draggable = true;
+      th.setAttribute("data-col", c.key);
+      var inner = document.createElement("div");
+      inner.className = "col-inner";
+      var dot = document.createElement("span");
+      dot.className = "dot";
+      if (placedTableId){
+        var pt = tableById(placedTableId);
+        if (pt) dot.style.background = "var(--" + pt.colorClass.replace("c-","") + ")";
+      }
+      inner.appendChild(dot);
+      var txt = document.createElement("span");
+      txt.textContent = c.label;
+      inner.appendChild(txt);
+      th.appendChild(inner);
+
+      th.addEventListener("dragstart", function(e){
+        e.dataTransfer.setData("text/plain", c.key);
+      });
+      th.addEventListener("click", function(){
+        if (placedTableId) return; // already placed, nothing to arm
+        state.armedCol = (state.armedCol === c.key) ? null : c.key;
+        renderAll();
+      });
+      head.appendChild(th);
+    });
+
+    var body = document.getElementById("sourceBody");
+    body.innerHTML = "";
+    ROWS.forEach(function(r){
+      var tr = document.createElement("tr");
+      COLUMN_DEFS.forEach(function(c){
+        var td = document.createElement("td");
+        td.textContent = r[c.key];
+        tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+  }
+
+  // ---------- rendering: bins ----------
+  function placeColumn(colKey, tableId){
+    var assigned = assignedHomeCols();
+    if (colKey in assigned) return;
+    var t = tableById(tableId);
+    if (!t) return;
+    t.homeCols.push(colKey);
+    if (state.armedCol === colKey) state.armedCol = null;
+    renderAll();
+  }
+
+  function removeHomeCol(t, colKey){
+    t.homeCols = t.homeCols.filter(function(c){ return c!==colKey; });
+    if (t.keyCol === colKey){
+      t.keyCol = null;
+      // cascade: drop any FK elsewhere pointing at this table (its key changed)
+      state.tables.forEach(function(other){
+        if (other.id!==t.id) other.fks = other.fks.filter(function(f){ return f.targetId!==t.id; });
+      });
+    }
+    renderAll();
+  }
+
+  function toggleKey(t, colKey){
+    var newKey = (t.keyCol === colKey) ? null : colKey;
+    if (t.keyCol !== newKey){
+      // key changed/cleared -> cascade remove downstream FKs referencing old key
+      state.tables.forEach(function(other){
+        if (other.id!==t.id) other.fks = other.fks.filter(function(f){ return f.targetId!==t.id; });
+      });
+    }
+    t.keyCol = newKey;
+    renderAll();
+  }
+
+  function addFk(t, targetId){
+    var target = tableById(targetId);
+    if (!target || !target.keyCol) return;
+    var already = t.fks.some(function(f){ return f.targetId===targetId; });
+    if (already) return;
+    t.fks.push({col: target.keyCol, targetId: targetId});
+    state.linkOpenFor = null;
+    renderAll();
+  }
+  function removeFk(t, targetId){
+    t.fks = t.fks.filter(function(f){ return f.targetId!==targetId; });
+    renderAll();
+  }
+
+  function renderBins(){
+    var wrap = document.getElementById("binsWrap");
+    wrap.innerHTML = "";
+    if (state.tables.length===0){
+      var empty = document.createElement("div");
+      empty.className = "hint-empty";
+      empty.textContent = "No tables yet. Click “+ New table” to start, then drag a column down into it.";
+      wrap.appendChild(empty);
+      return;
+    }
+    var grid = document.createElement("div");
+    grid.className = "bins";
+    state.tables.forEach(function(t){
+      grid.appendChild(renderBin(t));
+    });
+    wrap.appendChild(grid);
+  }
+
+  function renderBin(t){
+    var rows = dedupedRows(t);
+    var kStatus = keyStatus(t, rows);
+    var clusters = detectClusters(t, rows);
+
+    var bin = document.createElement("div");
+    bin.className = "bin " + t.colorClass;
+
+    // head
+    var head = document.createElement("div");
+    head.className = "bin-head";
+    var dot = document.createElement("span"); dot.className="dot"; head.appendChild(dot);
+    var nameInput = document.createElement("input");
+    nameInput.className = "name"; nameInput.value = t.name; nameInput.setAttribute("id","name-"+t.id);
+    nameInput.addEventListener("input", function(){ t.name = nameInput.value; renderSummary(); syncLinkSelects(); });
+    head.appendChild(nameInput);
+    var del = document.createElement("button");
+    del.className = "del"; del.type="button"; del.title="Delete table"; del.textContent = "✕";
+    del.addEventListener("click", function(){
+      state.tables = state.tables.filter(function(x){ return x.id!==t.id; });
+      state.tables.forEach(function(other){ other.fks = other.fks.filter(function(f){ return f.targetId!==t.id; }); });
+      renderAll();
+    });
+    head.appendChild(del);
+    bin.appendChild(head);
+
+    // dropzone
+    var dz = document.createElement("div");
+    dz.className = "dropzone" + (t.homeCols.length===0 && t.fks.length===0 ? " empty" : "");
+    dz.addEventListener("dragover", function(e){ e.preventDefault(); dz.classList.add("can-drop"); });
+    dz.addEventListener("dragleave", function(){ dz.classList.remove("can-drop"); });
+    dz.addEventListener("drop", function(e){
+      e.preventDefault(); dz.classList.remove("can-drop");
+      var col = e.dataTransfer.getData("text/plain");
+      if (col) placeColumn(col, t.id);
+    });
+    dz.addEventListener("click", function(){
+      if (state.armedCol){ placeColumn(state.armedCol, t.id); }
+    });
+
+    t.homeCols.forEach(function(colKey){
+      dz.appendChild(makeHomeChip(t, colKey));
+    });
+    t.fks.forEach(function(fk){
+      dz.appendChild(makeFkChip(t, fk));
+    });
+    bin.appendChild(dz);
+
+    // link row
+    var linkRow = document.createElement("div");
+    linkRow.className = "link-row";
+    var otherKeyed = state.tables.filter(function(o){ return o.id!==t.id && o.keyCol && !t.fks.some(function(f){return f.targetId===o.id;}); });
+    if (state.linkOpenFor === t.id){
+      var form = document.createElement("div");
+      form.className = "link-form";
+      var sel = document.createElement("select");
+      sel.id = "linksel-" + t.id;
+      otherKeyed.forEach(function(o){
+        var opt = document.createElement("option");
+        opt.value = o.id; opt.textContent = o.name + " (" + COLUMN_LABEL[o.keyCol] + ")";
+        sel.appendChild(opt);
+      });
+      form.appendChild(sel);
+      var go = document.createElement("button");
+      go.className = "btn small"; go.type="button"; go.textContent="Link";
+      go.addEventListener("click", function(){ addFk(t, parseInt(sel.value,10)); });
+      form.appendChild(go);
+      var cancel = document.createElement("button");
+      cancel.className = "btn subtle small"; cancel.type="button"; cancel.textContent="Cancel";
+      cancel.addEventListener("click", function(){ state.linkOpenFor=null; renderAll(); });
+      form.appendChild(cancel);
+      linkRow.appendChild(form);
+    } else {
+      var linkBtn = document.createElement("button");
+      linkBtn.className = "btn subtle small"; linkBtn.type="button";
+      linkBtn.textContent = "+ Link to another table";
+      linkBtn.disabled = otherKeyed.length===0;
+      linkBtn.title = otherKeyed.length===0 ? "Give another table a key first" : "";
+      linkBtn.addEventListener("click", function(){ state.linkOpenFor=t.id; renderAll(); });
+      linkRow.appendChild(linkBtn);
+    }
+    bin.appendChild(linkRow);
+
+    // status
+    var status = document.createElement("div");
+    status.className = "status";
+    if (kStatus==="none"){
+      status.appendChild(makeBadge("warn","Pick a key — click ★ on a column"));
+    } else if (kStatus==="invalid"){
+      status.appendChild(makeBadge("bad", COLUMN_LABEL[t.keyCol] + " repeats — can't be the key"));
+    } else {
+      status.appendChild(makeBadge("good","Has a working key"));
+    }
+    if (clusters.length>0){
+      clusters.slice(0,2).forEach(function(cl){
+        var note = document.createElement("div");
+        note.className = "note";
+        var names = cl.cols.map(function(c){return COLUMN_LABEL[c];}).join(", ");
+        note.innerHTML = "<strong style='color:var(--warn)'>Possible hidden table:</strong> " + names + " keep repeating together — they might want a table of their own, keyed by " + COLUMN_LABEL[cl.driver] + ".";
+        status.appendChild(note);
+      });
+    }
+    bin.appendChild(status);
+
+    // preview
+    var preview = document.createElement("div");
+    preview.className = "preview";
+    var label = document.createElement("div");
+    label.className = "label";
+    var n1 = document.createElement("span"); n1.className="n"; n1.textContent="Preview";
+    var n2 = document.createElement("span"); n2.className="count";
+    n2.textContent = (t.homeCols.length+t.fks.length===0) ? "" : (rows.length + " row" + (rows.length===1?"":"s"));
+    label.appendChild(n1); label.appendChild(n2);
+    preview.appendChild(label);
+
+    if (t.homeCols.length+t.fks.length===0){
+      var ph = document.createElement("div"); ph.className="note"; ph.textContent = "Add a column to see the data.";
+      preview.appendChild(ph);
+    } else {
+      var ptw = document.createElement("div"); ptw.className="preview-table-wrap";
+      var ptable = document.createElement("table"); ptable.className="preview-table";
+      var cols = projectedCols(t);
+      var thead = document.createElement("thead"); var htr = document.createElement("tr");
+      cols.forEach(function(c){ var th=document.createElement("th"); th.textContent = COLUMN_LABEL[c] + (c===t.keyCol?" ★":""); htr.appendChild(th); });
+      thead.appendChild(htr); ptable.appendChild(thead);
+      var tbody = document.createElement("tbody");
+      rows.forEach(function(r){
+        var tr = document.createElement("tr");
+        cols.forEach(function(c){ var td=document.createElement("td"); td.textContent=r[c]; tr.appendChild(td); });
+        tbody.appendChild(tr);
+      });
+      ptable.appendChild(tbody);
+      ptw.appendChild(ptable);
+      preview.appendChild(ptw);
+    }
+    bin.appendChild(preview);
+
+    return bin;
+  }
+
+  function makeBadge(kind, text){
+    var b = document.createElement("span");
+    b.className = "badge " + kind;
+    var ico = document.createElement("span"); ico.className="ico";
+    ico.textContent = kind==="good" ? "✓" : (kind==="bad" ? "×" : "!");
+    b.appendChild(ico);
+    var t = document.createElement("span"); t.textContent = text;
+    b.appendChild(t);
+    return b;
+  }
+
+  function makeHomeChip(t, colKey){
+    var chip = document.createElement("span");
+    chip.className = "chip" + (t.keyCol===colKey ? " key" : "");
+    var star = document.createElement("span");
+    star.className = "star"; star.title = "Set as key"; star.textContent = "★";
+    star.addEventListener("click", function(e){ e.stopPropagation(); toggleKey(t, colKey); });
+    chip.appendChild(star);
+    var lbl = document.createElement("span"); lbl.textContent = COLUMN_LABEL[colKey];
+    chip.appendChild(lbl);
+    var x = document.createElement("button");
+    x.type="button"; x.title="Remove"; x.textContent="✕";
+    x.addEventListener("click", function(e){ e.stopPropagation(); removeHomeCol(t, colKey); });
+    chip.appendChild(x);
+    return chip;
+  }
+  function makeFkChip(t, fk){
+    var target = tableById(fk.targetId);
+    var chip = document.createElement("span");
+    chip.className = "chip fk";
+    var badge = document.createElement("span"); badge.className="fk-badge"; badge.textContent="FK";
+    chip.appendChild(badge);
+    var lbl = document.createElement("span"); lbl.textContent = COLUMN_LABEL[fk.col] + (target ? " → " + target.name : "");
+    chip.appendChild(lbl);
+    var x = document.createElement("button");
+    x.type="button"; x.title="Remove link"; x.textContent="✕";
+    x.addEventListener("click", function(e){ e.stopPropagation(); removeFk(t, fk.targetId); });
+    chip.appendChild(x);
+    return chip;
+  }
+
+  function syncLinkSelects(){ /* selects are rebuilt on renderAll; kept for readability */ }
+
+  // ---------- summary ----------
+  function renderSummary(){
+    var el = document.getElementById("summary");
+    var unassigned = unassignedCols();
+    var totalOriginal = ROWS.length * ALL_COLS.length;
+    var totalCurrent = 0;
+    var haveAnyCols = false;
+    state.tables.forEach(function(t){
+      var rows = dedupedRows(t);
+      var cols = projectedCols(t).length;
+      if (cols>0){ haveAnyCols = true; totalCurrent += rows.length * cols; }
+    });
+
+    el.innerHTML = "";
+
+    var reasons = computeDoneState();
+    var banner = document.createElement("div");
+    banner.className = "done-banner " + (reasons.length===0 ? "good" : "warn");
+    var icon = document.createElement("span"); icon.className="icon";
+    icon.textContent = reasons.length===0 ? "✓" : "!";
+    banner.appendChild(icon);
+    var body = document.createElement("div");
+    var h3 = document.createElement("h3");
+    h3.textContent = reasons.length===0 ? "You’re done" : "Not done yet";
+    body.appendChild(h3);
+    if (reasons.length===0){
+      var p = document.createElement("p");
+      p.textContent = "Every column has exactly one home, every table has a working key, and every table is reachable from the others. Nothing is stranded, and nothing is still duplicated.";
+      body.appendChild(p);
+    } else {
+      var ul = document.createElement("ul");
+      reasons.forEach(function(r){ var li=document.createElement("li"); li.textContent=r; ul.appendChild(li); });
+      body.appendChild(ul);
+    }
+    banner.appendChild(body);
+    el.appendChild(banner);
+
+    var grid = document.createElement("div");
+    grid.className = "summary-grid";
+
+    // stat: columns placed
+    var s1 = document.createElement("div"); s1.className="stat";
+    var n1 = document.createElement("div"); n1.className="n"; n1.textContent = (ALL_COLS.length-unassigned.length)+" / "+ALL_COLS.length;
+    var l1 = document.createElement("div"); l1.className="l"; l1.textContent = "columns placed";
+    s1.appendChild(n1); s1.appendChild(l1);
+    if (unassigned.length>0){
+      var l1b = document.createElement("div"); l1b.className="note"; l1b.style.marginTop="6px";
+      l1b.textContent = "Still need a home: " + unassigned.map(function(c){return COLUMN_LABEL[c];}).join(", ");
+      s1.appendChild(l1b);
+    }
+    grid.appendChild(s1);
+
+    // stat: duplicate cells removed (not a percentage to chase toward 100 — see note)
+    var s2 = document.createElement("div"); s2.className="stat";
+    var n2 = document.createElement("div"); n2.className="n";
+    n2.textContent = haveAnyCols ? (totalOriginal-totalCurrent) : "—";
+    var l2 = document.createElement("div"); l2.className="l"; l2.textContent = "duplicate cells removed";
+    s2.appendChild(n2); s2.appendChild(l2);
+    var l2b = document.createElement("div"); l2b.className="note"; l2b.style.marginTop="8px";
+    l2b.textContent = haveAnyCols
+      ? (totalOriginal+" cells → "+totalCurrent+" cells across your tables. This won’t hit zero, and it shouldn’t — each check-in is still its own real fact, so Check-Ins keeps all its rows.")
+      : "Start dragging columns to see this update.";
+    s2.appendChild(l2b);
+    grid.appendChild(s2);
+
+    // table status list
+    var s3 = document.createElement("div"); s3.className="stat";
+    var l3 = document.createElement("div"); l3.className="l"; l3.style.marginBottom="8px"; l3.textContent = "table status";
+    s3.appendChild(l3);
+    var list = document.createElement("div"); list.className="table-status-list";
+    if (state.tables.length===0){
+      var none = document.createElement("div"); none.className="note"; none.textContent = "No tables yet.";
+      list.appendChild(none);
+    }
+    state.tables.forEach(function(t){
+      var rows = dedupedRows(t);
+      var kStatus = keyStatus(t, rows);
+      var clusters = detectClusters(t, rows);
+      var row = document.createElement("div"); row.className="table-status-row";
+      var dot = document.createElement("span"); dot.className="dot"; dot.style.background = "var(--" + t.colorClass.replace("c-","") + ")";
+      row.appendChild(dot);
+      var nm = document.createElement("span"); nm.style.fontWeight="700"; nm.style.color="var(--ink)"; nm.textContent=t.name;
+      row.appendChild(nm);
+      var verdict = document.createElement("span"); verdict.style.color="var(--muted)";
+      if (kStatus==="invalid") verdict.textContent = "— key repeats";
+      else if (kStatus==="none") verdict.textContent = "— needs a key";
+      else if (clusters.length>0) verdict.textContent = "— possible split";
+      else verdict.textContent = "— ready";
+      row.appendChild(verdict);
+      list.appendChild(row);
+    });
+    s3.appendChild(list);
+    grid.appendChild(s3);
+
+    el.appendChild(grid);
+
+    renderReference(reasons.length===0);
+  }
+
+  // ---------- reference solution (shown once the banner is green) ----------
+  var REFERENCE = [
+    {name:"Students",  key:"StudentEmail", displayCols:["StudentEmail","StudentName","Major"], fks:[], colorClass:"c-teal"},
+    {name:"Check-Ins", key:"CheckInID",    displayCols:["CheckInID","StudentEmail","CheckInDate","CheckInTime","DurationMinutes","ActivityType"], fks:["StudentEmail"], colorClass:"c-indigo"}
+  ];
+  function renderReference(isDone){
+    var section = document.getElementById("referenceSection");
+    section.hidden = !isDone;
+    if (!isDone) return;
+    var wrap = document.getElementById("referenceWrap");
+    wrap.innerHTML = "";
+    var grid = document.createElement("div");
+    grid.className = "bins";
+    REFERENCE.forEach(function(spec){
+      var rows = dedupeProjection(spec.displayCols);
+      var card = document.createElement("div");
+      card.className = "bin ref-card " + spec.colorClass;
+
+      var head = document.createElement("div"); head.className = "bin-head";
+      var dot = document.createElement("span"); dot.className = "dot";
+      head.appendChild(dot);
+      var name = document.createElement("div");
+      name.style.fontFamily = "'Montserrat',sans-serif"; name.style.fontWeight = "600";
+      name.style.fontSize = "1rem"; name.style.color = "var(--ink)"; name.textContent = spec.name;
+      head.appendChild(name);
+      card.appendChild(head);
+
+      var preview = document.createElement("div"); preview.className = "preview";
+      var label = document.createElement("div"); label.className = "label";
+      var n1 = document.createElement("span"); n1.className = "n"; n1.textContent = "Table";
+      var n2 = document.createElement("span"); n2.className = "count";
+      n2.textContent = rows.length + " row" + (rows.length===1?"":"s");
+      label.appendChild(n1); label.appendChild(n2);
+      preview.appendChild(label);
+
+      var ptw = document.createElement("div"); ptw.className = "preview-table-wrap";
+      var ptable = document.createElement("table"); ptable.className = "preview-table";
+      var thead = document.createElement("thead"); var htr = document.createElement("tr");
+      spec.displayCols.forEach(function(c){
+        var th = document.createElement("th");
+        th.textContent = COLUMN_LABEL[c] + (c===spec.key ? " ★" : (spec.fks.indexOf(c)>=0 ? " · FK" : ""));
+        htr.appendChild(th);
+      });
+      thead.appendChild(htr); ptable.appendChild(thead);
+      var tbody = document.createElement("tbody");
+      rows.forEach(function(r){
+        var tr = document.createElement("tr");
+        spec.displayCols.forEach(function(c){ var td=document.createElement("td"); td.textContent=r[c]; tr.appendChild(td); });
+        tbody.appendChild(tr);
+      });
+      ptable.appendChild(tbody); ptw.appendChild(ptable);
+      preview.appendChild(ptw);
+      card.appendChild(preview);
+
+      grid.appendChild(card);
+    });
+    wrap.appendChild(grid);
+  }
+
+  // ---------- master render ----------
+  function renderAll(){
+    renderSource();
+    renderBins();
+    renderSummary();
+  }
+
+  document.getElementById("addTableBtn").addEventListener("click", function(){
+    var id = state.nextId++;
+    state.tables.push({
+      id:id, name:"Table "+id, colorClass: COLORS[(id-1)%COLORS.length],
+      homeCols:[], keyCol:null, fks:[]
+    });
+    renderAll();
+    var input = document.getElementById("name-"+id);
+    if (input){ input.focus(); input.select(); }
+  });
+  document.getElementById("resetBtn").addEventListener("click", function(){
+    state.tables = []; state.nextId = 1; state.armedCol = null; state.linkOpenFor = null;
+    renderAll();
+  });
+
+  renderAll();
+})();
+</script>
