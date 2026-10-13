@@ -45,7 +45,11 @@
       const matchedRight = rightN - trace.unmatchedRight.length;
       const lostLeft = trace.unmatchedLeft.length;
       const lostRight = trace.unmatchedRight.length;
-      if (trace.pairs.length === 0) {
+      if (leftN === 0 || rightN === 0) {
+        const empty = leftN === 0 ? left : right;
+        second = `${empty} has no rows, so there is nothing to match and the result will be empty.`;
+        third = `The result is empty. ${sizeLine}`;
+      } else if (trace.pairs.length === 0) {
         second = `Nothing matched. No row in ${left} has a partner in ${right}, so every row would be dropped and the result will be empty.`;
         third = `Nothing matched, so the result is empty. ${sizeLine} Check the columns you picked. They should hold the same kind of value, like an id that both tables share.`;
       } else {
@@ -60,7 +64,13 @@
           dropped = `${parts.join(' and ')}. ${one ? 'That row has' : 'Those rows have'} a dashed outline and will be dropped, because only matching rows are kept.`;
         }
         second = `Rows with the same color and number are partners. ${found} ${dropped}`;
-        third = `Each matched pair became one wider row. ${sizeLine}`
+        const repeats = [];
+        if (trace.pairs.length > matchedLeft) repeats.push(left);
+        if (trace.pairs.length > matchedRight) repeats.push(right);
+        const more = repeats.length
+          ? ` Some rows in ${repeats.join(' and ')} matched more than one partner, so they appear once for each partner.`
+          : '';
+        third = `Each matched pair became one wider row. ${sizeLine}${more}`
           + (same ? ` The \`${step.leftColumn}\` column appears only once, because both tables had it.` : '');
       }
     }

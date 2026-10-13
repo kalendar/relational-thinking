@@ -252,6 +252,7 @@
         },
       };
     }
+    if (walkthrough) holder.scrollIntoView({ block: 'start' }); // keep the tables in view while dialogs talk about them
     QE.playStep(holder, {
       before,
       result: results[n],
@@ -262,6 +263,10 @@
       isCurrent: () => token === animToken,
     }).then(done => {
       if (done) holder.replaceChildren(finalTable(d, results, n, true));
+    }).catch(() => {
+      // Something went wrong mid-walkthrough: never leave a dialog or an inert page behind.
+      QE.closeModal();
+      if (token === animToken) holder.replaceChildren(finalTable(d, results, n, false));
     });
   }
 

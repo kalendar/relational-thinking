@@ -122,6 +122,7 @@ details.try summary{cursor:pointer; font-family:'Montserrat',sans-serif; font-we
 .counter strong{color:var(--ink);}
 .alert{margin:0 0 10px; padding:8px 12px; border-radius:8px; background:var(--warn-soft); color:var(--amber-ink);}
 .alert.bad{background:var(--bad-soft); color:var(--bad);}
+#table-holder{scroll-margin-top:12px;}
 .table-wrap{overflow:auto; max-height:70vh; border:1px solid var(--line); border-radius:10px; background:var(--bg);}
 table.data{border-collapse:collapse; width:max-content; min-width:100%; font-size:.92rem;}
 table.data th{position:sticky; top:0; z-index:1; background:var(--card-2); color:var(--ink); text-align:left; padding:8px 12px; border-bottom:1px solid var(--line); white-space:nowrap;}
@@ -749,7 +750,11 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
       const matchedRight = rightN - trace.unmatchedRight.length;
       const lostLeft = trace.unmatchedLeft.length;
       const lostRight = trace.unmatchedRight.length;
-      if (trace.pairs.length === 0) {
+      if (leftN === 0 || rightN === 0) {
+        const empty = leftN === 0 ? left : right;
+        second = `${empty} has no rows, so there is nothing to match and the result will be empty.`;
+        third = `The result is empty. ${sizeLine}`;
+      } else if (trace.pairs.length === 0) {
         second = `Nothing matched. No row in ${left} has a partner in ${right}, so every row would be dropped and the result will be empty.`;
         third = `Nothing matched, so the result is empty. ${sizeLine} Check the columns you picked. They should hold the same kind of value, like an id that both tables share.`;
       } else {
@@ -764,7 +769,13 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
           dropped = `${parts.join(' and ')}. ${one ? 'That row has' : 'Those rows have'} a dashed outline and will be dropped, because only matching rows are kept.`;
         }
         second = `Rows with the same color and number are partners. ${found} ${dropped}`;
-        third = `Each matched pair became one wider row. ${sizeLine}`
+        const repeats = [];
+        if (trace.pairs.length > matchedLeft) repeats.push(left);
+        if (trace.pairs.length > matchedRight) repeats.push(right);
+        const more = repeats.length
+          ? ` Some rows in ${repeats.join(' and ')} matched more than one partner, so they appear once for each partner.`
+          : '';
+        third = `Each matched pair became one wider row. ${sizeLine}${more}`
           + (same ? ` The \`${step.leftColumn}\` column appears only once, because both tables had it.` : '');
       }
     }
@@ -2206,7 +2217,7 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
         document.removeEventListener('focusin', onFocusIn, true);
         backdrop.remove();
         if (appEl) appEl.inert = false;
-        if (previous && previous.isConnected && typeof previous.focus === 'function') previous.focus();
+        if (previous && previous.isConnected && typeof previous.focus === 'function') previous.focus({ preventScroll: true });
         resolve(answer);
       }
 
@@ -2236,7 +2247,7 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
       }
       // If focus ever lands outside the dialog, bring it back.
       function onFocusIn(e) {
-        if (!dialog.contains(e.target)) ok.focus();
+        if (!dialog.contains(e.target)) ok.focus({ preventScroll: true });
       }
 
       current = { backdrop, finish };
@@ -2244,7 +2255,7 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
       document.body.append(backdrop);
       document.addEventListener('keydown', onKey, true);
       document.addEventListener('focusin', onFocusIn, true);
-      ok.focus();
+      ok.focus({ preventScroll: true });
     });
   }
 
@@ -2571,17 +2582,21 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
     const WAITS = [700, 1500]; // a short look at each part before the next dialog
     holder.classList.add('walk');
     if (wt.instant) holder.classList.add('instant');
-    holder.replaceChildren(renderTable(before)); // show the table as it was
-    for (let i = 0; i <= phases.length; i++) {
-      if (!isCurrent()) return false;
-      const answer = await wt.show(wt.texts[i]);
-      if (!isCurrent()) return false;
-      if (answer === 'skip') return true;
-      if (i === phases.length) break;
-      phases[i][0]();
-      if (!wt.instant) await wait(WAITS[i] || 700);
+    try {
+      holder.replaceChildren(renderTable(before)); // show the table as it was
+      for (let i = 0; i <= phases.length; i++) {
+        if (!isCurrent()) return false;
+        const answer = await wt.show(wt.texts[i]);
+        if (!isCurrent()) return false;
+        if (answer === 'skip') return true;
+        if (i === phases.length) break;
+        phases[i][0]();
+        if (!wt.instant) await wait(WAITS[i] || 700);
+      }
+      return isCurrent();
+    } finally {
+      holder.classList.remove('walk', 'instant'); // every way out, so nothing stale is left behind
     }
-    return isCurrent();
   }
 
   async function playStep(holder, { before, result, step, dataset, reduceMotion, isCurrent, walkthrough }) {
@@ -2857,6 +2872,7 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
         },
       };
     }
+    if (walkthrough) holder.scrollIntoView({ block: 'start' }); // keep the tables in view while dialogs talk about them
     QE.playStep(holder, {
       before,
       result: results[n],
@@ -2867,6 +2883,10 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
       isCurrent: () => token === animToken,
     }).then(done => {
       if (done) holder.replaceChildren(finalTable(d, results, n, true));
+    }).catch(() => {
+      // Something went wrong mid-walkthrough: never leave a dialog or an inert page behind.
+      QE.closeModal();
+      if (token === animToken) holder.replaceChildren(finalTable(d, results, n, false));
     });
   }
 

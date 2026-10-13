@@ -28,7 +28,7 @@
         document.removeEventListener('focusin', onFocusIn, true);
         backdrop.remove();
         if (appEl) appEl.inert = false;
-        if (previous && previous.isConnected && typeof previous.focus === 'function') previous.focus();
+        if (previous && previous.isConnected && typeof previous.focus === 'function') previous.focus({ preventScroll: true });
         resolve(answer);
       }
 
@@ -58,7 +58,7 @@
       }
       // If focus ever lands outside the dialog, bring it back.
       function onFocusIn(e) {
-        if (!dialog.contains(e.target)) ok.focus();
+        if (!dialog.contains(e.target)) ok.focus({ preventScroll: true });
       }
 
       current = { backdrop, finish };
@@ -66,7 +66,7 @@
       document.body.append(backdrop);
       document.addEventListener('keydown', onKey, true);
       document.addEventListener('focusin', onFocusIn, true);
-      ok.focus();
+      ok.focus({ preventScroll: true });
     });
   }
 

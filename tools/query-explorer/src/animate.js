@@ -86,17 +86,21 @@
     const WAITS = [700, 1500]; // a short look at each part before the next dialog
     holder.classList.add('walk');
     if (wt.instant) holder.classList.add('instant');
-    holder.replaceChildren(renderTable(before)); // show the table as it was
-    for (let i = 0; i <= phases.length; i++) {
-      if (!isCurrent()) return false;
-      const answer = await wt.show(wt.texts[i]);
-      if (!isCurrent()) return false;
-      if (answer === 'skip') return true;
-      if (i === phases.length) break;
-      phases[i][0]();
-      if (!wt.instant) await wait(WAITS[i] || 700);
+    try {
+      holder.replaceChildren(renderTable(before)); // show the table as it was
+      for (let i = 0; i <= phases.length; i++) {
+        if (!isCurrent()) return false;
+        const answer = await wt.show(wt.texts[i]);
+        if (!isCurrent()) return false;
+        if (answer === 'skip') return true;
+        if (i === phases.length) break;
+        phases[i][0]();
+        if (!wt.instant) await wait(WAITS[i] || 700);
+      }
+      return isCurrent();
+    } finally {
+      holder.classList.remove('walk', 'instant'); // every way out, so nothing stale is left behind
     }
-    return isCurrent();
   }
 
   async function playStep(holder, { before, result, step, dataset, reduceMotion, isCurrent, walkthrough }) {

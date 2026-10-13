@@ -31,7 +31,7 @@ test('step 1 says "matching a to b" when the column names differ', () => {
   ds.tables.find(t => t.name === 'Songs').columns[0].name = 'id';
   const t = narrate(ds, 'Streams', { table: 'Songs', leftColumn: 'song_id', rightColumn: 'id' });
   assert.ok(t[0].body.includes('matching `song_id` to `id`'), t[0].body);
-  assert.ok(t[2].body.includes('`song_id`') || t[2].body.includes('7 columns') || t[2].body.includes('8 columns'));
+  assert.ok(t[2].body.includes('**4 rows × 8 columns**'), t[2].body);
   assert.ok(!/appears only once/.test(t[2].body), 'different names: both columns stay');
 });
 
@@ -45,15 +45,54 @@ test('some rows dropped: counts on each side', () => {
 });
 
 test('nothing dropped says every row found a partner', () => {
-  const t = narrate(MINI, 'Songs', { table: 'Artists', leftColumn: 'artist_id', rightColumn: 'artist_id' });
-  // Doechii has no songs, so Artists has 1 unmatched row: use Artists -> Songs reversed to check dropped, here Songs side is fully matched.
-  assert.ok(t[1].body.includes('3 of 3 rows in **Songs**'));
-  const t2 = narrate(MINI, 'Streams', { table: 'Songs', leftColumn: 'song_id', rightColumn: 'song_id' });
   const ds = JSON.parse(JSON.stringify(MINI));
   ds.tables.find(x => x.name === 'Songs').rows.pop();
-  const t3 = narrate(ds, 'Streams', { table: 'Songs', leftColumn: 'song_id', rightColumn: 'song_id' });
-  assert.ok(t3[1].body.includes('Every row found a partner'), t3[1].body);
-  assert.ok(t2[1].body.length > 0);
+  const t = narrate(ds, 'Streams', { table: 'Songs', leftColumn: 'song_id', rightColumn: 'song_id' });
+  assert.ok(t[1].body.includes('Every row found a partner'), t[1].body);
+  assert.ok(!t[1].body.includes('dashed outline'), t[1].body);
+});
+
+test('unmatched rows on both sides use the plural wording', () => {
+  const ds = JSON.parse(JSON.stringify(MINI));
+  ds.tables.find(x => x.name === 'Streams').rows.push([104, 99, '2026-05-01', 50]);
+  const t = narrate(ds, 'Streams', { table: 'Songs', leftColumn: 'song_id', rightColumn: 'song_id' });
+  assert.ok(t[1].body.includes('1 row in **Streams** found no match and 1 row in **Songs** found no match'), t[1].body);
+  assert.ok(t[1].body.includes('Those rows have a dashed outline and will be dropped'), t[1].body);
+});
+
+test('one-to-many: explains why there are more rows than matched rows', () => {
+  const t = narrate(MINI, 'Artists', { table: 'Songs', leftColumn: 'artist_id', rightColumn: 'artist_id' });
+  assert.ok(t[1].body.includes('2 of 3 rows in **Artists**'), t[1].body);
+  assert.ok(t[2].body.includes('**3 rows × 6 columns**'), t[2].body);
+  assert.ok(t[2].body.includes('Some rows in **Artists** matched more than one partner, so they appear once for each partner.'), t[2].body);
+  const plain = narrate(MINI, 'Streams', { table: 'Songs', leftColumn: 'song_id', rightColumn: 'song_id' });
+  assert.ok(/more than one partner/.test(plain[2].body), 'Streams rows share songs, so Songs rows repeat');
+  assert.ok(plain[2].body.includes('Some rows in **Songs** matched more than one partner'), plain[2].body);
+});
+
+test('a clean one-to-one join has no one-to-many sentence', () => {
+  const ds = JSON.parse(JSON.stringify(MINI));
+  ds.tables.find(x => x.name === 'Streams').rows = [[100, 10, '2026-03-02', 500], [101, 11, '2026-03-02', 300]];
+  const t = narrate(ds, 'Streams', { table: 'Songs', leftColumn: 'song_id', rightColumn: 'song_id' });
+  assert.ok(!/more than one partner/.test(t[2].body), t[2].body);
+});
+
+test('empty table: non-cartesian says there is nothing to match', () => {
+  const ds = JSON.parse(JSON.stringify(MINI));
+  ds.tables.find(x => x.name === 'Streams').rows = [];
+  const t = narrate(ds, 'Streams', { table: 'Songs', leftColumn: 'song_id', rightColumn: 'song_id' });
+  assert.ok(t[1].body.includes('**Streams** has no rows, so there is nothing to match'), t[1].body);
+  assert.ok(t[2].body.includes('0 rows × 7 columns'), t[2].body);
+  assert.ok(!/Check the columns/.test(t[2].body), t[2].body);
+});
+
+test('empty table: cartesian join says the result is empty', () => {
+  const ds = JSON.parse(JSON.stringify(MINI));
+  ds.tables.find(x => x.name === 'Songs').rows = [];
+  const t = narrate(ds, 'Streams', { table: 'Songs', cartesian: true });
+  assert.ok(t[1].body.includes('no rows') && t[1].body.includes('empty'), t[1].body);
+  assert.ok(!t[1].body.includes('meaningless'), t[1].body);
+  assert.ok(t[2].body.includes('0 rows × 8 columns'), t[2].body);
 });
 
 test('step 3 states size and singular/plural', () => {
