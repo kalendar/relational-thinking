@@ -1,6 +1,8 @@
 // Checks every data set against the rules in spec §7.
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('fs');
+const path = require('path');
 const QE = require('../src/engine.js');
 const { loadDatasets } = require('./helpers.js');
 
@@ -17,6 +19,14 @@ function validDate(s) {
 test('data set ids are unique', () => {
   const ids = DATASETS.map(d => d.id);
   assert.equal(new Set(ids).size, ids.length);
+});
+
+test('data set numbers are unique integers that match the file name prefix', () => {
+  const files = fs.readdirSync(path.join(__dirname, '..', 'src', 'datasets')).filter(f => f.endsWith('.js')).sort();
+  const nums = DATASETS.map(d => d.number);
+  nums.forEach(n => assert.ok(Number.isInteger(n) && n >= 1, `number ${n} is a positive integer`));
+  assert.equal(new Set(nums).size, nums.length);
+  files.forEach((f, i) => assert.equal(DATASETS[i].number, parseInt(f.slice(0, 2), 10), `${f} has the matching number`));
 });
 
 test('there are exactly 10 data sets', () => {

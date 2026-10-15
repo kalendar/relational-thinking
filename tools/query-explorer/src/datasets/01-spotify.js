@@ -2,6 +2,7 @@
   'use strict';
   const dataset = {
     id: 'spotify',
+    number: 1,
     name: 'Spotify Streams',
     description: 'Artists · Songs · Streams',
     start: 'Streams',

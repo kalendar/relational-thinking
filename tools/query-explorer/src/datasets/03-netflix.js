@@ -2,6 +2,7 @@
   'use strict';
   const dataset = {
     id: 'netflix',
+    number: 3,
     name: 'Netflix Binge',
     description: 'Series · Episodes · ViewingSessions',
     start: 'ViewingSessions',

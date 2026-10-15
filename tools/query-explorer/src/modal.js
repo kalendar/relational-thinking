@@ -5,10 +5,13 @@
   const { h, rich } = QE;
 
   let current = null; // { backdrop, finish }
+  const otherClosers = []; // other dialogs (like Copy for homework) that must also close on a new render
 
   function closeModal() {
     if (current) current.finish('skip');
+    otherClosers.forEach(fn => fn());
   }
+  function onCloseModal(fn) { otherClosers.push(fn); }
 
   // Resolves to 'ok' or 'skip'. Escape and "Skip the rest" both mean 'skip'.
   function showModal({ title, body, okLabel = 'Got it', skipLabel = 'Skip the rest', stepText = null, step = null, steps = null }) {
@@ -70,5 +73,5 @@
     });
   }
 
-  root.QE = Object.assign(QE, { showModal, closeModal });
+  root.QE = Object.assign(QE, { showModal, closeModal, onCloseModal });
 })(this);

@@ -2,6 +2,7 @@
   'use strict';
   const dataset = {
     id: 'tiktok',
+    number: 9,
     name: 'TikTok Creators & Memes',
     description: 'Creators · Videos · DailyViews',
     start: 'DailyViews',

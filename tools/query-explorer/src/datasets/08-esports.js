@@ -2,6 +2,7 @@
   'use strict';
   const dataset = {
     id: 'esports',
+    number: 8,
     name: 'Esports Tournament',
     description: 'Teams · Gamers · MatchStats',
     start: 'MatchStats',

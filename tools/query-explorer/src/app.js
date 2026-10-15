@@ -28,6 +28,19 @@
     focus: null, // data-focus-key to focus after the next render
   };
 
+  // A shared "reopen" link (#r=...) loads its data set and recipe. Anything malformed is ignored.
+  function loadFromHash() {
+    const m = /^#r=([A-Za-z0-9_-]+)$/.exec(root.location.hash || '');
+    if (!m) return;
+    const got = QE.decodeRecipe(m[1]);
+    const d = got && DATASETS.find(x => x.id === got.datasetId);
+    if (!d || !d.tables.some(t => t.name === got.recipe.start)) return;
+    const recipe = { start: got.recipe.start, steps: got.recipe.steps.map(s => ({ ...s, id: nextId++ })) };
+    try { QE.runRecipe(d, recipe); } catch (e) { return; }
+    Object.assign(state, { datasetId: d.id, recipe, selected: recipe.steps.length });
+    try { root.history.replaceState(null, '', root.location.pathname + root.location.search); } catch (e) { /* not important */ }
+  }
+
   const dataset = () => DATASETS.find(d => d.id === state.datasetId);
 
   const actions = {
@@ -109,15 +122,16 @@
     setExplainJoins(on) { state.explainJoins = on; render(); },
     setShowCollapsed(on) { state.showCollapsed = on; render(); },
     replay() { state.animate = state.selected; render(); },
+    copyForHomework(button) { QE.showExportDialog({ dataset: dataset(), recipe: state.recipe, opener: button }); },
   };
 
   function tryThis(d) {
     return h('details', { class: 'try', open: state.tryOpen, ontoggle: e => { state.tryOpen = e.target.open; } },
       h('summary', null, `Try this (${d.questions.length} questions)`),
-      h('ol', null, d.questions.map((q, i) => {
+      h('ul', { class: 'qlist' }, d.questions.map((q, i) => {
         const key = d.id + ':' + i;
         const open = state.openHints.has(key);
-        return h('li', null, q.text, ' ',
+        return h('li', null, h('strong', { class: 'qnum' }, `${d.number}.${i + 1}`), ' ', q.text, ' ',
           h('button', { class: 'btn small', type: 'button', 'data-focus-key': 'hint-' + i, 'aria-expanded': String(open), onclick: () => actions.toggleHint(key) }, open ? 'Hide hint' : 'Show hint'),
           open ? h('p', { class: 'hint' }, rich(QE.describeRecipe(d, q.recipe).join(' → ')), q.note ? ` (${q.note})` : '') : null);
       })));
@@ -138,7 +152,7 @@
         h('div', { class: 'picker' },
           h('label', { for: 'dataset' }, 'Data set'),
           h('select', { id: 'dataset', 'data-focus-key': 'dataset', onchange: e => actions.setDataset(e.target.value) },
-            DATASETS.map(x => h('option', { value: x.id, selected: x.id === d.id }, x.name)))),
+            DATASETS.map(x => h('option', { value: x.id, selected: x.id === d.id }, `${x.number}. ${x.name}`)))),
         h('div', { class: 'toggles' },
           h('label', { class: 'motion' },
             h('input', { type: 'checkbox', 'data-focus-key': 'explain', checked: state.explainJoins, onchange: e => actions.setExplainJoins(e.target.checked) }),
@@ -199,7 +213,8 @@
         ok ? h('button', { class: 'btn small', type: 'button', 'data-focus-key': 'replay', onclick: actions.replay }, '↻ Replay') : null,
         ok && step.op === 'aggregate'
           ? h('label', null, h('input', { type: 'checkbox', 'data-focus-key': 'collapsed', checked: state.showCollapsed, onchange: e => actions.setShowCollapsed(e.target.checked) }), ' Show the rows in each group')
-          : null));
+          : null,
+        h('button', { class: 'btn small homework', type: 'button', 'data-focus-key': 'homework', onclick: e => actions.copyForHomework(e.currentTarget) }, 'Copy for homework')));
       if (r.status === 'off') body.push(h('p', { class: 'alert' }, 'This step is turned off, so the table is unchanged.'));
       if (r.status === 'invalid') body.push(h('p', { class: 'alert' }, '⚠ ', rich(r.message), ' This step was skipped.'));
       if (ok && r.trace.cartesian) body.push(h('p', { class: 'alert bad' }, 'Every row was paired with every row of the other table. Most of these rows are meaningless.'));
@@ -270,5 +285,6 @@
     });
   }
 
+  loadFromHash();
   render();
 })(this);

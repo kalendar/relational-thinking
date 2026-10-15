@@ -2,6 +2,7 @@
   'use strict';
   const dataset = {
     id: 'boxoffice',
+    number: 7,
     name: 'Box Office Weekend',
     description: 'Studios · Movies · WeekendGrosses',
     start: 'WeekendGrosses',

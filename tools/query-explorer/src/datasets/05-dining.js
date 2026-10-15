@@ -2,6 +2,7 @@
   'use strict';
   const dataset = {
     id: 'dining',
+    number: 5,
     name: 'Campus Dining',
     description: 'Students · DiningHalls · MealSwipes',
     start: 'MealSwipes',

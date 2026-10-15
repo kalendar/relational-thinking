@@ -2,6 +2,7 @@
   'use strict';
   const dataset = {
     id: 'fantasy',
+    number: 6,
     name: 'Fantasy Football League',
     description: 'FantasyTeams · NFLPlayers · WeeklyPoints',
     start: 'WeeklyPoints',

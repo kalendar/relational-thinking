@@ -14,6 +14,9 @@ test('build makes one self-contained HTML file', () => {
   for (const ds of loadDatasets()) assert.ok(html.includes(`name: '${ds.name}'`) || html.includes(`name: "${ds.name}"`), `${ds.name} is inlined`);
   assert.ok(html.indexOf('---- engine.js') < html.indexOf('---- datasets/01-spotify.js'), 'engine loads before data');
   assert.ok(html.indexOf('---- narrate.js') < html.indexOf('---- datasets/01-spotify.js'), 'narrate loads before data');
+  assert.ok(html.indexOf('---- narrate.js') < html.indexOf('---- export.js'), 'export loads after narrate');
+  assert.ok(html.indexOf('---- export.js') < html.indexOf('---- datasets/01-spotify.js'), 'export loads before data');
+  assert.ok(html.indexOf('---- modal.js') < html.indexOf('---- export-dialog.js'), 'export dialog loads after modal');
   assert.ok(html.indexOf('---- visual.js') < html.indexOf('---- narrate.js'), 'narrate loads after visual');
   assert.ok(html.indexOf('---- modal.js') < html.indexOf('---- animate.js'), 'modal loads before animate');
   assert.ok(html.indexOf('---- table-view.js') < html.indexOf('---- modal.js'), 'modal loads after table-view');

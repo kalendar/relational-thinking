@@ -2,6 +2,7 @@
   'use strict';
   const dataset = {
     id: 'concert',
+    number: 2,
     name: 'Concert Tour',
     description: 'Venues · Shows · TicketSales',
     start: 'TicketSales',

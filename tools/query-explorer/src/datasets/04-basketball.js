@@ -2,6 +2,7 @@
   'use strict';
   const dataset = {
     id: 'basketball',
+    number: 4,
     name: 'Thundering Herd Basketball',
     description: 'Players · Games · BoxScores',
     start: 'BoxScores',

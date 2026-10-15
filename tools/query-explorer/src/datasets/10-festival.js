@@ -2,6 +2,7 @@
   'use strict';
   const dataset = {
     id: 'festival',
+    number: 10,
     name: 'Music Festival Lineup',
     description: 'Stages · Acts · SetTimes',
     start: 'SetTimes',
