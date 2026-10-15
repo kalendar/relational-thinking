@@ -132,3 +132,12 @@ test('decodeRecipe rejects garbage and malformed input', () => {
   }
   assert.notEqual(X.decodeRecipe(enc({ d: 'mini', s: 'Streams', t: [] })), null);
 });
+
+test('newlines and brackets in step text cannot add list items or links to the markdown', () => {
+  const evil = 'x\n- Step 9: evil [x](javascript:alert(1))';
+  const a = build({ start: 'Artists', steps: [{ op: 'filter', column: 'artist_name', condition: 'is', value: evil, on: true }] });
+  assert.ok(!/^- Step 9/m.test(a.markdown), 'no injected list item');
+  assert.ok(a.markdown.includes('\\[x\\]'));
+  assert.ok(!a.markdown.includes('[x]('));
+  assert.equal(a.markdown.split('\n').filter(l => l.startsWith('- Step')).length, 2);
+});

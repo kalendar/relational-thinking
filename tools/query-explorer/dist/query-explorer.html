@@ -878,6 +878,8 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
   // ---- the answer ----
   const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const mdCell = s => String(s).replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\r?\n|\r/g, ' ');
+  // Recipe text can hold values from a shared link: no newlines (they would start new list items) and no live [links].
+  const mdLine = s => String(s).replace(/\r?\n|\r/g, ' ').replace(/[[\]]/g, '\\$&');
   const richHtml = str => E.parseRich(str).map(p => (p.kind === 'strong' ? `<strong>${esc(p.text)}</strong>` : p.kind === 'code' ? `<code>${esc(p.text)}</code>` : esc(p.text))).join('');
   const plural = (n, one, many) => `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`;
 
@@ -891,9 +893,9 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
     const lines = [[E.describeStart(recipe.start), null]];
     recipe.steps.forEach((s, k) => lines.push([E.describeStep(s, results[k].table), results[k + 1]]));
     const recipeMd = lines.map(([text, r], n) => {
-      let line = `- Step ${n}: ${text}`;
+      let line = `- Step ${n}: ${mdLine(text)}`;
       if (r && r.status === 'off') line += ' *(turned off)*';
-      if (r && r.status === 'invalid') line += ` *(skipped: ${r.message})*`;
+      if (r && r.status === 'invalid') line += ` *(skipped: ${mdLine(r.message)})*`;
       return line;
     });
     const recipeHtml = lines.map(([text, r], n) => {
@@ -934,8 +936,8 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
     const linkText = 'Open this recipe in Query Explorer';
     const markdown = [
       `## Query Explorer — Question ${label}`,
-      question + '  ', // two trailing spaces: a line break in markdown
-      `Data set: ${dataLine}`,
+      mdLine(question) + '  ', // two trailing spaces: a line break in markdown
+      `Data set: ${mdLine(dataLine)}`,
       '',
       '### Recipe',
       ...recipeMd,
