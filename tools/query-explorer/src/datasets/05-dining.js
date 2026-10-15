@@ -87,7 +87,7 @@
     ],
     questions: [
       {
-        text: 'Which dining hall gets the most swipes at dinner?',
+        text: 'How many dinner swipes did each dining hall get?',
         recipe: {
           start: 'MealSwipes',
           steps: [

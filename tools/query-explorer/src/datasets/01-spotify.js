@@ -90,7 +90,7 @@
     ],
     questions: [
       {
-        text: 'Which artist had the most total streams in March 2026?',
+        text: 'How many total streams did each artist have in March 2026?',
         recipe: {
           start: 'Streams',
           steps: [

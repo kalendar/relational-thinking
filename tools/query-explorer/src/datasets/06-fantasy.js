@@ -89,7 +89,7 @@
     ],
     questions: [
       {
-        text: 'Which fantasy team scored the most total points?',
+        text: 'How many total points did each fantasy team score?',
         recipe: {
           start: 'WeeklyPoints',
           steps: [

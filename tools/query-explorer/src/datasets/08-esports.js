@@ -95,7 +95,7 @@
     ],
     questions: [
       {
-        text: 'Which team got the most total kills?',
+        text: 'How many total kills did each team get?',
         recipe: {
           start: 'MatchStats',
           steps: [

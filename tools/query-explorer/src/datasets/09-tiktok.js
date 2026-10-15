@@ -90,7 +90,7 @@
     ],
     questions: [
       {
-        text: 'Which meme format gets the most views?',
+        text: 'How many total views did each meme format get?',
         recipe: {
           start: 'DailyViews',
           steps: [

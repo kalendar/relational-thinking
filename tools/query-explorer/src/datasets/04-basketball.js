@@ -89,7 +89,7 @@
     ],
     questions: [
       {
-        text: 'Who scored the most total points this season?',
+        text: 'How many total points did each player score this season?',
         recipe: {
           start: 'BoxScores',
           steps: [
