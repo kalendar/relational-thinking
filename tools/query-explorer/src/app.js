@@ -131,6 +131,8 @@
       h('ul', { class: 'qlist' }, d.questions.map((q, i) => {
         const key = d.id + ':' + i;
         const open = state.openHints.has(key);
+        // Questions without a recipe (the assessment data sets) have no hint to show.
+        if (!q.recipe) return h('li', null, h('strong', { class: 'qnum' }, `${d.number}.${i + 1}`), ' ', q.text);
         return h('li', null, h('strong', { class: 'qnum' }, `${d.number}.${i + 1}`), ' ', q.text, ' ',
           h('button', { class: 'btn small', type: 'button', 'data-focus-key': 'hint-' + i, 'aria-expanded': String(open), onclick: () => actions.toggleHint(key) }, open ? 'Hide hint' : 'Show hint'),
           open ? h('p', { class: 'hint' }, rich(QE.describeRecipe(d, q.recipe).join(' → ')), q.note ? ` (${q.note})` : '') : null);

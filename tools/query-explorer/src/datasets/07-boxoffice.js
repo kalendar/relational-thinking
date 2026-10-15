@@ -87,36 +87,12 @@
     questions: [
       {
         text: 'How much did each studio earn in total?',
-        recipe: {
-          start: 'WeekendGrosses',
-          steps: [
-            { op: 'join', table: 'Movies', leftColumn: 'movie_id', rightColumn: 'movie_id' },
-            { op: 'join', table: 'Studios', leftColumn: 'studio_id', rightColumn: 'studio_id' },
-            { op: 'aggregate', groupBy: ['studio_name'], summaries: [{ fn: 'total', column: 'gross_millions' }] },
-          ],
-        },
       },
       {
         text: 'Which PG-13 movies had a weekend over $50 million?',
-        recipe: {
-          start: 'WeekendGrosses',
-          steps: [
-            { op: 'filter', column: 'gross_millions', condition: 'more_than', value: '50' },
-            { op: 'join', table: 'Movies', leftColumn: 'movie_id', rightColumn: 'movie_id' },
-            { op: 'filter', column: 'rating', condition: 'is', value: 'PG-13' },
-            { op: 'project', columns: ['movie_title', 'weekend_date', 'gross_millions'] },
-          ],
-        },
       },
       {
         text: "What was each movie's best weekend?",
-        recipe: {
-          start: 'WeekendGrosses',
-          steps: [
-            { op: 'join', table: 'Movies', leftColumn: 'movie_id', rightColumn: 'movie_id' },
-            { op: 'aggregate', groupBy: ['movie_title'], summaries: [{ fn: 'highest', column: 'gross_millions' }] },
-          ],
-        },
       },
     ],
   };

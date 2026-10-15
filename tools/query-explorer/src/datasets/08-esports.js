@@ -96,35 +96,12 @@
     questions: [
       {
         text: 'How many total kills did each team get?',
-        recipe: {
-          start: 'MatchStats',
-          steps: [
-            { op: 'join', table: 'Gamers', leftColumn: 'gamer_id', rightColumn: 'gamer_id' },
-            { op: 'join', table: 'Teams', leftColumn: 'team_id', rightColumn: 'team_id' },
-            { op: 'aggregate', groupBy: ['team_name'], summaries: [{ fn: 'total', column: 'kills' }] },
-          ],
-        },
       },
       {
         text: 'Which gamers had 20 or more kills in a match?',
-        recipe: {
-          start: 'MatchStats',
-          steps: [
-            { op: 'filter', column: 'kills', condition: 'at_least', value: '20' },
-            { op: 'join', table: 'Gamers', leftColumn: 'gamer_id', rightColumn: 'gamer_id' },
-            { op: 'project', columns: ['gamertag', 'map_name', 'kills'] },
-          ],
-        },
       },
       {
         text: 'What is the average number of assists for each role?',
-        recipe: {
-          start: 'MatchStats',
-          steps: [
-            { op: 'join', table: 'Gamers', leftColumn: 'gamer_id', rightColumn: 'gamer_id' },
-            { op: 'aggregate', groupBy: ['role'], summaries: [{ fn: 'average', column: 'assists' }] },
-          ],
-        },
       },
     ],
   };

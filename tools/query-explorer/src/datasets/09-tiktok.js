@@ -91,36 +91,12 @@
     questions: [
       {
         text: 'How many total views did each meme format get?',
-        recipe: {
-          start: 'DailyViews',
-          steps: [
-            { op: 'join', table: 'Videos', leftColumn: 'video_id', rightColumn: 'video_id' },
-            { op: 'aggregate', groupBy: ['meme_format'], summaries: [{ fn: 'total', column: 'views' }] },
-          ],
-        },
       },
       {
         text: 'How many total likes did each creator get?',
-        recipe: {
-          start: 'DailyViews',
-          steps: [
-            { op: 'join', table: 'Videos', leftColumn: 'video_id', rightColumn: 'video_id' },
-            { op: 'join', table: 'Creators', leftColumn: 'creator_id', rightColumn: 'creator_id' },
-            { op: 'aggregate', groupBy: ['handle'], summaries: [{ fn: 'total', column: 'likes' }] },
-          ],
-        },
       },
       {
         text: 'What did comedy creators post in the first half of April 2026?',
-        recipe: {
-          start: 'Videos',
-          steps: [
-            { op: 'filter', column: 'post_date', condition: 'between', value: '2026-04-01', value2: '2026-04-15' },
-            { op: 'join', table: 'Creators', leftColumn: 'creator_id', rightColumn: 'creator_id' },
-            { op: 'filter', column: 'niche', condition: 'is', value: 'Comedy' },
-            { op: 'project', columns: ['handle', 'caption', 'post_date'] },
-          ],
-        },
       },
     ],
   };

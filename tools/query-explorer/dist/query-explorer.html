@@ -1841,36 +1841,12 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
     questions: [
       {
         text: 'How much did each studio earn in total?',
-        recipe: {
-          start: 'WeekendGrosses',
-          steps: [
-            { op: 'join', table: 'Movies', leftColumn: 'movie_id', rightColumn: 'movie_id' },
-            { op: 'join', table: 'Studios', leftColumn: 'studio_id', rightColumn: 'studio_id' },
-            { op: 'aggregate', groupBy: ['studio_name'], summaries: [{ fn: 'total', column: 'gross_millions' }] },
-          ],
-        },
       },
       {
         text: 'Which PG-13 movies had a weekend over $50 million?',
-        recipe: {
-          start: 'WeekendGrosses',
-          steps: [
-            { op: 'filter', column: 'gross_millions', condition: 'more_than', value: '50' },
-            { op: 'join', table: 'Movies', leftColumn: 'movie_id', rightColumn: 'movie_id' },
-            { op: 'filter', column: 'rating', condition: 'is', value: 'PG-13' },
-            { op: 'project', columns: ['movie_title', 'weekend_date', 'gross_millions'] },
-          ],
-        },
       },
       {
         text: "What was each movie's best weekend?",
-        recipe: {
-          start: 'WeekendGrosses',
-          steps: [
-            { op: 'join', table: 'Movies', leftColumn: 'movie_id', rightColumn: 'movie_id' },
-            { op: 'aggregate', groupBy: ['movie_title'], summaries: [{ fn: 'highest', column: 'gross_millions' }] },
-          ],
-        },
       },
     ],
   };
@@ -1977,35 +1953,12 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
     questions: [
       {
         text: 'How many total kills did each team get?',
-        recipe: {
-          start: 'MatchStats',
-          steps: [
-            { op: 'join', table: 'Gamers', leftColumn: 'gamer_id', rightColumn: 'gamer_id' },
-            { op: 'join', table: 'Teams', leftColumn: 'team_id', rightColumn: 'team_id' },
-            { op: 'aggregate', groupBy: ['team_name'], summaries: [{ fn: 'total', column: 'kills' }] },
-          ],
-        },
       },
       {
         text: 'Which gamers had 20 or more kills in a match?',
-        recipe: {
-          start: 'MatchStats',
-          steps: [
-            { op: 'filter', column: 'kills', condition: 'at_least', value: '20' },
-            { op: 'join', table: 'Gamers', leftColumn: 'gamer_id', rightColumn: 'gamer_id' },
-            { op: 'project', columns: ['gamertag', 'map_name', 'kills'] },
-          ],
-        },
       },
       {
         text: 'What is the average number of assists for each role?',
-        recipe: {
-          start: 'MatchStats',
-          steps: [
-            { op: 'join', table: 'Gamers', leftColumn: 'gamer_id', rightColumn: 'gamer_id' },
-            { op: 'aggregate', groupBy: ['role'], summaries: [{ fn: 'average', column: 'assists' }] },
-          ],
-        },
       },
     ],
   };
@@ -2107,36 +2060,12 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
     questions: [
       {
         text: 'How many total views did each meme format get?',
-        recipe: {
-          start: 'DailyViews',
-          steps: [
-            { op: 'join', table: 'Videos', leftColumn: 'video_id', rightColumn: 'video_id' },
-            { op: 'aggregate', groupBy: ['meme_format'], summaries: [{ fn: 'total', column: 'views' }] },
-          ],
-        },
       },
       {
         text: 'How many total likes did each creator get?',
-        recipe: {
-          start: 'DailyViews',
-          steps: [
-            { op: 'join', table: 'Videos', leftColumn: 'video_id', rightColumn: 'video_id' },
-            { op: 'join', table: 'Creators', leftColumn: 'creator_id', rightColumn: 'creator_id' },
-            { op: 'aggregate', groupBy: ['handle'], summaries: [{ fn: 'total', column: 'likes' }] },
-          ],
-        },
       },
       {
         text: 'What did comedy creators post in the first half of April 2026?',
-        recipe: {
-          start: 'Videos',
-          steps: [
-            { op: 'filter', column: 'post_date', condition: 'between', value: '2026-04-01', value2: '2026-04-15' },
-            { op: 'join', table: 'Creators', leftColumn: 'creator_id', rightColumn: 'creator_id' },
-            { op: 'filter', column: 'niche', condition: 'is', value: 'Comedy' },
-            { op: 'project', columns: ['handle', 'caption', 'post_date'] },
-          ],
-        },
       },
     ],
   };
@@ -2228,37 +2157,12 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
     questions: [
       {
         text: 'How many minutes of music does each stage host?',
-        recipe: {
-          start: 'SetTimes',
-          steps: [
-            { op: 'join', table: 'Stages', leftColumn: 'stage_id', rightColumn: 'stage_id' },
-            { op: 'aggregate', groupBy: ['stage_name'], summaries: [{ fn: 'total', column: 'set_length_min' }] },
-          ],
-        },
       },
       {
         text: 'Which acts play the Main Stage on Saturday?',
-        recipe: {
-          start: 'SetTimes',
-          steps: [
-            { op: 'filter', column: 'festival_date', condition: 'on', value: '2026-04-11' },
-            { op: 'join', table: 'Stages', leftColumn: 'stage_id', rightColumn: 'stage_id' },
-            { op: 'filter', column: 'stage_name', condition: 'is', value: 'Main Stage' },
-            { op: 'join', table: 'Acts', leftColumn: 'act_id', rightColumn: 'act_id' },
-            { op: 'project', columns: ['act_name', 'set_length_min'] },
-          ],
-        },
       },
       {
         text: 'How many headliners play each day?',
-        recipe: {
-          start: 'SetTimes',
-          steps: [
-            { op: 'join', table: 'Acts', leftColumn: 'act_id', rightColumn: 'act_id' },
-            { op: 'filter', column: 'headliner', condition: 'is', value: 'Yes' },
-            { op: 'aggregate', groupBy: ['festival_date'], summaries: [{ fn: 'count' }] },
-          ],
-        },
       },
     ],
   };
@@ -3078,6 +2982,8 @@ tr.detail .table-wrap{max-height:none; opacity:.8;}
       h('ul', { class: 'qlist' }, d.questions.map((q, i) => {
         const key = d.id + ':' + i;
         const open = state.openHints.has(key);
+        // Questions without a recipe (the assessment data sets) have no hint to show.
+        if (!q.recipe) return h('li', null, h('strong', { class: 'qnum' }, `${d.number}.${i + 1}`), ' ', q.text);
         return h('li', null, h('strong', { class: 'qnum' }, `${d.number}.${i + 1}`), ' ', q.text, ' ',
           h('button', { class: 'btn small', type: 'button', 'data-focus-key': 'hint-' + i, 'aria-expanded': String(open), onclick: () => actions.toggleHint(key) }, open ? 'Hide hint' : 'Show hint'),
           open ? h('p', { class: 'hint' }, rich(QE.describeRecipe(d, q.recipe).join(' → ')), q.note ? ` (${q.note})` : '') : null);

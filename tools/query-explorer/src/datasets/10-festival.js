@@ -81,37 +81,12 @@
     questions: [
       {
         text: 'How many minutes of music does each stage host?',
-        recipe: {
-          start: 'SetTimes',
-          steps: [
-            { op: 'join', table: 'Stages', leftColumn: 'stage_id', rightColumn: 'stage_id' },
-            { op: 'aggregate', groupBy: ['stage_name'], summaries: [{ fn: 'total', column: 'set_length_min' }] },
-          ],
-        },
       },
       {
         text: 'Which acts play the Main Stage on Saturday?',
-        recipe: {
-          start: 'SetTimes',
-          steps: [
-            { op: 'filter', column: 'festival_date', condition: 'on', value: '2026-04-11' },
-            { op: 'join', table: 'Stages', leftColumn: 'stage_id', rightColumn: 'stage_id' },
-            { op: 'filter', column: 'stage_name', condition: 'is', value: 'Main Stage' },
-            { op: 'join', table: 'Acts', leftColumn: 'act_id', rightColumn: 'act_id' },
-            { op: 'project', columns: ['act_name', 'set_length_min'] },
-          ],
-        },
       },
       {
         text: 'How many headliners play each day?',
-        recipe: {
-          start: 'SetTimes',
-          steps: [
-            { op: 'join', table: 'Acts', leftColumn: 'act_id', rightColumn: 'act_id' },
-            { op: 'filter', column: 'headliner', condition: 'is', value: 'Yes' },
-            { op: 'aggregate', groupBy: ['festival_date'], summaries: [{ fn: 'count' }] },
-          ],
-        },
       },
     ],
   };

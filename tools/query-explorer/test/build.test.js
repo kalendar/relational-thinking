@@ -21,3 +21,15 @@ test('build makes one self-contained HTML file', () => {
   assert.ok(html.indexOf('---- modal.js') < html.indexOf('---- animate.js'), 'modal loads before animate');
   assert.ok(html.indexOf('---- table-view.js') < html.indexOf('---- modal.js'), 'modal loads after table-view');
 });
+
+test('assessment answer keys are not in the published page', () => {
+  const html = fs.readFileSync(build(), 'utf8');
+  const keys = require('./answer-keys.js');
+  for (const [id, recipes] of Object.entries(keys)) {
+    for (const r of recipes) {
+      const last = r.steps[r.steps.length - 1];
+      assert.ok(!html.includes(JSON.stringify(last)), `${id}: an answer step leaked into the page`);
+    }
+  }
+  assert.ok(!/recipe:\s*\{/.test(html.slice(html.indexOf('---- datasets/07'), html.indexOf('---- dom.js'))), 'no recipes in data sets 7–10');
+});

@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const QE = require('../src/engine.js');
 const { loadDatasets } = require('./helpers.js');
+const ANSWER_KEYS = require('./answer-keys.js');
 
 const DATASETS = loadDatasets();
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -91,10 +92,17 @@ for (const ds of DATASETS) {
 
   test(`${ds.name}: three Try-this questions whose hints run`, () => {
     assert.equal(ds.questions.length, 3);
-    for (const q of ds.questions) {
-      const results = QE.runRecipe(ds, q.recipe);
+    const keyed = ANSWER_KEYS[ds.id];
+    if (keyed) {
+      assert.ok(ds.questions.every(q => !q.recipe), 'assessment data sets must not ship their recipes in the page');
+      assert.equal(keyed.length, 3, 'answer key has one recipe per question');
+    }
+    ds.questions.forEach((q, i) => {
+      const recipe = q.recipe || (keyed && keyed[i]);
+      assert.ok(recipe, `"${q.text}" has a recipe (in the data set or test/answer-keys.js)`);
+      const results = QE.runRecipe(ds, recipe);
       results.forEach((r, k) => assert.equal(r.status, 'ok', `"${q.text}" step ${k}: ${r.message}`));
       assert.ok(results[results.length - 1].table.rows.length > 0, `"${q.text}" gives at least one row`);
-    }
+    });
   });
 }
