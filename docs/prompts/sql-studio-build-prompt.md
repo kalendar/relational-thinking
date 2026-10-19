@@ -36,11 +36,72 @@ Then write a short design spec in `docs/superpowers/specs/` and an implementatio
 - Primary target is a laptop-width browser. It must also work on a tablet (touch, pinch-to-zoom on the diagram). On a phone it should be usable, with panels stacking.
 - Tests go in `tools/sql-studio/test/` and use `node:test` with no extra packages beyond the vendored sql.js.
 
+## Screen layout
+
+Match the original SQL Studio layout below, using this book's colors and fonts. Changes from the original are marked **(new)** or **(changed)**.
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ [db] SQL Studio                  [Data set: 1. Spotify Streams ▾] [Upload]   │
+│      3 tables · 2 relationships  Artists · Songs · Streams                   │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ [v] Exercises (6)   1.1  How many total streams did each artist have…  (new) │
+├─────────────────────────────────────────┬┬───────────────────────────────────┤
+│ [v] SQL   [-] 100% [+]  [Random Query]  ││ [v] Results          [-] 100% [+] │
+│           [Complexity] [Copy] [wand]    ││ ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐ │
+│                                 [▶ Run] ││   Run a query to display results. │
+│ 1 │                                     ││ └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘ │
+│ 2 │                                     ││                                   │
+├─────────────────────────────────────────┴┴───────────────────────────────────┤
+│ [v] ERD  (i) Pick a data set to begin.  [-] 100% [+] [Edit Links] [PNG] ☑ Attributes │
+│ ░ dotted-grid canvas with draggable table boxes ░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ [v] Data   [Artists] [Songs] [Streams]   first 10 rows of the selected table │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Header**
+- Show a database icon, the title "SQL Studio," and a live subtitle with the table and relationship counts (the original shows "0 selected tables · 0 confirmed relationships").
+- **(changed)** The original's filled **Demo** button becomes the **data set picker**, which is the main action in the header. The selected set's `description` line sits under it.
+- The original's **XLSX** button and Google Sheets URL box with a ▶ button become one smaller **Upload** button (see "Use my own data" below). Leave the URL box out.
+
+**Exercises strip (new)**
+- A full-width collapsible strip between the header and the editor. Collapsed, it shows "Exercises (N)" and the current question on one line.
+- Expanded, it shows the full list (see the Exercises panel section below).
+
+**SQL panel (left) and Results panel (right)**
+- They sit side by side, with a draggable vertical splitter between them.
+- Each panel header has:
+  - a collapse chevron (`v`), an icon, and a bold panel name
+  - its own text zoom: `−`, a percentage, `+`
+- The SQL toolbar has, in order: **Random Query**, **Complexity**, **Copy** (copies the SQL), and the **magic wand** (format).
+  - Complexity opens a small popover of checkboxes, the include-toggles described under "Random query generator."
+  - The teal **Run ▶** button sits right-aligned below the toolbar. It is disabled while the editor is empty.
+- The editor has line numbers, and the current line is highlighted.
+- The Results panel's empty state is a dashed-border box that says "Run a query to display results."
+
+**ERD panel**
+- Full width, below a draggable horizontal splitter.
+- Its header has the collapse chevron, the "ERD" label, and a status hint. The original says "Import the demo workbook to begin."; ours says "Pick a data set to begin." and changes to tips once a diagram is shown.
+- On the right are the zoom controls, **Edit Links** (turns on add/delete relationship mode), **PNG** (copies the image), and an **Attributes** checkbox that shows or hides columns.
+- The canvas has a light dotted or grid background.
+
+**Data panel**
+- Full width, below the ERD, with its own splitter.
+- It has tabs for each table and shows the first 10 rows of the selected table, plus that table's total row count.
+
+**Look and feel**
+- Use white cards with thin borders and rounded corners on a near-white page.
+- Buttons are outlined. The only filled buttons are the main action (the data set picker) and Run, which use the book's teal (`--teal` in `tools/index.html`).
+- Use simple line icons, drawn as inline SVG, not an icon font.
+- In dark mode, use the dark palette from `tools/index.html`.
+- On narrow screens, the panels stack in this order: Exercises, SQL, Results, ERD, Data.
+
 ## Data sets
 
 Load all **ten** Query Explorer data sets: Spotify Streams, Concert Tour, Netflix Binge, Thundering Herd Basketball, Campus Dining, Fantasy Football League, Box Office Weekend, Esports Tournament, TikTok Creators & Memes, and Music Festival Lineup.
 
-- Put a **data set picker** in the header (`1. Spotify Streams`, `2. Concert Tour`, …) with each set's `description` line beneath it (for example, "Artists · Songs · Streams"). This replaces the single "Load demo data" button in the original tool.
+- Put a **data set picker** in the header (`1. Spotify Streams`, `2. Concert Tour`, …) with each set's `description` line beneath it (for example, "Artists · Songs · Streams"). This replaces the single "Demo" button in the original tool. Load data set 1 when the page opens, so students never see an empty tool.
 - Switching data sets builds a fresh in-memory SQLite database from that set's `tables`:
   - `number` columns become `INTEGER` (or `REAL` if any value has decimals).
   - `text` columns become `TEXT`.
@@ -74,7 +135,7 @@ This works like the "Try this" panel in the Query Explorer.
   ```
 
 - **Seed the exercises:** for every data set, start with the three questions already in its Query Explorer file (same wording, same `note`s). Then add **2–3 SQL-specific questions** per set that use what Chapter 8 teaches and the Query Explorer couldn't show: `ORDER BY`, `LIMIT`, `AND`/`OR`/`NOT`, `LIKE`, `DISTINCT`, calculated columns with `AS`, and `HAVING`. Every set should end up with 5–6 questions, ordered from easiest to hardest. Write a reference `answer` query for each one.
-- Show the panel as a collapsible "Exercises (N)" section near the editor, numbered the same way as the Query Explorer (`1.1`, `1.2`, … for data set 1).
+- Show them in the Exercises strip under the header (see Screen layout), numbered the same way as the Query Explorer (`1.1`, `1.2`, … for data set 1).
 - Each exercise has a **Check my answer** button. It runs the student's current query and the hidden `answer`, then compares the results: the same columns (by count and position, not by name) and the same rows. Row order is ignored unless `orderMatters` is true. Numbers are compared with a small tolerance. The feedback is plain and kind, for example: "Close! Your result has 8 rows; the expected result has 7. Check your WHERE clause." It **never shows the answer SQL**.
 - **Data sets 1–6 are for practice.** Each exercise there also has a **Show hint** button that names the clauses or tables needed, without giving the query (for example, "You'll need Streams, Songs, and Artists, a WHERE on the date, and a GROUP BY.").
 - **Data sets 7–10 are for assessment,** matching the Query Explorer. They have no hints and no Check button. Only the question is shown.
