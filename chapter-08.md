@@ -1,5 +1,12 @@
 # Chapter 8: Introduction to SQL with AI Assistance
 
+By the end of this chapter, you will be able to:
+
+- **Explain** what it means for SQL to be declarative, and **map** each of the four relational operations from Chapter 7 (filter, project, join, aggregate) onto the SQL keywords that perform it.
+- **Read and write** basic single-table queries using SELECT, FROM, and WHERE, including conditions built with comparison operators, AND, OR, and NOT.
+- **Write** an effective prompt that gets an AI assistant to produce correct SQL by supplying the schema, a precise business question, and any constraints, and **revise** the prompt when the first result is wrong.
+- **Verify** AI-generated SQL with a step-by-step checklist (tables, join conditions, filters, result grain, aggregation, output columns, and a sanity check on the results), and **explain** why the AI can't catch data problems it can't see.
+
 ---
 
 Seven chapters in, and SQL is finally here.
