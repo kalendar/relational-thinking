@@ -144,8 +144,15 @@
       clear(body).append(errorBox(explained, where, onJump));
     }
 
+    function showBusy() {
+      count.textContent = '';
+      copyBtn.hidden = csvBtn.hidden = true;
+      pager.hidden = true;
+      clear(body).append(h('div', { class: 'empty-box', role: 'status' }, 'Running your query…'));
+    }
+
     showEmpty();
-    return { showEmpty, showResult, showError, errorBox, get result() { return result; } };
+    return { showEmpty, showBusy, showResult, showError, errorBox, get result() { return result; } };
   }
 
   root.SS = Object.assign(SS, { createResults, renderDataTable, formatCell, isNumericColumn });

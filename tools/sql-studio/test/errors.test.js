@@ -151,3 +151,9 @@ test('a repeated word is marked where it actually breaks, not at its first use',
   const ex = await explainProbed(sql);
   assert.equal(ex.offset, sql.indexOf('AND AND') + 4);
 });
+
+test('a stopped (too slow) query gets a plain explanation', () => {
+  const ex = E.explainError({ kind: 'timeout', message: '' }, 'SELECT * FROM a, b, c', null);
+  assert.equal(ex.headline, 'This query was taking too long, so SQL Studio stopped it. Is a JOIN missing its ON condition?');
+  assert.equal(ex.offset, null);
+});

@@ -47,3 +47,9 @@ test('the color tokens are exactly the Query Explorer ones', () => {
   const ours = fs.readFileSync(path.join(ROOT, 'src', 'styles.css'), 'utf8');
   assert.ok(ours.includes(tokens.trim()), 'paste the Query Explorer :root token block unchanged at the top of styles.css');
 });
+
+test('the worker can be assembled from named scripts already in the page', () => {
+  for (const name of ['vendor/sql.js/sql-wasm.js', 'src/sql-text.js', 'src/schema.js', 'src/db.js', 'src/query-runner.js']) {
+    assert.ok(html.includes(`<script data-src="${name}">`), name);
+  }
+});

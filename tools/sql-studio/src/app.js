@@ -72,6 +72,26 @@
     const exercises = SS.createExercises(L.exercises, { onSelect: () => {}, onCheck: check, onHomework: homework });
     const erd = SS.createErd(L.erd, { prefs, save: L.save, onChange: c => { sub.textContent = `${plural(c.tables, 'table', 'tables')} · ${plural(c.relationships, 'relationship', 'relationships')}`; } });
     const dataView = SS.createDataView(L.data);
+
+    // Students' queries run in a worker, so one that takes too long can be stopped (see query-runner.js).
+    // The worker is built from scripts already in the page, so this also works from a local file.
+    const WORKER_PARTS = ['vendor/sql.js/sql-wasm.js', 'src/sql-text.js', 'src/schema.js', 'src/db.js', 'src/query-runner.js'];
+    let workerUrl = null;
+    function makeWorker() {
+      if (!workerUrl) {
+        const parts = WORKER_PARTS.map(n => document.querySelector(`script[data-src="${n}"]`).textContent);
+        const boot = `var SS_WASM_BASE64 = "${root.SS_WASM_BASE64}";
+self.SS.workerMain(self, function () {
+  var bin = atob(SS_WASM_BASE64), bytes = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return initSqlJs({ wasmBinary: bytes });
+});`;
+        workerUrl = URL.createObjectURL(new Blob([parts.join('\n;\n'), '\n', boot], { type: 'text/javascript' }));
+      }
+      return new root.Worker(workerUrl);
+    }
+    const runner = SS.createQueryRunner({ makeWorker, fallback: (q, o) => SS.runQuery(studio, q, o) });
+    let runToken = 0; // a newer run, check, or data set switch makes older answers stale
     L.onPanelToggle((key, collapsed) => { if (!collapsed && key === 'sql') editor.refresh(); if (!collapsed && key === 'erd') erd.fit(); });
 
     // ---- switching data sets ----
@@ -87,6 +107,8 @@
       currentId = id;
       const schema = schemaFor(id);
       studio = SS.openStudio(SQL, schema);
+      runToken++;
+      runner.open(schema);
       const st = sessions.enter(id, schema);
       editor.setText(st.text, null, { keepHistory: false });
       editor.setCursor(st.cursor);
@@ -131,11 +153,26 @@
       SS.announce(`Error. ${ex.headline}${where ? ` Line ${where.line}, column ${where.col}.` : ''}`);
     }
 
-    function run() {
+    // Runs a statement in the worker; shows "Running…" if it takes a moment. Resolves to null if it went stale.
+    async function runInWorker(sql) {
+      const token = ++runToken;
+      const busy = setTimeout(() => { if (token === runToken) results.showBusy(); }, 400);
+      runBtn.disabled = true;
+      try {
+        const r = await runner.run(sql);
+        return token === runToken ? r : null;
+      } finally {
+        clearTimeout(busy);
+        runBtn.disabled = !editor.getText().trim();
+      }
+    }
+
+    async function run() {
       const stmt = currentStatement({ tidy: prefs.tidyOnRun });
       if (!stmt) { showRunError(null, { kind: 'empty', message: '' }); return; }
       editor.flash(stmt.start, stmt.start + stmt.text.length);
-      const r = SS.runQuery(studio, stmt.text);
+      const r = await runInWorker(stmt.text);
+      if (!r) return;
       if (!r.ok) { showRunError(stmt, r.error); return; }
       editor.clearMarks();
       results.showResult(r);
@@ -149,20 +186,28 @@
       SS.announce('SQL formatted.');
     }
 
-    function check(i) {
+    async function check(i) {
       const stmt = currentStatement({ tidy: false });
       const ex = SS.EXERCISES[currentId][i];
       if (!stmt) { exercises.setFeedback(i, { ok: false, message: 'Write a query in the SQL panel first, then check it.' }); return; }
-      const res = SS.checkExercise(studio, stmt.text, ex);
-      if (res.code === 'error') showRunError(stmt, res.error);
-      else results.showResult(res.student);
-      exercises.setFeedback(i, res);
+      const student = await runInWorker(stmt.text);
+      if (!student) return;
+      if (!student.ok) {
+        showRunError(stmt, student.error);
+        exercises.setFeedback(i, { ok: false, message: student.error.kind === 'timeout' ? 'Your query took too long, so it was stopped. Fix it, then check again.' : 'Fix the error, then check again.' });
+        return;
+      }
+      // The answers are small, fixed queries, so they run on the page.
+      const expected = SS.runQuery(studio, stripSemi(ex.answer));
+      results.showResult(student);
+      exercises.setFeedback(i, SS.compareResults(student, expected, { orderMatters: !!ex.orderMatters }));
     }
 
-    function homework(opener) {
+    async function homework(opener) {
       const stmt = currentStatement({ tidy: false });
       const sql = stmt ? stmt.text.trim() : '';
-      const result = stmt ? SS.runQuery(studio, stmt.text) : null;
+      const result = stmt ? await runInWorker(stmt.text) : null;
+      if (stmt && !result) return;
       SS.showHomeworkDialog({ schema: studio.schema, list: currentId === 'upload' ? [] : SS.EXERCISES[currentId], index: exercises.index, sql: sql || '(no SQL yet)', result, opener });
     }
 

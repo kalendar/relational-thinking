@@ -137,6 +137,7 @@
     if (error && error.kind === 'readonly') {
       return { headline: 'SQL Studio only runs queries that read data (SELECT). Changing data comes later in the course.', raw, ...findTok(statementText, () => true) };
     }
+    if (error && error.kind === 'timeout') return { headline: 'This query was taking too long, so SQL Studio stopped it. Is a JOIN missing its ON condition?', raw, offset: null, length: 0 };
     if (error && error.kind === 'empty') return { headline: "There's no query here to run.", raw, offset: null, length: 0 };
     for (const [re, build] of RULES) {
       const m = re.exec(raw);
