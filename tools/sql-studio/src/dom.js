@@ -99,6 +99,27 @@
   const modKey = isMac ? '⌘' : 'Ctrl';
   const reducedMotion = () => !!(root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
+  // Places an open popover against the window (position: fixed), just below its button, so the panel it sits in
+  // can't clip it. It stays on screen: it moves left or up if needed and scrolls when it's taller than the space.
+  function placePopover(button, panel) {
+    const gap = 6;
+    const margin = 8;
+    const b = button.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth;
+    const vh = window.innerHeight;
+    Object.assign(panel.style, { position: 'fixed', zIndex: '45', maxHeight: '', overflowY: '', left: '0px', top: '0px', right: 'auto' });
+    const w = panel.offsetWidth;
+    const left = Math.max(margin, Math.min(b.left, vw - w - margin));
+    const below = vh - b.bottom - gap - margin;
+    const above = b.top - gap - margin;
+    const h = panel.scrollHeight;
+    const goUp = h > below && above > below;
+    const room = goUp ? above : below;
+    panel.style.left = `${left}px`;
+    panel.style.top = `${goUp ? Math.max(margin, b.top - gap - Math.min(h, room)) : b.bottom + gap}px`;
+    if (h > room) { panel.style.maxHeight = `${Math.max(120, room)}px`; panel.style.overflowY = 'auto'; }
+  }
+
   // A disclosure popover: a button that shows/hides a panel. Escape or a click outside closes it and returns focus.
   function popover(button, panel, { onOpen } = {}) {
     const wrap = h('span', { class: 'pop-wrap' }, button, panel);
@@ -112,15 +133,21 @@
       panel.hidden = true;
       button.setAttribute('aria-expanded', 'false');
       document.removeEventListener('pointerdown', outside, true);
+      window.removeEventListener('scroll', reposition, true);
+      window.removeEventListener('resize', reposition);
       if (refocus) button.focus();
     };
+    const reposition = e => { if (!panel.hidden && !(e && e.target && panel.contains(e.target))) placePopover(button, panel); };
     const outside = e => { if (!wrap.contains(e.target)) close(false); };
     button.addEventListener('click', () => {
       if (!panel.hidden) { close(); return; }
       panel.hidden = false;
       button.setAttribute('aria-expanded', 'true');
       document.addEventListener('pointerdown', outside, true);
+      window.addEventListener('scroll', reposition, true);
+      window.addEventListener('resize', reposition);
       if (onOpen) onOpen();
+      placePopover(button, panel);
       const first = panel.querySelector('input,button,select,[tabindex]');
       if (first) first.focus();
     });
