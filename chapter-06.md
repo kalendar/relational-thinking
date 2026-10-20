@@ -540,7 +540,20 @@ Good design is clear, consistent, minimally redundant, and integrity-enforced. B
 
 ## Interactive Activities
 
-The activities below are designed to be completed with a generative AI tool such as Claude (claude.ai) or ChatGPT. For each activity, copy the prompt in the gray box and paste it directly into your AI tool to begin an interactive study session.
+The activities below are designed to be completed with a generative AI tool such as Claude (claude.ai) or ChatGPT. For each activity, copy the prompt in the gray box and paste it directly into your AI tool to begin an interactive study session. Activity 6.0 is the one exception: it uses an interactive tool instead of a prompt.
+
+---
+
+### Activity 6.0 - ERD Playground
+
+<blockquote>
+<div class="textbox shaded">
+
+<p>Explore crow's foot notation - the symbols at the ends of relationship lines - by editing examples and watching the ER diagram redraw, using this interactive tool.</p>
+
+<p><a href="https://kalendar.github.io/relational-thinking/erd-playground.html">https://kalendar.github.io/relational-thinking/erd-playground.html</a></p>
+
+</div></blockquote>
 
 ---
 
