@@ -8,6 +8,19 @@
 
   class UploadError extends Error {}
 
+  // Every SQLite keyword (sqlite.org/lang_keywords.html). A column or table with one of these names
+  // would need quotes in every query, so uploads rename them.
+  const SQLITE_KEYWORDS = new Set(('ABORT ACTION ADD AFTER ALL ALTER ALWAYS ANALYZE AND AS ASC ATTACH AUTOINCREMENT BEFORE BEGIN ' +
+    'BETWEEN BY CASCADE CASE CAST CHECK COLLATE COLUMN COMMIT CONFLICT CONSTRAINT CREATE CROSS CURRENT CURRENT_DATE ' +
+    'CURRENT_TIME CURRENT_TIMESTAMP DATABASE DEFAULT DEFERRABLE DEFERRED DELETE DESC DETACH DISTINCT DO DROP EACH ELSE END ' +
+    'ESCAPE EXCEPT EXCLUDE EXCLUSIVE EXISTS EXPLAIN FAIL FILTER FIRST FOLLOWING FOR FOREIGN FROM FULL GENERATED GLOB GROUP ' +
+    'GROUPS HAVING IF IGNORE IMMEDIATE IN INDEX INDEXED INITIALLY INNER INSERT INSTEAD INTERSECT INTO IS ISNULL JOIN KEY LAST ' +
+    'LEFT LIKE LIMIT MATCH MATERIALIZED NATURAL NO NOT NOTHING NOTNULL NULL NULLS OF OFFSET ON OR ORDER OTHERS OUTER OVER ' +
+    'PARTITION PLAN PRAGMA PRECEDING PRIMARY QUERY RAISE RANGE RECURSIVE REFERENCES REGEXP REINDEX RELEASE RENAME REPLACE ' +
+    'RESTRICT RETURNING RIGHT ROLLBACK ROW ROWS SAVEPOINT SELECT SET TABLE TEMP TEMPORARY THEN TIES TO TRANSACTION TRIGGER ' +
+    'UNBOUNDED UNION UNIQUE UPDATE USING VACUUM VALUES VIEW VIRTUAL WHEN WHERE WINDOW WITH WITHOUT').split(' '));
+  const reserved = n => SQLITE_KEYWORDS.has(n.toUpperCase()) || X.isKeyword(n);
+
   // RFC 4180: quoted fields, "" escapes, commas/newlines inside quotes, CRLF, BOM. Drops blank lines.
   function parseCSV(text) {
     const s = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
@@ -39,9 +52,9 @@
   function cleanColumnName(raw, used) {
     let n = String(raw === null || raw === undefined ? '' : raw).trim().toLowerCase()
       .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-    if (!n) n = 'column';
+    if (!n) n = 'unnamed';
     if (/^[0-9]/.test(n)) n = `c_${n}`;
-    if (X.isKeyword(n)) n = `${n}_col`;
+    if (reserved(n)) n = `${n}_col`;
     return unique(n, used);
   }
 
@@ -49,7 +62,8 @@
     let n = String(raw || '').replace(/\.(csv|xlsx|xls)$/i, '').trim().replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
     if (!n) n = 'Table';
     if (/^[0-9]/.test(n)) n = `T_${n}`;
-    if (X.isKeyword(n)) n = `${n}_table`;
+    if (reserved(n)) n = `${n}_table`;
+    if (/^sqlite_/i.test(n)) n = `T_${n}`; // SQLite keeps sqlite_ names for itself
     return unique(n, used);
   }
 

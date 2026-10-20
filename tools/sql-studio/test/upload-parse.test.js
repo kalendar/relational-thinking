@@ -19,7 +19,7 @@ test('cleanColumnName: snake_case, digits, keywords, duplicates', () => {
   assert.equal(U.cleanColumnName('2025 Sales', used), 'c_2025_sales');
   assert.equal(U.cleanColumnName('Group', used), 'group_col');
   assert.equal(U.cleanColumnName('order date', used), 'order_date_2');
-  assert.equal(U.cleanColumnName('', used), 'column');
+  assert.equal(U.cleanColumnName('', used), 'unnamed');
 });
 
 test('cleanTableName keeps case and drops the extension', () => {
@@ -75,4 +75,21 @@ test('limits and bad shapes give plain messages', () => {
   assert.throws(() => U.buildUploadSchema([{ name: 'a', rows: [['x'], [1], [2], [3]] }], { maxTables: 5, maxRows: 2 }), /up to 2 per table/);
   const many = Array.from({ length: 3 }, (_, i) => ({ name: `t${i}`, rows: [['x'], [1]] }));
   assert.throws(() => U.buildUploadSchema(many, { maxTables: 2, maxRows: 10 }), /up to 2\./);
+});
+
+test('every SQLite reserved word is renamed, so uploaded columns and tables are usable without quotes', async () => {
+  const headers = ['id', 'index', 'transaction', 'check', 'default', 'amount', 'to', 'from', 'unique', 'commit'];
+  const { schema } = U.buildUploadSchema([
+    { name: 'Sales', rows: [headers, headers.map((_, i) => i + 1)] },
+    { name: 'sqlite_stats.csv', rows: [['x'], [1]] },
+    { name: 'Index.csv', rows: [['y'], [2]] },
+  ]);
+  const names = schema.tables[0].columns.map(c => c.name);
+  assert.deepEqual(names, ['id', 'index_col', 'transaction_col', 'check_col', 'default_col', 'amount', 'to_col', 'from_col', 'unique_col', 'commit_col']);
+  assert.deepEqual(schema.tables.map(t => t.name), ['Sales', 'T_sqlite_stats', 'Index_table']);
+  const st = D.openStudio(await getSQL(), schema);
+  const r = D.runQuery(st, `SELECT ${names.join(', ')} FROM Sales`);
+  assert.equal(r.ok, true, r.error && r.error.message);
+  assert.equal(D.runQuery(st, 'SELECT x FROM T_sqlite_stats').ok, true);
+  D.closeStudio(st);
 });
