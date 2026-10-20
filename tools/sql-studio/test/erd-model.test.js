@@ -137,3 +137,8 @@ test('a self-loop leaves and returns on the right edge, outside the box', () => 
 test('labelPoint is the middle of the longest segment', () => {
   assert.deepEqual(M.labelPoint([{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 20 }]), { x: 50, y: 0 });
 });
+
+test('labelPoint treats a straight run of short pieces as one segment', () => {
+  const straight = [{ x: 0, y: 0 }, { x: 28, y: 0 }, { x: 55, y: 0 }, { x: 55, y: 0 }, { x: 82, y: 0 }, { x: 110, y: 0 }];
+  assert.deepEqual(M.labelPoint(straight), { x: 55, y: 0 });
+});

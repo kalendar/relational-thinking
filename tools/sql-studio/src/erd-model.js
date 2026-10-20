@@ -131,7 +131,15 @@
   }
 
   // Where to put a link's label: the middle of its longest segment.
-  function labelPoint(points) {
+  function labelPoint(rawPoints) {
+    // Merge straight runs (and zero-length pieces) first, so a straight line counts as one segment.
+    const points = [];
+    for (const p of rawPoints) {
+      const n = points.length;
+      if (n && points[n - 1].x === p.x && points[n - 1].y === p.y) continue;
+      if (n >= 2 && ((points[n - 2].y === points[n - 1].y && points[n - 1].y === p.y) || (points[n - 2].x === points[n - 1].x && points[n - 1].x === p.x))) points[n - 1] = p;
+      else points.push(p);
+    }
     let best = null;
     let bestLen = -1;
     for (let i = 1; i < points.length; i++) {

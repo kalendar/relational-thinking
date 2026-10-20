@@ -25,7 +25,8 @@ function build() {
     .filter(p => fs.existsSync(p))
     .map(p => ({ name: label(p), code: `// ---- ${label(p)} ----\n${read(p)}` }));
   // Each part is its own <script>, so one file's top-level names can't clash with another's.
-  const scripts = [...vendorJs, ...ours];
+  // The shared SQL Studio files add to window.SS, so it must exist before they load.
+  const scripts = [...vendorJs, { name: 'namespace', code: 'window.SS = window.SS || {};' }, ...ours];
   for (const sc of scripts) if (/<\/script/i.test(sc.code)) throw new Error(`${sc.name} contains "</script", which would break the page.`);
   const css = [...VENDOR_CSS.map(f => read(path.join(STUDIO, 'vendor', f))), read(path.join(SRC, 'styles.css'))].join('\n');
   const html = read(path.join(SRC, 'index.html'))

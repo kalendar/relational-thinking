@@ -206,3 +206,33 @@ li.CodeMirror-hint-active{background:var(--teal); color:var(--on-teal);}
 .erd-link .end.end-on line,.erd-link .end.end-on circle{stroke:var(--indigo); stroke-width:3;}
 .link-label rect{fill:var(--surface); stroke:var(--line);}
 .link-label text{fill:var(--muted); font-size:11.5px; font-family:'Nunito Sans',system-ui,sans-serif;}
+/* playground layout */
+.pg-row{display:grid; min-width:0; min-height:0;}
+.footnote{margin:6px 0 0; color:var(--muted); font-size:.8rem; text-align:center;}
+.notation-panel .panel-body{display:flex; flex-direction:column;}
+.notation-panel .editor-host{flex:1; min-height:140px; position:relative;}
+.status{margin:0; padding:6px 10px; border-top:1px solid var(--line); font-size:.88em; display:flex; flex-direction:column; gap:2px;}
+.status.ok{color:var(--good);}
+.status.ok .note{color:var(--muted);}
+.status.err{color:var(--bad); background:var(--bad-soft);}
+.cheat{border-top:1px solid var(--line); padding:6px 10px; font-size:.88em;}
+.cheat summary{cursor:pointer; font-family:'Montserrat',sans-serif; font-weight:600; color:var(--ink);}
+.cheat-note{margin:6px 0 2px; color:var(--muted);}
+.cheat-table{border-collapse:collapse;}
+.cheat-table td{padding:2px 8px 2px 0; vertical-align:middle;}
+.end-sample line,.end-sample circle{stroke:var(--muted); stroke-width:1.6; fill:var(--surface);}
+.end-sample rect{fill:var(--card-2); stroke:var(--line);}
+.cheat-list{margin:2px 0 4px; padding-left:1.2em;}
+.reading{position:absolute; left:10px; right:10px; bottom:10px; z-index:2; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:6px 10px; font-size:.92rem; box-shadow:0 4px 14px rgba(0,0,0,.08);}
+.reading-line{margin:0;}
+.reading-label{margin:2px 0 0; color:var(--muted); font-size:.85em;}
+.reading-hint{color:var(--muted);}
+@media (max-width:759px){
+  .app{padding:10px 10px 20px;}
+  .picker-wrap{margin-left:0; align-items:flex-start;}
+  .picker-row{flex-wrap:wrap;}
+  .pg-row{display:flex; flex-direction:column; gap:10px; height:auto !important;}
+  .splitter{display:none;}
+  .notation-panel .panel-body{min-height:300px;}
+  .diagram-panel .panel-body{height:420px; flex:none;}
+}
