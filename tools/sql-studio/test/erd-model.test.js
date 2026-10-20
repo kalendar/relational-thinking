@@ -62,3 +62,16 @@ test("crow's foot: one end has two bars, many end has three prongs and a circle"
   assert.ok(many.circle.cx < 100);
   assert.equal(M.pathData([{ x: 1, y: 2 }, { x: 3, y: 2 }]), 'M1 2 L3 2');
 });
+
+test('fitView keeps the preferred zoom when the diagram fits, and zooms out (not below 30%) when it does not', () => {
+  const bounds = { minX: 40, minY: 40, maxX: 1100, maxY: 300 };
+  const wide = M.fitView(bounds, { width: 1366, height: 340 }, 1);
+  assert.equal(wide.scale, 1);
+  assert.equal(Math.round(wide.tx + 40 * wide.scale + (1060 * wide.scale) / 2), 683, 'centered horizontally');
+  const narrow = M.fitView(bounds, { width: 800, height: 340 }, 1);
+  assert.ok(narrow.scale < 1);
+  assert.ok(narrow.tx + bounds.minX * narrow.scale >= 0, 'left edge visible');
+  assert.ok(narrow.tx + bounds.maxX * narrow.scale <= 800, 'right edge visible');
+  assert.equal(M.fitView(bounds, { width: 100, height: 340 }, 1).scale, 0.3);
+  assert.equal(M.fitView(bounds, { width: 0, height: 0 }, 1.2).scale, 1.2, 'hidden canvas keeps the zoom');
+});

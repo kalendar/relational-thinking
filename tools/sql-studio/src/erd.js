@@ -112,18 +112,15 @@
       zoomAt(SS.stepZoom(Math.round(view.scale * 100), dir, SS.ERD_ZOOM) / 100, r.width / 2, r.height / 2);
       SS.announce(`Diagram zoom ${Math.round(view.scale * 100)}%`);
     }
-    // Centers the visible tables in the canvas at the current zoom.
+    // Centers the visible tables in the canvas, zoomed out if needed so all of them show.
     function fit() {
       const ts = visibleTables();
       if (!ts.length) { applyView(); return; }
       const boxes = ts.map(boxOf);
-      const minX = Math.min(...boxes.map(b => b.x));
-      const minY = Math.min(...boxes.map(b => b.y));
-      const maxX = Math.max(...boxes.map(b => b.x + b.w));
-      const maxY = Math.max(...boxes.map(b => b.y + b.h));
+      const bounds = { minX: Math.min(...boxes.map(b => b.x)), minY: Math.min(...boxes.map(b => b.y)), maxX: Math.max(...boxes.map(b => b.x + b.w)), maxY: Math.max(...boxes.map(b => b.y + b.h)) };
       const r = svg.getBoundingClientRect();
-      view.tx = (r.width - (maxX - minX) * view.scale) / 2 - minX * view.scale;
-      view.ty = Math.max(10, (r.height - (maxY - minY) * view.scale) / 2) - minY * view.scale;
+      // Zooms out (without changing the saved zoom) when the diagram is wider or taller than the canvas.
+      view = SS.fitView(bounds, { width: r.width, height: r.height }, prefs.erdZoom / 100);
       applyView();
     }
 

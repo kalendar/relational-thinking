@@ -100,9 +100,24 @@
     };
   }
 
+  // Where to put the diagram in a canvas: the preferred zoom, or smaller (down to 30%) so it all fits, centered.
+  // bounds: { minX, minY, maxX, maxY } in diagram units; canvas: { width, height } in px.
+  function fitView(bounds, canvas, preferredScale, margin = 16) {
+    if (!canvas.width || !canvas.height) return { scale: preferredScale, tx: 0, ty: 0 };
+    const w = bounds.maxX - bounds.minX;
+    const h = bounds.maxY - bounds.minY;
+    const fits = Math.min((canvas.width - 2 * margin) / w, (canvas.height - 2 * margin) / h);
+    const scale = Math.max(0.3, Math.min(preferredScale, fits));
+    return {
+      scale,
+      tx: (canvas.width - w * scale) / 2 - bounds.minX * scale,
+      ty: Math.max(margin, (canvas.height - h * scale) / 2) - bounds.minY * scale,
+    };
+  }
+
   const pathData = points => points.map((pt, i) => `${i ? 'L' : 'M'}${pt.x} ${pt.y}`).join(' ');
 
-  const api = { BOX, boxSize, layers, tidyLayout, linkRoute, crowFoot, pathData };
+  const api = { BOX, boxSize, layers, tidyLayout, linkRoute, crowFoot, fitView, pathData };
   if (isNode) module.exports = api;
   else root.SS = Object.assign(root.SS || {}, api);
 })(this);
