@@ -16927,5 +16927,122 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
 })(this);
 
 </script>
+<script>
+// ---- src/data-view.js ----
+// SQL Studio: the Data panel. A tab for each table; shows the first 10 rows and the total count.
+(function (root) {
+  'use strict';
+  const SS = root.SS;
+  const { h, clear } = SS;
+  const PREVIEW_ROWS = 10;
+
+  function createDataView(panel) {
+    const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Tables' });
+    panel.headSlot.append(tabs);
+    const body = h('div', { class: 'data-body', role: 'tabpanel', id: 'data-tabpanel', tabindex: '0' });
+    panel.body.append(body);
+    let studio = null;
+    let selected = 0;
+
+    function setStudio(st) {
+      studio = st;
+      selected = 0;
+      drawTabs();
+      show(0, false);
+    }
+
+    function drawTabs() {
+      clear(tabs);
+      studio.schema.tables.forEach((t, i) => tabs.append(h('button', {
+        type: 'button', class: 'tab', role: 'tab', id: `data-tab-${i}`, 'aria-controls': 'data-tabpanel',
+        'aria-selected': String(i === selected), tabindex: i === selected ? '0' : '-1', onclick: () => show(i, true),
+        onkeydown: e => {
+          const n = studio.schema.tables.length;
+          const k = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+          if (k) { e.preventDefault(); show((i + k + n) % n, true); }
+          else if (e.key === 'Home') { e.preventDefault(); show(0, true); }
+          else if (e.key === 'End') { e.preventDefault(); show(n - 1, true); }
+        },
+      }, t.name)));
+    }
+
+    function show(i, focusTab) {
+      selected = i;
+      drawTabs();
+      if (focusTab) tabs.children[i].focus();
+      const t = studio.schema.tables[i];
+      body.setAttribute('aria-labelledby', `data-tab-${i}`);
+      const q = SS.quoteIdent(t.name);
+      const rows = SS.runQuery(studio, `SELECT * FROM ${q} LIMIT ${PREVIEW_ROWS}`);
+      const total = SS.runQuery(studio, `SELECT COUNT(*) FROM ${q}`);
+      clear(body);
+      if (!rows.ok || !total.ok) { body.append(h('p', null, 'This table could not be shown.')); return; }
+      const n = total.rows[0][0];
+      body.append(h('p', { class: 'data-count' }, n <= PREVIEW_ROWS ? `Showing all ${n} rows of ${t.name}.` : `Showing ${PREVIEW_ROWS} of ${n.toLocaleString('en-US')} rows of ${t.name}.`));
+      body.append(SS.renderDataTable(rows.columns, rows.rows, { caption: `First rows of the ${t.name} table` }));
+    }
+
+    return { setStudio };
+  }
+
+  root.SS = Object.assign(SS, { createDataView });
+})(this);
+
+</script>
+<script>
+// ---- src/upload.js ----
+// SQL Studio: "Use my own data". Reads CSV files (our parser) and .xlsx files (SheetJS), then builds a schema.
+(function (root) {
+  'use strict';
+  const SS = root.SS;
+
+  const hasExcel = () => !!(root.XLSX && root.XLSX.read);
+
+  function readAs(file, how) {
+    return new Promise((ok, bad) => {
+      const r = new FileReader();
+      r.onload = () => ok(r.result);
+      r.onerror = () => bad(new SS.UploadError(`We couldn't read ${file.name}.`));
+      if (how === 'text') r.readAsText(file); else r.readAsArrayBuffer(file);
+    });
+  }
+
+  // Returns [{ name, rows }] for one file.
+  async function sheetsFromFile(file) {
+    if (file.size > SS.LIMITS.maxBytes) throw new SS.UploadError(`${file.name} is bigger than 5 MB. Try a smaller file.`);
+    if (/\.csv$/i.test(file.name) || file.type === 'text/csv') return [{ name: file.name, rows: SS.parseCSV(await readAs(file, 'text')) }];
+    if (/\.xlsx$/i.test(file.name)) {
+      if (!hasExcel()) throw new SS.UploadError('Excel files are not supported here. Save the sheet as .csv and upload that.');
+      const wb = root.XLSX.read(await readAs(file, 'buffer'), { type: 'array', cellDates: true });
+      return wb.SheetNames.map(name => ({ name, rows: root.XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true, defval: null, blankrows: false }) }));
+    }
+    throw new SS.UploadError(`${file.name} isn't a .csv${hasExcel() ? ' or .xlsx' : ''} file.`);
+  }
+
+  // Opens the file picker. Resolves to { schema, renamed } or null if the student cancels; throws UploadError.
+  function pickUpload() {
+    return new Promise((resolve, reject) => {
+      const input = SS.h('input', { type: 'file', multiple: true, accept: hasExcel() ? '.csv,.xlsx,text/csv' : '.csv,text/csv', style: { display: 'none' } });
+      input.addEventListener('change', async () => {
+        const files = [...input.files];
+        input.remove();
+        if (!files.length) { resolve(null); return; }
+        try {
+          const sheets = (await Promise.all(files.map(sheetsFromFile))).flat();
+          resolve(SS.buildUploadSchema(sheets));
+        } catch (e) {
+          reject(e instanceof SS.UploadError ? e : new SS.UploadError('Something went wrong reading that file.'));
+        }
+      });
+      input.addEventListener('cancel', () => { input.remove(); resolve(null); });
+      document.body.append(input);
+      input.click();
+    });
+  }
+
+  root.SS = Object.assign(SS, { pickUpload, hasExcel });
+})(this);
+
+</script>
 </body>
 </html>
