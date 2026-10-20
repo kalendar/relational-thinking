@@ -97,10 +97,12 @@
       sql += `\nJOIN ${ident(p.table.name)} ${p.alias} ON ${ref(mine.table, mine.column)} = ${ref(theirs.table, theirs.column)}`;
     });
     const columns = parts.flatMap(p => p.table.columns.map(c => ({ expr: ref(p.table.name, c.name), name: c.name, type: c.type, key: c.pk || !!c.fk })));
-    return { sql, columns, joined: joins.length > 0 };
+    return { sql, columns, joined: joins.length > 0, start: start.name, tables: parts.map(p => p.table.name) };
   }
 
+  // Returns { sql, op, values } (op and values feed the plain-English question), or null.
   function condition(col, value, sampleValues, rng, asLike) {
+    const c = (sql, op, values) => ({ sql, op, values });
     if (asLike) {
       const s = String(value);
       if (col.type !== 'text' || s.length < 2 || /[%_']/.test(s)) return null;
@@ -109,23 +111,92 @@
       const piece = mode === 'starts' ? s.slice(0, len) : mode === 'ends' ? s.slice(-len) : s.slice(rng.int(0, s.length - len)).slice(0, len);
       if (!piece.trim()) return null;
       const pat = mode === 'starts' ? `${piece}%` : mode === 'ends' ? `%${piece}` : `%${piece}%`;
-      return `${col.expr} LIKE ${lit(pat)}`;
+      return c(`${col.expr} LIKE ${lit(pat)}`, mode, [piece]);
     }
-    if (col.type === 'boolean') return `${col.expr} = ${value ? 'TRUE' : 'FALSE'}`;
+    if (col.type === 'boolean') return c(`${col.expr} = ${value ? 'TRUE' : 'FALSE'}`, 'bool', [value ? 1 : 0]);
     const others = [...new Set(sampleValues.filter(v => v !== null && v !== value))];
     const other = others.length ? rng.pick(others) : null;
     if (col.type === 'text') {
       const kind = rng.pick(['eq', 'eq', 'in', 'ne']);
-      if (kind === 'in' && other !== null) return `${col.expr} IN (${lit(value)}, ${lit(other)})`;
-      if (kind === 'ne' && other !== null) return `${col.expr} <> ${lit(other)}`;
-      return `${col.expr} = ${lit(value)}`;
+      if (kind === 'in' && other !== null) return c(`${col.expr} IN (${lit(value)}, ${lit(other)})`, 'in', [value, other]);
+      if (kind === 'ne' && other !== null) return c(`${col.expr} <> ${lit(other)}`, 'ne', [other]);
+      return c(`${col.expr} = ${lit(value)}`, 'eq', [value]);
     }
     const kind = rng.pick(['ge', 'le', 'between']);
     if (kind === 'between' && other !== null) {
       const [lo, hi] = value < other ? [value, other] : [other, value];
-      return `${col.expr} BETWEEN ${lit(lo)} AND ${lit(hi)}`;
+      return c(`${col.expr} BETWEEN ${lit(lo)} AND ${lit(hi)}`, 'between', [lo, hi]);
     }
-    return `${col.expr} ${kind === 'le' ? '<=' : '>='} ${lit(value)}`;
+    return c(`${col.expr} ${kind === 'le' ? '<=' : '>='} ${lit(value)}`, kind, [value]);
+  }
+
+  // ---- the plain-English question ----
+  const listOf = xs => (xs.length < 2 ? xs.join('') : xs.length === 2 ? `${xs[0]} and ${xs[1]}` : `${xs.slice(0, -1).join(', ')}, and ${xs[xs.length - 1]}`);
+  const AGG_SAY = { SUM: 'the total of', AVG: 'the average', MIN: 'the lowest', MAX: 'the highest' };
+  function sayItem(it) {
+    if (it.kind === 'col') return it.col.name;
+    if (it.kind === 'agg') {
+      if (it.fn === 'COUNT') return 'the number of rows';
+      if (it.fn === 'COUNTD') return `the number of different ${it.col.name} values`;
+      return `${AGG_SAY[it.fn]} ${it.col.name}`;
+    }
+    if (it.op === 'times') return `${it.a.name} times ${it.b.name}`;
+    if (it.op === 'sumtimes') return `the total of ${it.a.name} times ${it.b.name}`;
+    if (it.op === 'range') return `the highest ${it.a.name} minus the lowest ${it.a.name}`;
+    return `${it.a.name} divided by 1,000 (rounded to 2 decimal places)`;
+  }
+  function sayCond({ col, op, values }) {
+    const n = col.name;
+    const date = col.type === 'date';
+    switch (op) {
+      case 'eq': return `${n} is ${values[0]}`;
+      case 'ne': return `${n} is not ${values[0]}`;
+      case 'in': return `${n} is ${values[0]} or ${values[1]}`;
+      case 'ge': return `${n} is ${date ? 'on or after' : 'at least'} ${values[0]}`;
+      case 'le': return `${n} is ${date ? 'on or before' : 'at most'} ${values[0]}`;
+      case 'between': return `${n} is between ${values[0]} and ${values[1]}`;
+      case 'starts': return `${n} starts with '${values[0]}'`;
+      case 'ends': return `${n} ends with '${values[0]}'`;
+      case 'contains': return `${n} contains '${values[0]}'`;
+      case 'bool': return `${n} is ${values[0] ? 'true' : 'false'}`;
+      case 'isnull': return `${n} is missing (NULL)`;
+      case 'notnull': return `${n} is not missing`;
+      default: return n;
+    }
+  }
+  function sortWords(it, desc) {
+    const type = it.kind === 'col' ? it.col.type : it.kind === 'agg' && it.col && (it.fn === 'MIN' || it.fn === 'MAX') ? it.col.type : 'number';
+    if (type === 'text' || type === 'boolean') return desc ? 'Z to A' : 'A to Z';
+    if (type === 'date') return desc ? 'newest first' : 'oldest first';
+    return desc ? 'highest first' : 'lowest first';
+  }
+
+  // spec: { start, joined[], distinct, aggregate, group (column|null), items[], where {joiner, conds[]}|null,
+  //         having {item, value}|null, order {item, desc}|null, limit (number|null) }
+  function describeQuery(spec) {
+    const source = spec.joined.length ? `${spec.start} (with its matching ${listOf(spec.joined)} rows)` : spec.start;
+    const parts = [];
+    if (spec.aggregate) {
+      const shown = spec.items.filter(it => !(spec.group && it.kind === 'col' && it.col.name === spec.group.name)).map(sayItem);
+      const each = spec.group && spec.group.type === 'boolean' ? `${spec.group.name} value (true or false)` : spec.group && spec.group.name;
+      parts.push(spec.group ? `Using ${source}, for each ${each} show ${listOf(shown)}.` : `Using all of ${source}, show ${listOf(shown)}.`);
+    } else if (spec.distinct) {
+      const names = spec.items.map(sayItem);
+      parts.push(names.length === 1 ? `List each different ${names[0]} once, from ${source}.` : `List each different combination of ${listOf(names)} once, from ${source}.`);
+    } else {
+      parts.push(`For each row of ${source}, show ${listOf(spec.items.map(sayItem))}.`);
+    }
+    if (spec.where && spec.where.conds.length) {
+      const joiner = spec.where.joiner === 'OR' ? ' or ' : ' and ';
+      parts.push(`Only ${spec.aggregate ? 'count' : 'include'} rows where ${spec.where.conds.map(sayCond).join(joiner)}.`);
+    }
+    if (spec.having) parts.push(`Keep only groups where ${sayItem(spec.items[spec.having.item])} is at least ${spec.having.value}.`);
+    if (spec.order) {
+      const it = spec.items[spec.order.item];
+      parts.push(`Sort by ${sayItem(it)}, ${sortWords(it, spec.order.desc)}.`);
+    }
+    if (spec.limit) parts.push(`Show only the first ${spec.limit} rows.`);
+    return parts.join(' ');
   }
 
   const AGG_NAMES = { SUM: 'total', AVG: 'average', MIN: 'lowest', MAX: 'highest' };
@@ -146,6 +217,7 @@
     const features = new Set();
 
     const from = buildFrom(schema, rng, join);
+    const spec = { start: from.start, joined: from.joined ? from.tables.slice(1) : [], distinct: false, aggregate: false, group: null, items: [], where: null, having: null, order: null, limit: null };
     if (from.joined) features.add('join');
     const sample = run(`SELECT ${from.columns.map(c => c.expr).join(', ')}\n${from.sql}\nLIMIT 500`);
     if (!sample.ok || !sample.rows.length) return null;
@@ -160,6 +232,15 @@
     // WHERE
     const conds = [];
     if (where) {
+      const nullRate = typeof o.nullChecks === 'number' ? o.nullChecks : 0.15;
+      const hasNulls = c => valuesOf(c).some(v => v === null);
+      // Missing values: IS NULL when this row's value is missing; sometimes IS NOT NULL on a column with gaps.
+      for (const c of rng.shuffle(pool)) {
+        if (conds.length || like || !rng.chance(nullRate)) break;
+        const v = row[colIndex.get(c)];
+        if (v === null) conds.push({ col: c, cond: { sql: `${c.expr} IS NULL`, op: 'isnull', values: [] } });
+        else if (hasNulls(c) || o.nullChecks) conds.push({ col: c, cond: { sql: `${c.expr} IS NOT NULL`, op: 'notnull', values: [] } });
+      }
       const cands = rng.shuffle(pool.filter(c => row[colIndex.get(c)] !== null));
       if (like) {
         for (const c of cands) {
@@ -178,20 +259,23 @@
       if (conds.length === 2) features.add('andOr');
     }
     const joiner = rng.chance(0.5) ? 'AND' : 'OR';
-    const whereSql = conds.length ? `\nWHERE ${conds.map(x => x.cond).join(` ${joiner} `)}` : '';
+    const whereSql = conds.length ? `\nWHERE ${conds.map(x => x.cond.sql).join(` ${joiner} `)}` : '';
+    if (conds.length) spec.where = { joiner, conds: conds.map(x => ({ col: x.col, op: x.cond.op, values: x.cond.values })) };
 
     // SELECT
     const usedNames = new Set();
     const asName = base => { let n = base; let k = 2; while (usedNames.has(n)) n = `${base}_${k++}`; usedNames.add(n); return n; };
-    const items = []; // { sql, name, aggExpr? }
+    const items = []; // { sql, name, aggExpr?, say } — `say` is the item as the question describes it
     let groupSql = '';
     let havingSql = '';
     if (aggregate) {
       features.add('aggregate');
+      spec.aggregate = true;
       let g = null;
       if (groupBy) {
         g = rng.pick(groupable.length ? groupable : pool);
-        items.push({ sql: g.expr, name: asName(g.name) });
+        spec.group = g;
+        items.push({ sql: g.expr, name: asName(g.name), say: { kind: 'col', col: g } });
         groupSql = `\nGROUP BY ${g.expr}`;
         features.add('groupBy');
       }
@@ -199,16 +283,16 @@
       const distinctable = groupable.filter(c => c !== g);
       if (distinct && distinctable.length) {
         const d = rng.pick(distinctable);
-        aggs.push({ expr: `COUNT(DISTINCT ${d.expr})`, base: `distinct_${d.name}` });
+        aggs.push({ expr: `COUNT(DISTINCT ${d.expr})`, base: `distinct_${d.name}`, say: { kind: 'agg', fn: 'COUNTD', col: d } });
         features.add('distinct');
       }
       if (calc && nums.length) {
         if (nums.length >= 2) {
           const [a, b] = rng.shuffle(nums);
-          aggs.push({ expr: `SUM(${a.expr} * ${b.expr})`, base: `total_${a.name}_times_${b.name}` });
+          aggs.push({ expr: `SUM(${a.expr} * ${b.expr})`, base: `total_${a.name}_times_${b.name}`, say: { kind: 'calc', op: 'sumtimes', a, b } });
         } else {
           const a = nums[0];
-          aggs.push({ expr: `MAX(${a.expr}) - MIN(${a.expr})`, base: `${a.name}_range` });
+          aggs.push({ expr: `MAX(${a.expr}) - MIN(${a.expr})`, base: `${a.name}_range`, say: { kind: 'calc', op: 'range', a } });
         }
         features.add('calc');
       }
@@ -217,10 +301,10 @@
         if (nums.length && rng.chance(0.7)) {
           const fn = rng.pick(['SUM', 'AVG', 'MIN', 'MAX']);
           const c = rng.pick(nums);
-          aggs.push({ expr: `${fn}(${c.expr})`, base: `${AGG_NAMES[fn]}_${c.name}` });
-        } else aggs.push({ expr: 'COUNT(*)', base: 'number_of_rows' });
+          aggs.push({ expr: `${fn}(${c.expr})`, base: `${AGG_NAMES[fn]}_${c.name}`, say: { kind: 'agg', fn, col: c } });
+        } else aggs.push({ expr: 'COUNT(*)', base: 'number_of_rows', say: { kind: 'agg', fn: 'COUNT' } });
       }
-      for (const a of aggs) items.push({ sql: `${a.expr} AS ${asName(a.base)}`, name: [...usedNames].pop(), aggExpr: a.expr });
+      for (const a of aggs) items.push({ sql: `${a.expr} AS ${asName(a.base)}`, name: [...usedNames].pop(), aggExpr: a.expr, say: a.say });
       if (having && groupSql) {
         const target = rng.pick(items.filter(i => i.aggExpr));
         const probe = run(`SELECT ${target.aggExpr}\n${from.sql}${whereSql}${groupSql}`);
@@ -231,6 +315,7 @@
           const v = rng.pick(above.length ? above : vals);
           const t = Number.isInteger(v) ? v : Math.floor(v * 100) / 100;
           havingSql = `\nHAVING ${target.aggExpr} >= ${t}`;
+          spec.having = { item: items.indexOf(target), value: t };
           features.add('having');
         }
       }
@@ -239,19 +324,20 @@
       if (distinct && groupable.length) {
         chosen = rng.shuffle(groupable).slice(0, rng.int(1, Math.min(2, groupable.length)));
         features.add('distinct');
+        spec.distinct = true;
       } else {
         const keyCols = from.columns.filter(c => c.key);
         chosen = rng.shuffle(pool).slice(0, rng.int(2, Math.min(4, Math.max(2, pool.length))));
         if (keyCols.length && rng.chance(0.2)) chosen.unshift(rng.pick(keyCols));
       }
-      for (const c of chosen) items.push({ sql: c.expr, name: asName(c.name) });
+      for (const c of chosen) items.push({ sql: c.expr, name: asName(c.name), say: { kind: 'col', col: c } });
       if (calc && nums.length && !features.has('distinct')) {
         if (nums.length >= 2) {
           const [a, b] = rng.shuffle(nums);
-          items.push({ sql: `${a.expr} * ${b.expr} AS ${asName(`${a.name}_times_${b.name}`)}`, name: [...usedNames].pop() });
+          items.push({ sql: `${a.expr} * ${b.expr} AS ${asName(`${a.name}_times_${b.name}`)}`, name: [...usedNames].pop(), say: { kind: 'calc', op: 'times', a, b } });
         } else {
           const a = nums[0];
-          items.push({ sql: `ROUND(${a.expr} / 1000.0, 2) AS ${asName(`${a.name}_in_thousands`)}`, name: [...usedNames].pop() });
+          items.push({ sql: `ROUND(${a.expr} / 1000.0, 2) AS ${asName(`${a.name}_in_thousands`)}`, name: [...usedNames].pop(), say: { kind: 'calc', op: 'thousands', a } });
         }
         features.add('calc');
       }
@@ -261,14 +347,17 @@
     if (orderBy) {
       const target = rng.pick(items);
       const by = target.sql.includes(' AS ') ? target.name : target.sql;
-      orderSql = `\nORDER BY ${by}${rng.chance(0.5) ? ' DESC' : ''}`;
+      const desc = rng.chance(0.5);
+      orderSql = `\nORDER BY ${by}${desc ? ' DESC' : ''}`;
+      spec.order = { item: items.indexOf(target), desc };
       features.add('orderBy');
     }
     let limitSql = '';
-    if (limit) { limitSql = `\nLIMIT ${rng.int(3, 10)}`; features.add('limit'); }
+    if (limit) { spec.limit = rng.int(3, 10); limitSql = `\nLIMIT ${spec.limit}`; features.add('limit'); }
+    spec.items = items.map(i => i.say);
 
     const head = `SELECT${features.has('distinct') && !aggregate ? ' DISTINCT' : ''} ${items.map(i => i.sql).join(', ')}`;
-    return { sql: `${head}\n${from.sql}${whereSql}${groupSql}${havingSql}${orderSql}${limitSql}`, features: [...features] };
+    return { sql: `${head}\n${from.sql}${whereSql}${groupSql}${havingSql}${orderSql}${limitSql}`, features: [...features], question: describeQuery(spec) };
   }
 
   // run(sqlText) -> { ok, columns, rows } (db.runQuery bound to a studio).
@@ -282,13 +371,13 @@
       const sql = X.formatSql(got.sql) + ';';
       const res = run(got.sql);
       if (!res.ok) { errors++; continue; }
-      if (res.rows.length || tries === 20) return { sql, features: got.features, tries, errors, rows: res.rows.length };
+      if (res.rows.length || tries === 20) return { sql, features: got.features, question: got.question, tries, errors, rows: res.rows.length };
     }
     const t = schema.tables[0];
-    return { sql: `SELECT *\nFROM ${ident(t.name)}\nLIMIT 10;`, features: [], tries: 21, errors, rows: Math.min(10, t.rows.length) };
+    return { sql: `SELECT *\nFROM ${ident(t.name)}\nLIMIT 10;`, features: [], question: `Show every column of the first 10 rows of ${t.name}.`, tries: 21, errors, rows: Math.min(10, t.rows.length) };
   }
 
-  const api = { FEATURES, FEATURE_LABELS, DEFAULT_OPTIONS, NEEDS, mulberry32, normalizeOptions, generateQuery };
+  const api = { FEATURES, FEATURE_LABELS, DEFAULT_OPTIONS, NEEDS, mulberry32, normalizeOptions, generateQuery, describeQuery };
   if (isNode) module.exports = api;
   else root.SS = Object.assign(root.SS || {}, api);
 })(this);
