@@ -23,8 +23,15 @@
       });
       return h('label', { class: 'check-label', for: `rq-${f}` }, cb, SS.FEATURE_LABELS[f]);
     });
+    // Practice fixing SQL: the query comes with its question and 1–2 mistakes.
+    const mistakesBox = h('input', { type: 'checkbox', id: 'rq-mistakes' });
+    mistakesBox.checked = !!prefs.mistakes;
+    mistakesBox.addEventListener('change', () => { prefs.mistakes = mistakesBox.checked; save(); });
     const panel = h('div', { class: 'popover', role: 'group', 'aria-label': 'What random queries can include' },
-      h('h3', null, 'Random queries can use'), list, note);
+      h('h3', null, 'Random queries can use'), list, note,
+      h('hr', { class: 'pop-rule' }),
+      h('label', { class: 'check-label', for: 'rq-mistakes' }, mistakesBox, 'Add mistakes to fix'),
+      h('p', { class: 'added' }, 'Adds 1 or 2 small mistakes, with the question the query should answer at the top.'));
     function sync() { SS.FEATURES.forEach(f => { boxes[f].checked = !!prefs.random[f]; }); }
     sync();
     const pop = SS.popover(complexBtn, panel, { onOpen: () => { note.textContent = ''; } });

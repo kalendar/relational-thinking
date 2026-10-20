@@ -14,7 +14,7 @@ const VENDOR_JS = ['codemirror/codemirror.js', 'codemirror/mode-sql.js', 'codemi
   'codemirror/active-line.js', 'codemirror/matchbrackets.js', 'sql.js/sql-wasm.js', 'sheetjs/xlsx.mini.min.js'];
 
 // Load order matters: each file reads what earlier files put on window.SS.
-const SCRIPT_ORDER = ['sql-text.js', 'schema.js', 'db.js', 'query-runner.js', 'errors.js', 'format.js', 'check.js', 'exercises.js', 'randomq.js',
+const SCRIPT_ORDER = ['sql-text.js', 'schema.js', 'db.js', 'query-runner.js', 'errors.js', 'format.js', 'check.js', 'exercises.js', 'randomq.js', 'mistakes.js',
   'export.js', 'upload-parse.js', 'prefs.js', 'sessions.js', 'erd-model.js', 'DATASETS',
   'dom.js', 'icons.js', 'layout.js', 'editor.js', 'results-view.js', 'exercises-view.js', 'export-dialog.js',
   'random-ui.js', 'erd.js', 'data-view.js', 'upload.js', 'app.js'];

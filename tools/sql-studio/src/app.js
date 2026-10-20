@@ -214,7 +214,10 @@ self.SS.workerMain(self, function () {
 
     // Replaces the statement at the cursor (or adds to the end) with a random query.
     function randomQuery(options) {
-      const g = SS.generateQuery({ schema: studio.schema, run: q => SS.runQuery(studio, stripSemi(q)), options, seed: Math.floor(Math.random() * 2 ** 31) });
+      const run = q => SS.runQuery(studio, stripSemi(q));
+      const seed = Math.floor(Math.random() * 2 ** 31);
+      const broken = prefs.mistakes ? SS.makeBrokenQuery({ schema: studio.schema, run, options, seed }) : null;
+      const g = broken ? { sql: broken.text.replace(/\s+$/, '') } : SS.generateQuery({ schema: studio.schema, run, options, seed });
       const full = editor.getText();
       const stmt = SS.statementAt(full, editor.getCursorIndex());
       if (stmt) {
@@ -227,7 +230,9 @@ self.SS.workerMain(self, function () {
         const sep = full.trim() ? '\n\n' : '';
         editor.setText(full.replace(/\s*$/, '') + sep + g.sql, null);
       }
-      SS.announce('A random query is in the editor. Press Run to try it.');
+      SS.announce(broken
+        ? `A query with ${broken.mistakes.length === 1 ? '1 mistake' : `${broken.mistakes.length} mistakes`} is in the editor, with its question at the top. Fix it, then run it.`
+        : 'A random query is in the editor. Press Run to try it.');
     }
 
     async function onUpload() {

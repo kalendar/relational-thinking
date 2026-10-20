@@ -54,3 +54,12 @@ test('stepZoom moves by 10 and stops at the ends', () => {
   assert.equal(P.stepZoom(70, -1), 70);
   assert.equal(P.stepZoom(30, -1, P.ERD_ZOOM), 30);
 });
+
+test('"Add mistakes to fix" is off by default, saved, and only true/false', () => {
+  assert.equal(P.sanitizePrefs({}).mistakes, false);
+  assert.equal(P.sanitizePrefs({ mistakes: true }).mistakes, true);
+  assert.equal(P.sanitizePrefs({ mistakes: 'yes' }).mistakes, false);
+  const s = memoryStorage();
+  P.savePrefs(s, Object.assign(P.sanitizePrefs({}), { mistakes: true }));
+  assert.equal(P.loadPrefs(s).mistakes, true);
+});

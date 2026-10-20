@@ -20,6 +20,7 @@
     attributes: true,
     tidyOnRun: true,
     random: Q.DEFAULT_OPTIONS,
+    mistakes: false,        // Random Query adds 1–2 mistakes to fix
   });
 
   const clamp = (v, lo, hi, dflt) => (typeof v === 'number' && isFinite(v) ? Math.min(hi, Math.max(lo, v)) : dflt);
@@ -44,6 +45,7 @@
       erdZoom: snap(clamp(r.erdZoom, ERD_ZOOM.min, ERD_ZOOM.max, 100), ERD_ZOOM.step),
       attributes: bool(r.attributes, d.attributes),
       tidyOnRun: bool(r.tidyOnRun, d.tidyOnRun),
+      mistakes: bool(r.mistakes, d.mistakes),
       random: Q.normalizeOptions(Object.fromEntries(Q.FEATURES.map(f => [f, bool(random[f], d.random[f])]))).options,
     };
   }

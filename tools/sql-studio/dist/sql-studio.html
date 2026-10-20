@@ -555,6 +555,7 @@ li.CodeMirror-hint-active{background:var(--teal); color:var(--on-teal);}
 .popover{position:absolute; top:calc(100% + 6px); left:0; z-index:30; min-width:240px; background:var(--surface); border:1px solid var(--line); border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.18); padding:10px 12px; display:flex; flex-direction:column; gap:6px;}
 .popover[hidden]{display:none;}
 .popover h3{font-size:.8rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted);}
+.pop-rule{border:0; border-top:1px solid var(--line); margin:4px 0; width:100%;}
 .popover .added{font-size:.8rem; color:var(--teal-ink); margin:0;}
 
 /* results */
@@ -12618,6 +12619,11 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
   }
 
   const isReadOnly = text => ['SELECT', 'WITH', 'VALUES'].includes(firstWord(text));
+  // Statements that change data or settings. Anything else (even a typo like SELCT) goes to SQLite,
+  // so students get its error rather than "only runs queries that read data". query_only still stops writes.
+  const WRITE_WORDS = new Set(['INSERT', 'UPDATE', 'DELETE', 'REPLACE', 'UPSERT', 'MERGE', 'CREATE', 'DROP', 'ALTER', 'ATTACH', 'DETACH',
+    'PRAGMA', 'VACUUM', 'REINDEX', 'ANALYZE', 'BEGIN', 'COMMIT', 'END', 'ROLLBACK', 'SAVEPOINT', 'RELEASE', 'TRUNCATE']);
+  const isWrite = text => WRITE_WORDS.has(firstWord(text));
 
   function openStudio(SQL, schema) {
     const db = new SQL.Database();
@@ -12632,7 +12638,7 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
 
   function runQuery(studio, text, { maxRows = MAX_ROWS } = {}) {
     if (!firstWord(text) || firstWord(text) === ';') return { ok: false, error: { kind: 'empty', message: '' } };
-    if (!isReadOnly(text)) return { ok: false, error: { kind: 'readonly', message: '' } };
+    if (isWrite(text)) return { ok: false, error: { kind: 'readonly', message: '' } };
     let stmt = null;
     try {
       stmt = studio.db.prepare(text);
@@ -12663,7 +12669,7 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
     }
   }
 
-  const api = { MAX_ROWS, isReadOnly, openStudio, closeStudio, runQuery, probeError };
+  const api = { MAX_ROWS, isReadOnly, isWrite, openStudio, closeStudio, runQuery, probeError };
   if (isNode) module.exports = api;
   else root.SS = Object.assign(root.SS || {}, api);
 })(this);
@@ -12964,6 +12970,19 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
   }
 
   function formatStatement(text) {
+    // Comment lines above the query (like a question header) are kept exactly, each on its own line.
+    const all = T.tokenize(text);
+    let k = 0;
+    const lead = [];
+    while (k < all.length && (all[k].type === 'ws' || all[k].type === 'comment')) {
+      if (all[k].type === 'comment') lead.push(all[k].text.trim());
+      k++;
+    }
+    if (lead.length && k < all.length) return `${lead.join('\n')}\n${formatBody(text.slice(all[k].start))}`;
+    return formatBody(text);
+  }
+
+  function formatBody(text) {
     const toks = T.tokenize(text).filter(t => t.type !== 'ws');
     // Pass 1: split into top-level clauses per nesting level; we render recursively.
     return render(toks, 0).replace(/[ \t]+\n/g, '\n').trim();
@@ -13911,10 +13930,12 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
       sql += `\nJOIN ${ident(p.table.name)} ${p.alias} ON ${ref(mine.table, mine.column)} = ${ref(theirs.table, theirs.column)}`;
     });
     const columns = parts.flatMap(p => p.table.columns.map(c => ({ expr: ref(p.table.name, c.name), name: c.name, type: c.type, key: c.pk || !!c.fk })));
-    return { sql, columns, joined: joins.length > 0 };
+    return { sql, columns, joined: joins.length > 0, start: start.name, tables: parts.map(p => p.table.name) };
   }
 
+  // Returns { sql, op, values } (op and values feed the plain-English question), or null.
   function condition(col, value, sampleValues, rng, asLike) {
+    const c = (sql, op, values) => ({ sql, op, values });
     if (asLike) {
       const s = String(value);
       if (col.type !== 'text' || s.length < 2 || /[%_']/.test(s)) return null;
@@ -13923,23 +13944,92 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
       const piece = mode === 'starts' ? s.slice(0, len) : mode === 'ends' ? s.slice(-len) : s.slice(rng.int(0, s.length - len)).slice(0, len);
       if (!piece.trim()) return null;
       const pat = mode === 'starts' ? `${piece}%` : mode === 'ends' ? `%${piece}` : `%${piece}%`;
-      return `${col.expr} LIKE ${lit(pat)}`;
+      return c(`${col.expr} LIKE ${lit(pat)}`, mode, [piece]);
     }
-    if (col.type === 'boolean') return `${col.expr} = ${value ? 'TRUE' : 'FALSE'}`;
+    if (col.type === 'boolean') return c(`${col.expr} = ${value ? 'TRUE' : 'FALSE'}`, 'bool', [value ? 1 : 0]);
     const others = [...new Set(sampleValues.filter(v => v !== null && v !== value))];
     const other = others.length ? rng.pick(others) : null;
     if (col.type === 'text') {
       const kind = rng.pick(['eq', 'eq', 'in', 'ne']);
-      if (kind === 'in' && other !== null) return `${col.expr} IN (${lit(value)}, ${lit(other)})`;
-      if (kind === 'ne' && other !== null) return `${col.expr} <> ${lit(other)}`;
-      return `${col.expr} = ${lit(value)}`;
+      if (kind === 'in' && other !== null) return c(`${col.expr} IN (${lit(value)}, ${lit(other)})`, 'in', [value, other]);
+      if (kind === 'ne' && other !== null) return c(`${col.expr} <> ${lit(other)}`, 'ne', [other]);
+      return c(`${col.expr} = ${lit(value)}`, 'eq', [value]);
     }
     const kind = rng.pick(['ge', 'le', 'between']);
     if (kind === 'between' && other !== null) {
       const [lo, hi] = value < other ? [value, other] : [other, value];
-      return `${col.expr} BETWEEN ${lit(lo)} AND ${lit(hi)}`;
+      return c(`${col.expr} BETWEEN ${lit(lo)} AND ${lit(hi)}`, 'between', [lo, hi]);
     }
-    return `${col.expr} ${kind === 'le' ? '<=' : '>='} ${lit(value)}`;
+    return c(`${col.expr} ${kind === 'le' ? '<=' : '>='} ${lit(value)}`, kind, [value]);
+  }
+
+  // ---- the plain-English question ----
+  const listOf = xs => (xs.length < 2 ? xs.join('') : xs.length === 2 ? `${xs[0]} and ${xs[1]}` : `${xs.slice(0, -1).join(', ')}, and ${xs[xs.length - 1]}`);
+  const AGG_SAY = { SUM: 'the total of', AVG: 'the average', MIN: 'the lowest', MAX: 'the highest' };
+  function sayItem(it) {
+    if (it.kind === 'col') return it.col.name;
+    if (it.kind === 'agg') {
+      if (it.fn === 'COUNT') return 'the number of rows';
+      if (it.fn === 'COUNTD') return `the number of different ${it.col.name} values`;
+      return `${AGG_SAY[it.fn]} ${it.col.name}`;
+    }
+    if (it.op === 'times') return `${it.a.name} times ${it.b.name}`;
+    if (it.op === 'sumtimes') return `the total of ${it.a.name} times ${it.b.name}`;
+    if (it.op === 'range') return `the highest ${it.a.name} minus the lowest ${it.a.name}`;
+    return `${it.a.name} divided by 1,000 (rounded to 2 decimal places)`;
+  }
+  function sayCond({ col, op, values }) {
+    const n = col.name;
+    const date = col.type === 'date';
+    switch (op) {
+      case 'eq': return `${n} is ${values[0]}`;
+      case 'ne': return `${n} is not ${values[0]}`;
+      case 'in': return `${n} is ${values[0]} or ${values[1]}`;
+      case 'ge': return `${n} is ${date ? 'on or after' : 'at least'} ${values[0]}`;
+      case 'le': return `${n} is ${date ? 'on or before' : 'at most'} ${values[0]}`;
+      case 'between': return `${n} is between ${values[0]} and ${values[1]}`;
+      case 'starts': return `${n} starts with '${values[0]}'`;
+      case 'ends': return `${n} ends with '${values[0]}'`;
+      case 'contains': return `${n} contains '${values[0]}'`;
+      case 'bool': return `${n} is ${values[0] ? 'true' : 'false'}`;
+      case 'isnull': return `${n} is missing (NULL)`;
+      case 'notnull': return `${n} is not missing`;
+      default: return n;
+    }
+  }
+  function sortWords(it, desc) {
+    const type = it.kind === 'col' ? it.col.type : it.kind === 'agg' && it.col && (it.fn === 'MIN' || it.fn === 'MAX') ? it.col.type : 'number';
+    if (type === 'text' || type === 'boolean') return desc ? 'Z to A' : 'A to Z';
+    if (type === 'date') return desc ? 'newest first' : 'oldest first';
+    return desc ? 'highest first' : 'lowest first';
+  }
+
+  // spec: { start, joined[], distinct, aggregate, group (column|null), items[], where {joiner, conds[]}|null,
+  //         having {item, value}|null, order {item, desc}|null, limit (number|null) }
+  function describeQuery(spec) {
+    const source = spec.joined.length ? `${spec.start} (with its matching ${listOf(spec.joined)} rows)` : spec.start;
+    const parts = [];
+    if (spec.aggregate) {
+      const shown = spec.items.filter(it => !(spec.group && it.kind === 'col' && it.col.name === spec.group.name)).map(sayItem);
+      const each = spec.group && spec.group.type === 'boolean' ? `${spec.group.name} value (true or false)` : spec.group && spec.group.name;
+      parts.push(spec.group ? `Using ${source}, for each ${each} show ${listOf(shown)}.` : `Using all of ${source}, show ${listOf(shown)}.`);
+    } else if (spec.distinct) {
+      const names = spec.items.map(sayItem);
+      parts.push(names.length === 1 ? `List each different ${names[0]} once, from ${source}.` : `List each different combination of ${listOf(names)} once, from ${source}.`);
+    } else {
+      parts.push(`For each row of ${source}, show ${listOf(spec.items.map(sayItem))}.`);
+    }
+    if (spec.where && spec.where.conds.length) {
+      const joiner = spec.where.joiner === 'OR' ? ' or ' : ' and ';
+      parts.push(`Only ${spec.aggregate ? 'count' : 'include'} rows where ${spec.where.conds.map(sayCond).join(joiner)}.`);
+    }
+    if (spec.having) parts.push(`Keep only groups where ${sayItem(spec.items[spec.having.item])} is at least ${spec.having.value}.`);
+    if (spec.order) {
+      const it = spec.items[spec.order.item];
+      parts.push(`Sort by ${sayItem(it)}, ${sortWords(it, spec.order.desc)}.`);
+    }
+    if (spec.limit) parts.push(`Show only the first ${spec.limit} rows.`);
+    return parts.join(' ');
   }
 
   const AGG_NAMES = { SUM: 'total', AVG: 'average', MIN: 'lowest', MAX: 'highest' };
@@ -13960,6 +14050,7 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
     const features = new Set();
 
     const from = buildFrom(schema, rng, join);
+    const spec = { start: from.start, joined: from.joined ? from.tables.slice(1) : [], distinct: false, aggregate: false, group: null, items: [], where: null, having: null, order: null, limit: null };
     if (from.joined) features.add('join');
     const sample = run(`SELECT ${from.columns.map(c => c.expr).join(', ')}\n${from.sql}\nLIMIT 500`);
     if (!sample.ok || !sample.rows.length) return null;
@@ -13974,6 +14065,15 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
     // WHERE
     const conds = [];
     if (where) {
+      const nullRate = typeof o.nullChecks === 'number' ? o.nullChecks : 0.15;
+      const hasNulls = c => valuesOf(c).some(v => v === null);
+      // Missing values: IS NULL when this row's value is missing; sometimes IS NOT NULL on a column with gaps.
+      for (const c of rng.shuffle(pool)) {
+        if (conds.length || like || !rng.chance(nullRate)) break;
+        const v = row[colIndex.get(c)];
+        if (v === null) conds.push({ col: c, cond: { sql: `${c.expr} IS NULL`, op: 'isnull', values: [] } });
+        else if (hasNulls(c) || o.nullChecks) conds.push({ col: c, cond: { sql: `${c.expr} IS NOT NULL`, op: 'notnull', values: [] } });
+      }
       const cands = rng.shuffle(pool.filter(c => row[colIndex.get(c)] !== null));
       if (like) {
         for (const c of cands) {
@@ -13992,20 +14092,23 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
       if (conds.length === 2) features.add('andOr');
     }
     const joiner = rng.chance(0.5) ? 'AND' : 'OR';
-    const whereSql = conds.length ? `\nWHERE ${conds.map(x => x.cond).join(` ${joiner} `)}` : '';
+    const whereSql = conds.length ? `\nWHERE ${conds.map(x => x.cond.sql).join(` ${joiner} `)}` : '';
+    if (conds.length) spec.where = { joiner, conds: conds.map(x => ({ col: x.col, op: x.cond.op, values: x.cond.values })) };
 
     // SELECT
     const usedNames = new Set();
     const asName = base => { let n = base; let k = 2; while (usedNames.has(n)) n = `${base}_${k++}`; usedNames.add(n); return n; };
-    const items = []; // { sql, name, aggExpr? }
+    const items = []; // { sql, name, aggExpr?, say } — `say` is the item as the question describes it
     let groupSql = '';
     let havingSql = '';
     if (aggregate) {
       features.add('aggregate');
+      spec.aggregate = true;
       let g = null;
       if (groupBy) {
         g = rng.pick(groupable.length ? groupable : pool);
-        items.push({ sql: g.expr, name: asName(g.name) });
+        spec.group = g;
+        items.push({ sql: g.expr, name: asName(g.name), say: { kind: 'col', col: g } });
         groupSql = `\nGROUP BY ${g.expr}`;
         features.add('groupBy');
       }
@@ -14013,16 +14116,16 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
       const distinctable = groupable.filter(c => c !== g);
       if (distinct && distinctable.length) {
         const d = rng.pick(distinctable);
-        aggs.push({ expr: `COUNT(DISTINCT ${d.expr})`, base: `distinct_${d.name}` });
+        aggs.push({ expr: `COUNT(DISTINCT ${d.expr})`, base: `distinct_${d.name}`, say: { kind: 'agg', fn: 'COUNTD', col: d } });
         features.add('distinct');
       }
       if (calc && nums.length) {
         if (nums.length >= 2) {
           const [a, b] = rng.shuffle(nums);
-          aggs.push({ expr: `SUM(${a.expr} * ${b.expr})`, base: `total_${a.name}_times_${b.name}` });
+          aggs.push({ expr: `SUM(${a.expr} * ${b.expr})`, base: `total_${a.name}_times_${b.name}`, say: { kind: 'calc', op: 'sumtimes', a, b } });
         } else {
           const a = nums[0];
-          aggs.push({ expr: `MAX(${a.expr}) - MIN(${a.expr})`, base: `${a.name}_range` });
+          aggs.push({ expr: `MAX(${a.expr}) - MIN(${a.expr})`, base: `${a.name}_range`, say: { kind: 'calc', op: 'range', a } });
         }
         features.add('calc');
       }
@@ -14031,10 +14134,10 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
         if (nums.length && rng.chance(0.7)) {
           const fn = rng.pick(['SUM', 'AVG', 'MIN', 'MAX']);
           const c = rng.pick(nums);
-          aggs.push({ expr: `${fn}(${c.expr})`, base: `${AGG_NAMES[fn]}_${c.name}` });
-        } else aggs.push({ expr: 'COUNT(*)', base: 'number_of_rows' });
+          aggs.push({ expr: `${fn}(${c.expr})`, base: `${AGG_NAMES[fn]}_${c.name}`, say: { kind: 'agg', fn, col: c } });
+        } else aggs.push({ expr: 'COUNT(*)', base: 'number_of_rows', say: { kind: 'agg', fn: 'COUNT' } });
       }
-      for (const a of aggs) items.push({ sql: `${a.expr} AS ${asName(a.base)}`, name: [...usedNames].pop(), aggExpr: a.expr });
+      for (const a of aggs) items.push({ sql: `${a.expr} AS ${asName(a.base)}`, name: [...usedNames].pop(), aggExpr: a.expr, say: a.say });
       if (having && groupSql) {
         const target = rng.pick(items.filter(i => i.aggExpr));
         const probe = run(`SELECT ${target.aggExpr}\n${from.sql}${whereSql}${groupSql}`);
@@ -14045,6 +14148,7 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
           const v = rng.pick(above.length ? above : vals);
           const t = Number.isInteger(v) ? v : Math.floor(v * 100) / 100;
           havingSql = `\nHAVING ${target.aggExpr} >= ${t}`;
+          spec.having = { item: items.indexOf(target), value: t };
           features.add('having');
         }
       }
@@ -14053,19 +14157,20 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
       if (distinct && groupable.length) {
         chosen = rng.shuffle(groupable).slice(0, rng.int(1, Math.min(2, groupable.length)));
         features.add('distinct');
+        spec.distinct = true;
       } else {
         const keyCols = from.columns.filter(c => c.key);
         chosen = rng.shuffle(pool).slice(0, rng.int(2, Math.min(4, Math.max(2, pool.length))));
         if (keyCols.length && rng.chance(0.2)) chosen.unshift(rng.pick(keyCols));
       }
-      for (const c of chosen) items.push({ sql: c.expr, name: asName(c.name) });
+      for (const c of chosen) items.push({ sql: c.expr, name: asName(c.name), say: { kind: 'col', col: c } });
       if (calc && nums.length && !features.has('distinct')) {
         if (nums.length >= 2) {
           const [a, b] = rng.shuffle(nums);
-          items.push({ sql: `${a.expr} * ${b.expr} AS ${asName(`${a.name}_times_${b.name}`)}`, name: [...usedNames].pop() });
+          items.push({ sql: `${a.expr} * ${b.expr} AS ${asName(`${a.name}_times_${b.name}`)}`, name: [...usedNames].pop(), say: { kind: 'calc', op: 'times', a, b } });
         } else {
           const a = nums[0];
-          items.push({ sql: `ROUND(${a.expr} / 1000.0, 2) AS ${asName(`${a.name}_in_thousands`)}`, name: [...usedNames].pop() });
+          items.push({ sql: `ROUND(${a.expr} / 1000.0, 2) AS ${asName(`${a.name}_in_thousands`)}`, name: [...usedNames].pop(), say: { kind: 'calc', op: 'thousands', a } });
         }
         features.add('calc');
       }
@@ -14075,14 +14180,17 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
     if (orderBy) {
       const target = rng.pick(items);
       const by = target.sql.includes(' AS ') ? target.name : target.sql;
-      orderSql = `\nORDER BY ${by}${rng.chance(0.5) ? ' DESC' : ''}`;
+      const desc = rng.chance(0.5);
+      orderSql = `\nORDER BY ${by}${desc ? ' DESC' : ''}`;
+      spec.order = { item: items.indexOf(target), desc };
       features.add('orderBy');
     }
     let limitSql = '';
-    if (limit) { limitSql = `\nLIMIT ${rng.int(3, 10)}`; features.add('limit'); }
+    if (limit) { spec.limit = rng.int(3, 10); limitSql = `\nLIMIT ${spec.limit}`; features.add('limit'); }
+    spec.items = items.map(i => i.say);
 
     const head = `SELECT${features.has('distinct') && !aggregate ? ' DISTINCT' : ''} ${items.map(i => i.sql).join(', ')}`;
-    return { sql: `${head}\n${from.sql}${whereSql}${groupSql}${havingSql}${orderSql}${limitSql}`, features: [...features] };
+    return { sql: `${head}\n${from.sql}${whereSql}${groupSql}${havingSql}${orderSql}${limitSql}`, features: [...features], question: describeQuery(spec) };
   }
 
   // run(sqlText) -> { ok, columns, rows } (db.runQuery bound to a studio).
@@ -14096,13 +14204,311 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
       const sql = X.formatSql(got.sql) + ';';
       const res = run(got.sql);
       if (!res.ok) { errors++; continue; }
-      if (res.rows.length || tries === 20) return { sql, features: got.features, tries, errors, rows: res.rows.length };
+      if (res.rows.length || tries === 20) return { sql, features: got.features, question: got.question, tries, errors, rows: res.rows.length };
     }
     const t = schema.tables[0];
-    return { sql: `SELECT *\nFROM ${ident(t.name)}\nLIMIT 10;`, features: [], tries: 21, errors, rows: Math.min(10, t.rows.length) };
+    return { sql: `SELECT *\nFROM ${ident(t.name)}\nLIMIT 10;`, features: [], question: `Show every column of the first 10 rows of ${t.name}.`, tries: 21, errors, rows: Math.min(10, t.rows.length) };
   }
 
-  const api = { FEATURES, FEATURE_LABELS, DEFAULT_OPTIONS, NEEDS, mulberry32, normalizeOptions, generateQuery };
+  const api = { FEATURES, FEATURE_LABELS, DEFAULT_OPTIONS, NEEDS, mulberry32, normalizeOptions, generateQuery, describeQuery };
+  if (isNode) module.exports = api;
+  else root.SS = Object.assign(root.SS || {}, api);
+})(this);
+
+</script>
+<script data-src="src/mistakes.js">
+// ---- src/mistakes.js ----
+// SQL Studio: puts one or two small, realistic mistakes into a correct random query, for "fix the SQL" practice.
+// Every mistake is checked: on its own, and together, the broken query either errors or gives different rows.
+(function (root) {
+  'use strict';
+  const isNode = typeof module !== 'undefined' && module.exports;
+  const X = isNode ? Object.assign({}, require('./sql-text.js'), require('./check.js'), require('./randomq.js')) : root.SS;
+
+  // ---- helpers over the formatted SQL the generator writes ----
+  const HEADS = ['SELECT', 'FROM', 'WHERE', 'GROUP', 'HAVING', 'ORDER', 'LIMIT'];
+  const up = t => (t && t.type === 'word' ? t.text.toUpperCase() : '');
+
+  function context(sql, schema, rng) {
+    const tk = X.tokenize(sql).filter(t => t.type !== 'ws' && t.type !== 'comment');
+    // Clause heads at depth 0, in order: { head, index }
+    const heads = [];
+    let depth = 0;
+    tk.forEach((t, i) => {
+      if (t.text === '(') depth++;
+      if (t.text === ')') depth--;
+      if (depth === 0 && HEADS.includes(up(t))) heads.push({ head: up(t), index: i });
+    });
+    const region = head => {
+      const k = heads.findIndex(h => h.head === head);
+      if (k === -1) return null;
+      return { from: heads[k].index, to: k + 1 < heads.length ? heads[k + 1].index : tk.length };
+    };
+    const tableNames = schema.tables.map(t => t.name);
+    const aliases = X.aliasMap(sql, tableNames);
+    const fromRegion = region('FROM');
+    const firstTable = fromRegion ? aliases.get(String(tk[fromRegion.from + 1] && tk[fromRegion.from + 1].text).toLowerCase()) : null;
+    const allColumns = new Set(schema.tables.flatMap(t => t.columns.map(c => c.name)));
+    // The table a column token belongs to (via its alias, or the only/first table that has it).
+    const tableOf = i => {
+      if (tk[i - 1] && tk[i - 1].text === '.' && tk[i - 2]) return aliases.get(tk[i - 2].text.toLowerCase()) || null;
+      const t = schema.tables.find(x => x.name === firstTable && x.columns.some(c => c.name === tk[i].text));
+      return t ? t.name : (schema.tables.find(x => x.columns.some(c => c.name === tk[i].text)) || {}).name || null;
+    };
+    const tableObj = name => schema.tables.find(t => t.name === name);
+    const pick = arr => (arr.length ? arr[Math.floor(rng() * arr.length)] : null);
+    return { sql, tk, schema, region, aliases, allColumns, tableOf, tableObj, pick };
+  }
+
+  const edit = (start, end, text) => ({ start, end, text });
+  const replaceTok = (t, text) => edit(t.start, t.end, text);
+  const lineStart = (sql, pos) => sql.lastIndexOf('\n', pos - 1) + 1;
+  const lineEnd = (sql, pos) => { const n = sql.indexOf('\n', pos); return n === -1 ? sql.length : n; };
+  // Removes the whole line holding [from, to): the line and its newline (or the newline before it, if it's the last line).
+  function removeLines(sql, from, to) {
+    const s = lineStart(sql, from);
+    const e = lineEnd(sql, to);
+    return e < sql.length ? edit(s, e + 1, '') : edit(Math.max(0, s - 1), e, '');
+  }
+
+  // Column-name tokens inside a token range (not function names, not AS aliases, not table aliases).
+  function columnTokens(ctx, range) {
+    const out = [];
+    for (let i = range.from + 1; i < range.to; i++) {
+      const t = ctx.tk[i];
+      if (t.type !== 'word' || !ctx.allColumns.has(t.text)) continue;
+      if (ctx.tk[i + 1] && (ctx.tk[i + 1].text === '(' || ctx.tk[i + 1].text === '.')) continue;
+      if (up(ctx.tk[i - 1]) === 'AS') continue;
+      out.push(i);
+    }
+    return out;
+  }
+  const inRanges = (ctx, heads) => heads.map(h => ctx.region(h)).filter(Boolean);
+  const stringsIn = (ctx, heads) => inRanges(ctx, heads).flatMap(r => ctx.tk.slice(r.from, r.to).filter(t => t.type === 'string'));
+  const isDateLit = t => /^'\d{4}-\d{2}-\d{2}'$/.test(t.text);
+  const afterLike = (ctx, t) => up(ctx.tk[ctx.tk.indexOf(t) - 1]) === 'LIKE';
+  const hasAggregate = ctx => { const r = ctx.region('SELECT'); return !!r && ctx.tk.slice(r.from, r.to).some((t, k, a) => /^(COUNT|SUM|AVG|MIN|MAX)$/i.test(t.text) && a[k + 1] && a[k + 1].text === '('); };
+
+  const TYPOS = { SELECT: 'SELCT', FROM: 'FORM', WHERE: 'WHRE', GROUP: 'GRUOP', ORDER: 'ODER', JOIN: 'JION', HAVING: 'HAVIGN', BETWEEN: 'BETWEN' };
+
+  // Each mistake: find(ctx) returns a list of edits, or null when it doesn't fit this query.
+  const MISTAKES = [
+    { id: 'quotes', kind: 'error', label: 'Text without quotes', find(ctx) {
+      const t = ctx.pick(stringsIn(ctx, ['WHERE', 'HAVING']).filter(s => !isDateLit(s) && !afterLike(ctx, s)));
+      return t && [replaceTok(t, t.text.slice(1, -1).replace(/''/g, "'"))];
+    } },
+    { id: 'date-quotes', kind: 'wrong-rows', label: 'A date without quotes', find(ctx) {
+      const t = ctx.pick(stringsIn(ctx, ['WHERE', 'HAVING']).filter(isDateLit));
+      return t && [replaceTok(t, t.text.slice(1, -1))];
+    } },
+    { id: 'keyword', kind: 'error', label: 'A misspelled keyword', find(ctx) {
+      const t = ctx.pick(ctx.tk.filter(x => TYPOS[up(x)]));
+      return t && [replaceTok(t, TYPOS[up(t)])];
+    } },
+    { id: 'column-typo', kind: 'error', label: 'A misspelled column name', find(ctx) {
+      const r = ctx.region('SELECT');
+      const i = r && ctx.pick(columnTokens(ctx, r).filter(k => ctx.tk[k].text.length >= 4));
+      if (i === null || i === undefined) return null;
+      const name = ctx.tk[i].text;
+      const spots = [];
+      for (let p = 1; p < name.length - 2; p++) {
+        const typo = name.slice(0, p) + name[p + 1] + name[p] + name.slice(p + 2);
+        if (typo !== name && !ctx.allColumns.has(typo)) spots.push(typo);
+      }
+      const typo = ctx.pick(spots);
+      return typo && [replaceTok(ctx.tk[i], typo)];
+    } },
+    { id: 'missing-comma', kind: 'error', label: 'A missing comma between columns', find(ctx) {
+      const r = ctx.region('SELECT');
+      if (!r) return null;
+      let depth = 0;
+      const commas = [];
+      for (let i = r.from + 1; i < r.to; i++) {
+        const t = ctx.tk[i];
+        if (t.text === '(') depth++;
+        if (t.text === ')') depth--;
+        if (depth === 0 && t.type === 'punct' && t.text === ',') commas.push(t);
+      }
+      const c = ctx.pick(commas);
+      return c && [replaceTok(c, '')];
+    } },
+    { id: 'extra-comma', kind: 'error', label: 'An extra comma before FROM', find(ctx) {
+      const r = ctx.region('SELECT');
+      if (!r || r.to >= ctx.tk.length) return null;
+      const last = ctx.tk[r.to - 1];
+      return [edit(last.end, last.end, ',')];
+    } },
+    { id: 'missing-paren', kind: 'error', label: 'A missing closing parenthesis', find(ctx) {
+      const r = ctx.region('SELECT');
+      if (!r) return null;
+      const closers = [];
+      let depth = 0;
+      for (let i = r.from + 1; i < r.to; i++) {
+        const t = ctx.tk[i];
+        if (t.text === '(') depth++;
+        if (t.text === ')' && --depth === 0) closers.push(t);
+      }
+      const c = closers[0];
+      return c ? [replaceTok(c, '')] : null;
+    } },
+    { id: 'where-aggregate', kind: 'error', label: 'A total or count in WHERE instead of HAVING', find(ctx) {
+      const h = ctx.region('HAVING');
+      if (!h) return null;
+      const condStart = ctx.tk[h.from + 1].start;
+      const condEnd = ctx.tk[h.to - 1].end;
+      const cond = ctx.sql.slice(condStart, condEnd);
+      const w = ctx.region('WHERE');
+      const g = ctx.region('GROUP');
+      const insertAt = w ? ctx.tk[w.to - 1].end : ctx.tk[g ? g.from : h.from].start - 1;
+      const text = w ? `\n  AND ${cond}` : `\nWHERE ${cond}`;
+      return [edit(insertAt, insertAt, text), removeLines(ctx.sql, ctx.tk[h.from].start, condEnd)];
+    } },
+    { id: 'null-equals', kind: 'wrong-rows', label: '= NULL instead of IS NULL', find(ctx) {
+      const spots = ctx.tk.map((t, i) => i).filter(i => up(ctx.tk[i]) === 'IS');
+      const i = ctx.pick(spots);
+      if (i === null || i === undefined) return null;
+      const not = up(ctx.tk[i + 1]) === 'NOT';
+      return [edit(ctx.tk[i].start, ctx.tk[not ? i + 1 : i].end, not ? '<>' : '=')];
+    } },
+    { id: 'missing-group-by', kind: 'wrong-rows', label: 'A missing GROUP BY', find(ctx) {
+      const g = ctx.region('GROUP');
+      if (!g || !hasAggregate(ctx)) return null;
+      return [removeLines(ctx.sql, ctx.tk[g.from].start, ctx.tk[g.to - 1].end)];
+    } },
+    { id: 'like-no-wildcard', kind: 'wrong-rows', label: 'LIKE without %', find(ctx) {
+      const t = ctx.pick(ctx.tk.filter((x, i) => x.type === 'string' && up(ctx.tk[i - 1]) === 'LIKE' && x.text.includes('%') && x.text.replace(/%/g, '') !== "''"));
+      return t && [replaceTok(t, t.text.replace(/%/g, ''))];
+    } },
+    { id: 'and-or', kind: 'wrong-rows', label: 'AND and OR mixed up', find(ctx) {
+      const w = ctx.region('WHERE');
+      if (!w) return null;
+      const joiners = [];
+      let depth = 0;
+      let between = false;
+      for (let i = w.from + 1; i < w.to; i++) {
+        const t = ctx.tk[i];
+        if (t.text === '(') depth++;
+        if (t.text === ')') depth--;
+        if (depth) continue;
+        if (up(t) === 'BETWEEN') between = true;
+        else if (up(t) === 'AND' && between) between = false;
+        else if (up(t) === 'AND' || up(t) === 'OR') joiners.push(t);
+      }
+      const j = ctx.pick(joiners);
+      return j && [replaceTok(j, up(j) === 'AND' ? 'OR' : 'AND')];
+    } },
+    { id: 'wrong-join', kind: 'wrong-rows', label: 'A join on the wrong column', find(ctx) {
+      const spots = [];
+      // The generator writes joins as: ON a.x = b.y — change b.y to another column of b's table.
+      ctx.tk.forEach((t, i) => {
+        if (up(t) !== 'ON' || !ctx.tk[i + 7] || ctx.tk[i + 4].text !== '=' || ctx.tk[i + 6].text !== '.') return;
+        const rightCol = ctx.tk[i + 7];
+        const table = ctx.tableObj(ctx.aliases.get(ctx.tk[i + 5].text.toLowerCase()));
+        const current = table && table.columns.find(c => c.name === rightCol.text);
+        if (!current) return;
+        const pk = table.columns.find(c => c.pk);
+        const other = pk && pk.name !== current.name && pk.type === current.type ? pk
+          : table.columns.find(c => c.name !== current.name && c.type === current.type);
+        if (other) spots.push(replaceTok(rightCol, other.name));
+      });
+      const e = ctx.pick(spots);
+      return e && [e];
+    } },
+    { id: 'sort-direction', kind: 'wrong-rows', label: 'Sorted the wrong way', find(ctx) {
+      const o = ctx.region('ORDER');
+      if (!o) return null;
+      const last = ctx.tk[o.to - 1];
+      if (up(last) === 'DESC') return [edit(ctx.tk[o.to - 2].end, last.end, '')];
+      return [edit(last.end, last.end, ' DESC')];
+    } },
+    { id: 'wrong-column', kind: 'wrong-rows', label: 'The wrong column', find(ctx) {
+      const r = ctx.region('SELECT');
+      if (!r) return null;
+      const g = ctx.region('GROUP');
+      const grouped = new Set(g ? ctx.tk.slice(g.from, g.to).map(t => t.text) : []);
+      const selected = new Set(ctx.tk.slice(r.from, r.to).map(t => t.text));
+      const spots = [];
+      for (const i of columnTokens(ctx, r)) {
+        const name = ctx.tk[i].text;
+        if (grouped.has(name)) continue;
+        const table = ctx.tableObj(ctx.tableOf(i));
+        if (!table) continue;
+        const me = table.columns.find(c => c.name === name);
+        if (!me) continue;
+        for (const c of table.columns) {
+          if (c.name !== name && c.type === me.type && !c.pk && !c.fk && !selected.has(c.name)) spots.push(replaceTok(ctx.tk[i], c.name));
+        }
+      }
+      const e = ctx.pick(spots);
+      return e && [e];
+    } },
+  ];
+
+  function applyEdits(sql, edits) {
+    return [...edits].sort((a, b) => b.start - a.start).reduce((s, e) => s.slice(0, e.start) + e.text + s.slice(e.end), sql);
+  }
+  const overlaps = (a, b) => a.some(x => b.some(y => x.start <= y.end && y.start <= x.end));
+
+  // For tests and one-off use: one mistake, chosen spot decided by `seed`. Returns the new SQL or null.
+  function applyMistake(id, sql, schema, seed = 1) {
+    const m = MISTAKES.find(x => x.id === id);
+    const edits = m.find(context(sql, schema, X.mulberry32(seed)));
+    return edits ? applyEdits(sql, edits) : null;
+  }
+
+  function mistakeHeader(question, count, width = 78) {
+    const words = `Question: ${question}`.split(/\s+/);
+    const lines = [];
+    let line = '--';
+    for (const w of words) {
+      if (line.length + 1 + w.length > width && line !== '--') { lines.push(line); line = '--'; }
+      line += ` ${w}`;
+    }
+    lines.push(line);
+    lines.push(count === 1 ? '-- This query has 1 mistake. Fix it and check the result.' : `-- This query has ${count} mistakes. Fix them and check the result.`);
+    return lines.join('\n');
+  }
+
+  const stripSemi = s => s.replace(/;\s*$/, '');
+
+  // Returns { question, original, broken, mistakes: [{ id, label, kind }], text } — `text` goes in the editor.
+  function makeBrokenQuery({ schema, run, options, seed = Date.now() }) {
+    const rng = X.mulberry32(seed);
+    const shuffle = arr => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    // A wrong join on big uploaded tables could take a long time to check, so skip it there.
+    const big = schema.tables.some(t => t.rows.length > 3000);
+    for (let t = 0; t < 40; t++) {
+      const g = X.generateQuery({ schema, run, options: Object.assign({}, options, { nullChecks: 0.35 }), seed: (seed * 7 + t * 101) >>> 0 });
+      const original = stripSemi(g.sql);
+      const orig = run(original);
+      if (!orig.ok) continue;
+      const orderMatters = /\bORDER BY\b/i.test(original);
+      const isReal = sql => { const r = run(sql); return !r.ok || !X.compareResults(r, orig, { orderMatters }).ok; };
+      const want = rng() < 0.5 ? 1 : 2;
+      const chosen = [];
+      for (const m of shuffle(MISTAKES)) {
+        if (chosen.length >= want) break;
+        if (m.id === 'wrong-join' && big) continue;
+        const edits = m.find(context(original, schema, rng));
+        if (!edits || chosen.some(c => overlaps(c.edits, edits))) continue;
+        if (!isReal(applyEdits(original, edits))) continue;
+        chosen.push({ m, edits });
+      }
+      if (!chosen.length) continue;
+      const broken = applyEdits(original, chosen.flatMap(c => c.edits));
+      if (!isReal(broken)) continue;
+      return {
+        question: g.question,
+        original,
+        broken,
+        mistakes: chosen.map(c => ({ id: c.m.id, label: c.m.label, kind: c.m.kind })),
+        text: `${mistakeHeader(g.question, chosen.length)}\n${broken};\n`,
+      };
+    }
+    return null;
+  }
+
+  const api = { MISTAKES, applyMistake, mistakeHeader, makeBrokenQuery };
   if (isNode) module.exports = api;
   else root.SS = Object.assign(root.SS || {}, api);
 })(this);
@@ -14372,6 +14778,7 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
     attributes: true,
     tidyOnRun: true,
     random: Q.DEFAULT_OPTIONS,
+    mistakes: false,        // Random Query adds 1–2 mistakes to fix
   });
 
   const clamp = (v, lo, hi, dflt) => (typeof v === 'number' && isFinite(v) ? Math.min(hi, Math.max(lo, v)) : dflt);
@@ -14396,6 +14803,7 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
       erdZoom: snap(clamp(r.erdZoom, ERD_ZOOM.min, ERD_ZOOM.max, 100), ERD_ZOOM.step),
       attributes: bool(r.attributes, d.attributes),
       tidyOnRun: bool(r.tidyOnRun, d.tidyOnRun),
+      mistakes: bool(r.mistakes, d.mistakes),
       random: Q.normalizeOptions(Object.fromEntries(Q.FEATURES.map(f => [f, bool(random[f], d.random[f])]))).options,
     };
   }
@@ -16853,8 +17261,15 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
       });
       return h('label', { class: 'check-label', for: `rq-${f}` }, cb, SS.FEATURE_LABELS[f]);
     });
+    // Practice fixing SQL: the query comes with its question and 1–2 mistakes.
+    const mistakesBox = h('input', { type: 'checkbox', id: 'rq-mistakes' });
+    mistakesBox.checked = !!prefs.mistakes;
+    mistakesBox.addEventListener('change', () => { prefs.mistakes = mistakesBox.checked; save(); });
     const panel = h('div', { class: 'popover', role: 'group', 'aria-label': 'What random queries can include' },
-      h('h3', null, 'Random queries can use'), list, note);
+      h('h3', null, 'Random queries can use'), list, note,
+      h('hr', { class: 'pop-rule' }),
+      h('label', { class: 'check-label', for: 'rq-mistakes' }, mistakesBox, 'Add mistakes to fix'),
+      h('p', { class: 'added' }, 'Adds 1 or 2 small mistakes, with the question the query should answer at the top.'));
     function sync() { SS.FEATURES.forEach(f => { boxes[f].checked = !!prefs.random[f]; }); }
     sync();
     const pop = SS.popover(complexBtn, panel, { onOpen: () => { note.textContent = ''; } });
@@ -17655,7 +18070,10 @@ self.SS.workerMain(self, function () {
 
     // Replaces the statement at the cursor (or adds to the end) with a random query.
     function randomQuery(options) {
-      const g = SS.generateQuery({ schema: studio.schema, run: q => SS.runQuery(studio, stripSemi(q)), options, seed: Math.floor(Math.random() * 2 ** 31) });
+      const run = q => SS.runQuery(studio, stripSemi(q));
+      const seed = Math.floor(Math.random() * 2 ** 31);
+      const broken = prefs.mistakes ? SS.makeBrokenQuery({ schema: studio.schema, run, options, seed }) : null;
+      const g = broken ? { sql: broken.text.replace(/\s+$/, '') } : SS.generateQuery({ schema: studio.schema, run, options, seed });
       const full = editor.getText();
       const stmt = SS.statementAt(full, editor.getCursorIndex());
       if (stmt) {
@@ -17668,7 +18086,9 @@ self.SS.workerMain(self, function () {
         const sep = full.trim() ? '\n\n' : '';
         editor.setText(full.replace(/\s*$/, '') + sep + g.sql, null);
       }
-      SS.announce('A random query is in the editor. Press Run to try it.');
+      SS.announce(broken
+        ? `A query with ${broken.mistakes.length === 1 ? '1 mistake' : `${broken.mistakes.length} mistakes`} is in the editor, with its question at the top. Fix it, then run it.`
+        : 'A random query is in the editor. Press Run to try it.');
     }
 
     async function onUpload() {
