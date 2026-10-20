@@ -71,3 +71,17 @@ test('every data set loads with matching row counts, valid foreign keys, and wor
     db.close();
   }
 });
+
+test('boolean columns become INTEGER 0/1, so explicit = true and NOT explicit work', async () => {
+  const ds = { id: 'b', number: 99, name: 'b', description: '', tables: [{ name: 'T', columns: [{ name: 'id', type: 'number', key: 'pk' }, { name: 'flag', type: 'boolean' }], rows: [[1, true], [2, false]] }] };
+  const schema = S.buildSchema(ds);
+  assert.equal(schema.tables[0].columns[1].sqlType, 'INTEGER');
+  assert.deepEqual(schema.tables[0].rows, [[1, 1], [2, 0]]);
+  const SQL = await getSQL();
+  const db = new SQL.Database();
+  S.loadSchema(db, schema);
+  assert.deepEqual(db.exec('SELECT typeof(flag), flag FROM T ORDER BY id')[0].values, [['integer', 1], ['integer', 0]]);
+  assert.deepEqual(db.exec('SELECT id FROM T WHERE flag = true')[0].values, [[1]]);
+  assert.deepEqual(db.exec('SELECT id FROM T WHERE NOT flag')[0].values, [[2]]);
+  db.close();
+});

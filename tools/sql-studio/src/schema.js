@@ -6,7 +6,11 @@
   const quoteIdent = name => `"${String(name).replace(/"/g, '""')}"`;
   const pkOf = table => table.columns.find(c => c.pk);
 
+  // SQLite has no true/false type: booleans are stored as INTEGER 1/0 (and TRUE/FALSE mean 1/0 in queries).
+  const toBit = v => (v === true ? 1 : v === false ? 0 : v);
+
   function sqlTypeFor(type, values) {
+    if (type === 'boolean') return 'INTEGER';
     if (type !== 'number') return 'TEXT';
     return values.every(v => v === null || v === undefined || Number.isInteger(v)) ? 'INTEGER' : 'REAL';
   }
@@ -26,7 +30,9 @@
         pk: c.key === 'pk',
         fk: c.key === 'fk' ? { table: c.ref, column: pkName(c.ref) || c.name } : null,
       })),
-      rows: t.rows,
+      rows: t.columns.some(c => c.type === 'boolean')
+        ? t.rows.map(r => r.map((v, i) => (t.columns[i].type === 'boolean' ? toBit(v) : v)))
+        : t.rows,
     }));
     return {
       id: dataset.id,
