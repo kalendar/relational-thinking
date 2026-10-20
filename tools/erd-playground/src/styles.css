@@ -190,3 +190,8 @@ li.CodeMirror-hint-active{background:var(--teal); color:var(--on-teal);}
 
 
 /* ---- ERD Playground ---- */
+.cm-s-studio .cm-type{color:var(--code-num);}
+.cm-s-studio .cm-atom{color:var(--amber-ink); font-weight:700;}
+.cm-s-studio .cm-bracket{color:var(--muted);}
+.cm-rel-line{background:var(--teal-soft);}
+.cm-sym-mark{outline:2px solid var(--indigo); border-radius:2px; background:var(--indigo-soft);}

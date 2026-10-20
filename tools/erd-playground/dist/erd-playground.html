@@ -544,6 +544,11 @@ li.CodeMirror-hint-active{background:var(--teal); color:var(--on-teal);}
 
 
 /* ---- ERD Playground ---- */
+.cm-s-studio .cm-type{color:var(--code-num);}
+.cm-s-studio .cm-atom{color:var(--amber-ink); font-weight:700;}
+.cm-s-studio .cm-bracket{color:var(--muted);}
+.cm-rel-line{background:var(--teal-soft);}
+.cm-sym-mark{outline:2px solid var(--indigo); border-radius:2px; background:var(--indigo-soft);}
 
 </style>
 </head>
@@ -10969,7 +10974,8 @@ li.CodeMirror-hint-active{background:var(--teal); color:var(--on-teal);}
   // An orthogonal route from the FK row (many side) to the PK row (one side).
   // boxes: { x, y, w, h } for each end. showFrom/showTo: whether each table shows its columns.
   // Returns { points: [{x,y}...], fromSide, toSide }.
-  function linkRoute(fromBox, fromTable, fromCol, toBox, toTable, toCol, showFrom = true, showTo = showFrom) {
+  // lane: for two or more links between the same pair, each lane moves the link 14px down so they don't overlap.
+  function linkRoute(fromBox, fromTable, fromCol, toBox, toTable, toCol, showFrom = true, showTo = showFrom, lane = 0) {
     const fromCenter = fromBox.x + fromBox.w / 2;
     const toCenter = toBox.x + toBox.w / 2;
     const overlapX = fromBox.x < toBox.x + toBox.w && toBox.x < fromBox.x + fromBox.w;
@@ -10978,6 +10984,8 @@ li.CodeMirror-hint-active{background:var(--teal); color:var(--on-teal);}
     if (overlapX) { fromSide = 'right'; toSide = 'right'; } else if (fromCenter < toCenter) { fromSide = 'right'; toSide = 'left'; } else { fromSide = 'left'; toSide = 'right'; }
     const a = anchor(fromBox, fromTable, fromCol, fromSide, showFrom);
     const b = anchor(toBox, toTable, toCol, toSide, showTo);
+    a.y += lane * 14;
+    b.y += lane * 14;
     const out = 28;
     const ax = a.x + (fromSide === 'right' ? out : -out);
     const bx = b.x + (toSide === 'right' ? out : -out);
@@ -10994,17 +11002,45 @@ li.CodeMirror-hint-active{background:var(--teal); color:var(--on-teal);}
 
   // Crow's foot marks at a line end. `p` is the point on the box edge; `side` is the edge it leaves from.
   // kind 'one' draws || (exactly one); kind 'many' draws o{ (zero or more).
+  // Crow's foot marks at a line end. `p` is the point on the box edge; `side` is the edge it leaves from.
+  // The mark next to the box is the most (bar = one, prongs = many); the one further out is the least
+  // (bar = one, circle = zero). kind: 'one' ||, 'zero-one' o|, 'one-many' |{, 'zero-many' o{ ('many' = 'zero-many').
   function crowFoot(p, side, kind) {
     const dir = side === 'right' ? 1 : -1;
     const at = d => p.x + dir * d;
-    if (kind === 'one') {
-      return { lines: [[at(8), p.y - 7, at(8), p.y + 7], [at(13), p.y - 7, at(13), p.y + 7]], circle: null };
+    const bar = d => [at(d), p.y - 7, at(d), p.y + 7];
+    const prongs = [[p.x, p.y - 7, at(12), p.y], [p.x, p.y + 7, at(12), p.y], [p.x, p.y, at(12), p.y]];
+    const circle = d => ({ cx: at(d), cy: p.y, r: 4.5 });
+    switch (kind) {
+      case 'one': return { lines: [bar(8), bar(13)], circle: null };
+      case 'zero-one': return { lines: [bar(8)], circle: circle(18) };
+      case 'one-many': return { lines: [...prongs, bar(17)], circle: null };
+      default: return { lines: prongs, circle: circle(18) }; // 'zero-many' and 'many'
     }
-    return {
-      lines: [[p.x, p.y - 7, at(12), p.y], [p.x, p.y + 7, at(12), p.y], [p.x, p.y, at(12), p.y]],
-      circle: { cx: at(18), cy: p.y, r: 4.5 },
-    };
   }
+
+  // A link from a box to itself: out of the right edge, around, and back in.
+  function selfLoopRoute(box) {
+    const x = box.x + box.w;
+    const y1 = Math.round(box.y + box.h * 0.25);
+    const y2 = Math.round(box.y + box.h * 0.75);
+    const out = x + 40;
+    return { points: [{ x, y: y1 }, { x: out, y: y1 }, { x: out, y: y2 }, { x, y: y2 }], side: 'right' };
+  }
+
+  // Where to put a link's label: the middle of its longest segment.
+  function labelPoint(points) {
+    let best = null;
+    let bestLen = -1;
+    for (let i = 1; i < points.length; i++) {
+      const a = points[i - 1];
+      const b = points[i];
+      const len = Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+      if (len > bestLen) { bestLen = len; best = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; }
+    }
+    return best || { x: 0, y: 0 };
+  }
+
 
   // Where to put the diagram in a canvas: the preferred zoom, or smaller (down to 30%) so it all fits, centered.
   // bounds: { minX, minY, maxX, maxY } in diagram units; canvas: { width, height } in px.
@@ -11023,9 +11059,892 @@ li.CodeMirror-hint-active{background:var(--teal); color:var(--on-teal);}
 
   const pathData = points => points.map((pt, i) => `${i ? 'L' : 'M'}${pt.x} ${pt.y}`).join(' ');
 
-  const api = { BOX, boxSize, layers, tidyLayout, linkRoute, crowFoot, fitView, pathData };
+  const api = { BOX, boxSize, layers, tidyLayout, linkRoute, crowFoot, selfLoopRoute, labelPoint, fitView, pathData };
   if (isNode) module.exports = api;
   else root.SS = Object.assign(root.SS || {}, api);
+})(this);
+
+</script>
+<script data-src="../sql-studio/src/panels.js">
+// ---- ../sql-studio/src/panels.js ----
+// SQL Studio (shared with the ERD Playground): a collapsible panel with text zoom, and a draggable,
+// keyboard-movable splitter. Needs SS.h, SS.icon, SS.iconButton, SS.announce, and SS.stepZoom.
+(function (root) {
+  'use strict';
+  const SS = root.SS;
+  const { h, icon, iconButton } = SS;
+
+  // A panel: chevron + icon + bold name, a tools area, optional text zoom, and a body.
+  function makePanel({ key, title, iconName, cls = '', zoomable = false, prefs, save, onToggle }) {
+    const bodyId = `panel-${key}-body`;
+    const titleId = `panel-${key}-title`;
+    const chev = h('button', { type: 'button', class: 'chev', 'aria-controls': bodyId }, icon('chevron'));
+    const headSlot = h('div', { class: 'head-slot', style: { display: 'contents' } });
+    const tools = h('div', { class: 'panel-tools' });
+    const body = h('div', { class: 'panel-body', id: bodyId, role: 'region', 'aria-labelledby': titleId });
+    const head = h('div', { class: 'panel-head' }, chev, h('h2', { class: 'panel-title', id: titleId }, icon(iconName), title), headSlot, tools);
+    const el = h('section', { class: `panel ${cls}`, 'aria-labelledby': titleId }, head, body);
+
+    function setCollapsed(c) {
+      el.classList.toggle('collapsed', c);
+      chev.setAttribute('aria-expanded', String(!c));
+      chev.setAttribute('aria-label', `${c ? 'Expand' : 'Collapse'} ${title}`);
+      chev.title = `${c ? 'Expand' : 'Collapse'} ${title}`;
+    }
+    chev.addEventListener('click', () => {
+      prefs.collapsed[key] = !prefs.collapsed[key];
+      setCollapsed(prefs.collapsed[key]);
+      save();
+      onToggle(key, prefs.collapsed[key]);
+    });
+    setCollapsed(!!prefs.collapsed[key]);
+
+    if (zoomable) {
+      const out = h('output', { 'aria-live': 'off' });
+      const apply = () => { body.style.setProperty('--zoom', prefs.zoom[key]); out.textContent = `${prefs.zoom[key]}%`; };
+      const step = dir => () => { prefs.zoom[key] = SS.stepZoom(prefs.zoom[key], dir); apply(); save(); SS.announce(`${title} text ${prefs.zoom[key]}%`); };
+      tools.append(h('span', { class: 'zoom', role: 'group', 'aria-label': `${title} text size` },
+        iconButton('minus', `Smaller text in ${title}`, { onclick: step(-1) }), out, iconButton('plus', `Bigger text in ${title}`, { onclick: step(1) })));
+      apply();
+    }
+    return { el, head, headSlot, tools, body, setCollapsed, title };
+  }
+
+  // A draggable, keyboard-movable splitter (role="separator").
+  // get/set work in the splitter's own unit; `toValue` turns a pointer move (px) into that unit.
+  function splitter({ orientation, label, controls, get, set, min, max, step, toValue, reset, format }) {
+    const el = h('div', { class: `splitter ${orientation === 'vertical' ? 'v' : 'h'}`, role: 'separator', tabindex: '0',
+      'aria-orientation': orientation, 'aria-label': label, 'aria-controls': controls, title: `${label} (drag, or use the arrow keys)` });
+    const sync = () => {
+      el.setAttribute('aria-valuemin', String(min));
+      el.setAttribute('aria-valuemax', String(max));
+      el.setAttribute('aria-valuenow', String(Math.round(get())));
+      el.setAttribute('aria-valuetext', format(get()));
+    };
+    const put = v => { set(Math.min(max, Math.max(min, v))); sync(); };
+    el.addEventListener('keydown', e => {
+      const big = e.shiftKey ? 5 : 1;
+      const back = orientation === 'vertical' ? 'ArrowLeft' : 'ArrowUp';
+      const fwd = orientation === 'vertical' ? 'ArrowRight' : 'ArrowDown';
+      if (e.key === back) put(get() - step * big);
+      else if (e.key === fwd) put(get() + step * big);
+      else if (e.key === 'Home') put(min);
+      else if (e.key === 'End') put(max);
+      else if (e.key === 'Enter') { reset(); sync(); } else return;
+      e.preventDefault();
+    });
+    el.addEventListener('dblclick', () => { reset(); sync(); });
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      el.setPointerCapture(e.pointerId);
+      el.classList.add('dragging');
+      const start = orientation === 'vertical' ? e.clientX : e.clientY;
+      const startVal = get();
+      const move = ev => put(startVal + toValue((orientation === 'vertical' ? ev.clientX : ev.clientY) - start));
+      const up = () => { el.classList.remove('dragging'); el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
+      el.addEventListener('pointermove', move);
+      el.addEventListener('pointerup', up);
+      el.addEventListener('pointercancel', up);
+    });
+    sync();
+    return { el, sync };
+  }
+
+  root.SS = Object.assign(SS, { makePanel, splitter });
+})(this);
+
+</script>
+<script data-src="../sql-studio/src/canvas.js">
+// ---- ../sql-studio/src/canvas.js ----
+// SQL Studio (shared with the ERD Playground): an SVG drawing area with zoom, pan, pinch, fit, and PNG copy.
+// The caller draws into `viewport` in diagram units; the canvas handles the view transform.
+(function (root) {
+  'use strict';
+  const SS = root.SS;
+  const { h, s } = SS;
+
+  const STYLE_PROPS = ['fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'font-family', 'font-size', 'font-weight', 'opacity'];
+
+  // options:
+  //   label               accessible name of the drawing
+  //   getPreferredScale() the zoom to use when the drawing fits (e.g. from saved prefs), as 1 = 100%
+  //   onScale(scale)      called when the student zooms (save it)
+  //   onView(view)        called after every view change (update a zoom readout)
+  //   canPan(target)      false for elements that handle their own pointer drags
+  //   minScale, maxScale  zoom limits
+  function createCanvas(host, { label = 'Diagram', getPreferredScale = () => 1, onScale = () => {}, onView = () => {}, canPan = () => true, minScale = 0.3, maxScale = 2.5 } = {}) {
+    const viewport = s('g', { class: 'viewport' });
+    const svg = s('svg', { role: 'group', 'aria-label': label }, viewport);
+    const canvas = h('div', { class: 'erd-canvas' }, svg);
+    host.append(canvas);
+    const view = { scale: getPreferredScale(), tx: 0, ty: 0 }; // mutated in place, so callers can keep a reference
+
+    function applyView() {
+      viewport.setAttribute('transform', `translate(${view.tx} ${view.ty}) scale(${view.scale})`);
+      onView(view);
+    }
+    function zoomAt(newScale, cx, cy) {
+      const sc = Math.min(maxScale, Math.max(minScale, newScale));
+      view.tx = cx - ((cx - view.tx) * sc) / view.scale;
+      view.ty = cy - ((cy - view.ty) * sc) / view.scale;
+      view.scale = sc;
+      onScale(sc);
+      applyView();
+    }
+    function zoomBy(dir) {
+      const r = svg.getBoundingClientRect();
+      const range = { min: Math.round(minScale * 100), max: Math.round(maxScale * 100), step: 10 };
+      zoomAt(SS.stepZoom(Math.round(view.scale * 100), dir, range) / 100, r.width / 2, r.height / 2);
+    }
+    // Centers `bounds` ({ minX, minY, maxX, maxY } in diagram units), zoomed out if needed so it all shows.
+    function fitTo(bounds) {
+      const r = svg.getBoundingClientRect();
+      Object.assign(view, SS.fitView(bounds, { width: r.width, height: r.height }, getPreferredScale()));
+      applyView();
+    }
+    // Converts a pointer position to diagram units.
+    function toLocal(clientX, clientY) {
+      const r = svg.getBoundingClientRect();
+      return { x: (clientX - r.left - view.tx) / view.scale, y: (clientY - r.top - view.ty) / view.scale };
+    }
+
+    // ---- pan, wheel zoom, pinch ----
+    const pointers = new Map();
+    let pinch = null;
+    svg.addEventListener('pointerdown', e => {
+      if (!canPan(e.target)) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      svg.setPointerCapture(e.pointerId);
+      canvas.classList.add('panning');
+      if (pointers.size === 2) {
+        const [a, b] = [...pointers.values()];
+        pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y), scale: view.scale };
+      }
+    });
+    svg.addEventListener('pointermove', e => {
+      if (!pointers.has(e.pointerId)) return;
+      const prev = pointers.get(e.pointerId);
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 2 && pinch) {
+        const [a, b] = [...pointers.values()];
+        const r = svg.getBoundingClientRect();
+        zoomAt(pinch.scale * (Math.hypot(a.x - b.x, a.y - b.y) / pinch.dist), (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top);
+      } else if (pointers.size === 1) {
+        view.tx += e.clientX - prev.x;
+        view.ty += e.clientY - prev.y;
+        applyView();
+      }
+    });
+    const endPointer = e => {
+      pointers.delete(e.pointerId);
+      if (pointers.size < 2) pinch = null;
+      if (!pointers.size) canvas.classList.remove('panning');
+    };
+    svg.addEventListener('pointerup', endPointer);
+    svg.addEventListener('pointercancel', endPointer);
+    // Ctrl/⌘ + wheel (and trackpad pinch) zooms; a plain wheel scrolls the page as usual.
+    svg.addEventListener('wheel', e => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const r = svg.getBoundingClientRect();
+      zoomAt(view.scale * Math.exp(-e.deltaY * 0.002), e.clientX - r.left, e.clientY - r.top);
+    }, { passive: false });
+
+    // ---- PNG ----
+    // Draws `bounds` (diagram units) at 2× with the current theme's colors, then copies it to the clipboard,
+    // or downloads `filename` when the browser won't copy images. Resolves to 'copied', 'downloaded', or 'failed'.
+    async function copyPng(filename, bounds, pad = 30) {
+      const minX = bounds.minX - pad;
+      const minY = bounds.minY - pad;
+      const w = bounds.maxX + pad - minX;
+      const hgt = bounds.maxY + pad - minY;
+      const clone = svg.cloneNode(true);
+      // Copy computed colors and fonts so the picture matches the screen (and the current theme).
+      const src = svg.querySelectorAll('*');
+      const dst = clone.querySelectorAll('*');
+      src.forEach((el, i) => {
+        const cs = getComputedStyle(el);
+        dst[i].setAttribute('style', STYLE_PROPS.map(p => `${p}:${cs.getPropertyValue(p)}`).join(';'));
+      });
+      clone.querySelector('.viewport').removeAttribute('transform');
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      clone.setAttribute('viewBox', `${minX} ${minY} ${w} ${hgt}`);
+      clone.setAttribute('width', String(w * 2));
+      clone.setAttribute('height', String(hgt * 2));
+      const bg = getComputedStyle(canvas).backgroundColor;
+      clone.insertBefore(s('rect', { x: minX, y: minY, width: w, height: hgt, fill: bg }), clone.firstChild);
+      const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml' }));
+      try {
+        const img = new Image();
+        await new Promise((ok, bad) => { img.onload = ok; img.onerror = bad; img.src = url; });
+        const cv = document.createElement('canvas');
+        cv.width = w * 2;
+        cv.height = hgt * 2;
+        cv.getContext('2d').drawImage(img, 0, 0);
+        const blob = await new Promise(ok => cv.toBlob(ok, 'image/png'));
+        try {
+          await root.navigator.clipboard.write([new root.ClipboardItem({ 'image/png': blob })]);
+          return 'copied';
+        } catch (e) {
+          SS.downloadBlob(filename, blob);
+          return 'downloaded';
+        }
+      } catch (e) {
+        return 'failed';
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    if (root.ResizeObserver) new root.ResizeObserver(() => applyView()).observe(canvas);
+    applyView();
+
+    return { svg, viewport, canvas, view, applyView, zoomAt, zoomBy, fitTo, toLocal, copyPng };
+  }
+
+  root.SS = Object.assign(SS, { createCanvas });
+})(this);
+
+</script>
+<script data-src="src/notation.js">
+// ---- src/notation.js ----
+// ERD Playground: reads Chapter 6's crow's foot notation (a subset of Mermaid's erDiagram) into a model.
+// Never throws: problems become plain-words errors with a line and column.
+(function (root) {
+  'use strict';
+  const isNode = typeof module !== 'undefined' && module.exports;
+
+  const END_KINDS = {
+    left: { '||': 'one', '|o': 'zero-one', '}|': 'one-many', '}o': 'zero-many' },
+    right: { '||': 'one', 'o|': 'zero-one', '|{': 'one-many', 'o{': 'zero-many' },
+  };
+  const LINES = { '--': false, '..': true }; // value: dashed?
+  const ENDS_HELP = 'Line ends are `||`, `o|`, `|{`, or `o{`';
+  const LABEL_NOTE = 'A line without a label works here. To use it in Mermaid or an AI tool, add a label, like `: "records"`.';
+  const HEADER_NOTE = 'Add `erDiagram` as the first line to use this in Mermaid.';
+
+  const NAME = '[A-Za-z_][A-Za-z0-9_-]*';
+  // An entity: NAME, NAME["Alias"] (Mermaid), or "Quoted name" (Mermaid).
+  const ENT = `(?:"[^"]+"|${NAME}(?:\\["[^"]*"\\])?)`;
+  const RE_NAME_ONLY = new RegExp(`^(${ENT})$`);
+  const RE_BLOCK_OPEN = new RegExp(`^(${ENT})\\s*\\{\\s*(\\})?$`);
+  const RE_REL = new RegExp(`^(${ENT})\\s+(\\S+)(?:\\s+(.*))?$`);
+  const RE_SECOND = new RegExp(`^(${ENT})\\s*(?::\\s*(.*))?$`);
+  // Mermaid's word cardinalities: A one or more to zero or many B : label ("optionally to" = dashed line).
+  const WORD_KINDS = {
+    'only one': 'one', 'zero or one': 'zero-one', 'one or zero': 'zero-one', 'one or more': 'one-many', 'one or many': 'one-many',
+    'many(1)': 'one-many', '1+': 'one-many', 'zero or more': 'zero-many', 'zero or many': 'zero-many', 'many(0)': 'zero-many', '0+': 'zero-many', 1: 'one',
+  };
+  const CARD = Object.keys(WORD_KINDS).sort((x, y) => y.length - x.length).map(w => w.replace(/[()+]/g, '\\$&')).join('|');
+  const RE_WORDS = new RegExp(`^(${ENT})\\s+(${CARD})\\s+(optionally to|to)\\s+(${CARD})\\s+(${ENT})\\s*(?::\\s*(.*))?$`);
+  const RE_IGNORED = /^(direction|style|classDef|class)\b/;
+  const MIRROR = { 'o{': '}o', '|{': '}|', 'o|': '|o' };
+  // "Big Box" → { name: 'Big Box' }; p["Person"] → { name: 'p', display: 'Person' }.
+  function entityToken(tok) {
+    const q = /^"([^"]+)"$/.exec(tok);
+    if (q) return { name: q[1], display: q[1] };
+    const a = /^([^[]+)\["([^"]*)"\]$/.exec(tok);
+    return a ? { name: a[1], display: a[2] } : { name: tok, display: tok };
+  }
+  const RE_KEYS = /^((?:PK|FK|UK)(?:\s*,\s*(?:PK|FK|UK))*)?\s*(?:"([^"]*)")?$/;
+  const looksLikeSymbol = tok => /[|{}]|--|\.\./.test(tok);
+
+  // Checks a relationship symbol like ||--o{. Returns { aEnd, bEnd, dashed } or { error }.
+  function readSymbol(tok, n) {
+    const L = tok.slice(0, 2);
+    const mid = tok.slice(2, 4);
+    const R = tok.slice(4, 6);
+    if (tok.length === 6 && END_KINDS.left[L] && mid in LINES && END_KINDS.right[R]) {
+      return { aEnd: END_KINDS.left[L], bEnd: END_KINDS.right[R], dashed: LINES[mid] };
+    }
+    if (tok.length === 6 && MIRROR[L] && mid in LINES && END_KINDS.right[R]) {
+      return { error: `Line ${n}: On the left side the symbols are mirrored: write \`${MIRROR[L]}\` instead of \`${L}\`.` };
+    }
+    if (tok.length === 5 && END_KINDS.left[tok.slice(0, 2)] && tok.slice(2, 4) in LINES) {
+      return { error: `Line ${n}: \`${tok}\` is missing its last symbol. ${ENDS_HELP}.` };
+    }
+    if (tok.length === 5 && tok.slice(1, 3) in LINES && END_KINDS.right[tok.slice(3, 5)]) {
+      return { error: `Line ${n}: \`${tok}\` is missing its first symbol. ${ENDS_HELP}.` };
+    }
+    return { error: `Line ${n}: \`${tok}\` isn't a relationship symbol. ${ENDS_HELP}, with \`--\` in the middle.` };
+  }
+
+  function readLabel(text) {
+    const t = text.trim();
+    const q = /^"([^"]*)"$/.exec(t);
+    return q ? q[1] : t;
+  }
+
+  function parseErd(text) {
+    const model = { hasHeader: false, entities: [], relationships: [], errors: [], notes: [] };
+    const byName = new Map();
+    // tok: the entity as written (NAME, NAME["Alias"], or "Quoted name").
+    const ensure = (tok, line) => {
+      const { name, display } = entityToken(tok);
+      if (!byName.has(name)) {
+        const e = { name, display, line, attributes: [] };
+        byName.set(name, e);
+        model.entities.push(e);
+      } else if (display !== name) byName.get(name).display = display;
+      return byName.get(name);
+    };
+    const addRel = (aTok, bTok, aEnd, bEnd, dashed, rawLabel, n, aSym, bSym) => {
+      if (rawLabel === undefined) missingLabel = true;
+      const a = ensure(aTok, n).name;
+      const b = ensure(bTok, n).name;
+      model.relationships.push({ a, b, aEnd, bEnd, dashed, label: rawLabel === undefined ? '' : readLabel(rawLabel), line: n, aSym, bSym });
+    };
+    const fail = (n, col, length, message) => model.errors.push({ line: n, col, length, message });
+
+    const lines = String(text == null ? '' : text).replace(/\r\n?/g, '\n').replace(/ /g, ' ').split('\n');
+    let seenContent = false;
+    let block = null; // { entity, line }
+    let missingLabel = false;
+
+    lines.forEach((line, i) => {
+      const n = i + 1;
+      let t = line.trim();
+      if (!t || t.startsWith('%%')) return;
+      const lead = line.indexOf(t);
+
+      if (block) {
+        if (t === '}') { block = null; return; }
+        const m = /^(\S+)\s+([A-Za-z_][A-Za-z0-9_-]*)(.*)$/.exec(t);
+        const k = m && RE_KEYS.exec(m[3].trim());
+        if (!m || !k) {
+          fail(n, lead + 1, t.length, `Line ${n}: An attribute line looks like \`type name\`, for example \`int artist_id PK\`.`);
+          return;
+        }
+        block.entity.attributes.push({ type: m[1], name: m[2], keys: k[1] ? k[1].split(/\s*,\s*/) : [], comment: k[2] || '' });
+        return;
+      }
+
+      if (!seenContent) {
+        seenContent = true;
+        const h = /^erDiagram\b\s*(.*)$/.exec(t);
+        if (h) {
+          model.hasHeader = true;
+          if (!h[1]) return;
+          t = h[1];
+        }
+      }
+
+      if (RE_IGNORED.test(t)) return; // Mermaid styling: doesn't change the picture
+
+      let m = RE_BLOCK_OPEN.exec(t);
+      if (m) {
+        const entity = ensure(m[1], n);
+        if (!m[2]) block = { entity, line: n };
+        return;
+      }
+      m = RE_NAME_ONLY.exec(t);
+      if (m) { ensure(m[1], n); return; }
+
+      m = RE_WORDS.exec(t);
+      if (m) {
+        const aCol = line.indexOf(m[2], lead + m[1].length) + 1;
+        const bCol = line.indexOf(m[4], aCol - 1 + m[2].length + m[3].length) + 1;
+        addRel(m[1], m[5], WORD_KINDS[m[2]], WORD_KINDS[m[4]], m[3] === 'optionally to', m[6], n,
+          { line: n, col: aCol, length: m[2].length }, { line: n, col: bCol, length: m[4].length });
+        return;
+      }
+
+      m = RE_REL.exec(t);
+      if (!m || !looksLikeSymbol(m[2])) {
+        fail(n, lead + 1, t.length, `Line ${n}: This line isn't a relationship, an entity, or an attribute block.`);
+        return;
+      }
+      const symCol = line.indexOf(m[2], lead + m[1].length) + 1;
+      const sym = readSymbol(m[2], n);
+      if (sym.error) { fail(n, symCol, m[2].length, sym.error); return; }
+      const rest = m[3] || '';
+      const second = RE_SECOND.exec(rest.trim());
+      if (!second) {
+        if (!rest.trim() || rest.trim().startsWith(':')) fail(n, symCol, m[2].length, `Line ${n}: This relationship needs an entity on each side.`);
+        else fail(n, line.indexOf(rest.trim(), symCol) + 1, rest.trim().length, `Line ${n}: Put a \`:\` before the label.`);
+        return;
+      }
+      addRel(m[1], second[1], sym.aEnd, sym.bEnd, sym.dashed, second[2], n,
+        { line: n, col: symCol, length: 2 }, { line: n, col: symCol + 4, length: 2 });
+    });
+
+    if (block) fail(block.line, 1, lines[block.line - 1].length, `Line ${block.line}: This attribute block is missing its closing \`}\`.`);
+    if (missingLabel) model.notes.push(LABEL_NOTE);
+    if (seenContent && !model.hasHeader) model.notes.push(HEADER_NOTE);
+    return model;
+  }
+
+  const api = { END_KINDS, parseErd };
+  if (isNode) module.exports = api;
+  else root.SS = Object.assign(root.SS || {}, api);
+})(this);
+
+</script>
+<script data-src="src/readings.js">
+// ---- src/readings.js ----
+// ERD Playground: reads a relationship aloud in both directions, using 6.1's rule:
+// "say the first entity, then the cardinality closest to the second entity, then the second entity."
+(function (root) {
+  'use strict';
+  const isNode = typeof module !== 'undefined' && module.exports;
+
+  // Exactly 6.1's words for each line end.
+  const MEANING = { one: 'one and only one', 'zero-one': 'zero or one', 'one-many': 'one or more', 'zero-many': 'zero or more' };
+  const isMany = end => end === 'one-many' || end === 'zero-many';
+
+  const article = name => (/^[AEIOaeio]/.test(name) ? 'An' : 'A');
+  const plural = name => (/(s|x|z|ch|sh)$/i.test(name) ? `${name}es` : `${name}s`);
+
+  function sentence(first, end, second) {
+    return `${article(first)} ${first} is associated with **${MEANING[end]}** ${isMany(end) ? plural(second) : second}.`;
+  }
+
+  // Returns [reading from a to b, reading from b to a]. `**…**` marks the cardinality words.
+  // The label is left out on purpose: as 6.1 notes, a label usually reads well in only one direction.
+  function readRelationship(rel, displayOf = n => n) {
+    const a = displayOf(rel.a);
+    const b = displayOf(rel.b);
+    return [sentence(a, rel.bEnd, b), sentence(b, rel.aEnd, a)];
+  }
+
+  const api = { MEANING, readRelationship };
+  if (isNode) module.exports = api;
+  else root.SS = Object.assign(root.SS || {}, api);
+})(this);
+
+</script>
+<script data-src="src/examples.js">
+// ---- src/examples.js ----
+// ERD Playground: the examples in the picker. Edit freely: every example must parse with no errors
+// or notes (a test checks), so each one is also valid Mermaid. The first four come straight from the book.
+(function (root) {
+  'use strict';
+  const isNode = typeof module !== 'undefined' && module.exports;
+
+  const EXAMPLES = [
+    {
+      id: "artist-song",
+      title: "Artist records Song",
+      description: "The first example in 6.1: an artist records zero or more songs, and each song has exactly one artist.",
+      text: `erDiagram
+    ARTIST ||--o{ SONG : "records"`,
+    },
+    {
+      id: "five-patterns",
+      title: "The five patterns",
+      description: "The five common patterns from 6.1, from one-to-one to many-to-many.",
+      text: `erDiagram
+    A1 ||--|| B1 : "one-to-one, both mandatory"
+    A2 ||--o| B2 : "one-to-one, B optional"
+    A3 ||--o{ B3 : "one-to-many, zero or more"
+    A4 ||--|{ B4 : "one-to-many, one or more"
+    A5 }o--o{ B5 : "many-to-many"`,
+    },
+    {
+      id: "music-streaming",
+      title: "Music streaming (Chapters 8–9)",
+      description: "The music streaming database used in Chapters 8 and 9, with each entity's attributes.",
+      text: `erDiagram
+    ARTIST ||--o{ SONG : "records"
+    SONG ||--o{ STREAM : "generates"
+    USER ||--o{ STREAM : "creates"
+
+    ARTIST {
+        int artist_id PK
+        string artist_name
+        string genre
+        string hometown
+    }
+    SONG {
+        int song_id PK
+        string song_title
+        int artist_id FK
+        int duration_seconds
+        boolean explicit
+        date release_date
+    }
+    USER {
+        int user_id PK
+        string username
+        string email
+        string subscription_tier
+        date signup_date
+    }
+    STREAM {
+        int stream_id PK
+        int user_id FK
+        int song_id FK
+        date stream_date
+        int seconds_listened
+    }`,
+    },
+    {
+      id: "campus-concert",
+      title: "Campus concert series (6.2)",
+      description: "The worked example from 6.2, with junction tables for the two many-to-many relationships.",
+      text: `erDiagram
+    VENUE ||--|{ EVENT : "hosts"
+    ARTIST ||--o{ ARTIST_EVENT : "performs in"
+    EVENT ||--o{ ARTIST_EVENT : "features"
+    EVENT ||--|{ TICKET : "has"
+    STUDENT ||--o{ TICKET : "purchases"
+    SPONSOR ||--o{ SPONSOR_EVENT : "provides"
+    EVENT ||--o{ SPONSOR_EVENT : "receives"
+
+    VENUE {
+        int venue_id PK
+        string venue_name
+        int capacity
+        string location_on_campus
+    }
+    ARTIST {
+        int artist_id PK
+        string artist_name
+        string genre
+        string contact_email
+    }
+    EVENT {
+        int event_id PK
+        string event_name
+        int venue_id FK
+        date event_date
+        time start_time
+        decimal ticket_price
+    }
+    ARTIST_EVENT {
+        int artist_id FK
+        int event_id FK
+        int set_length_minutes
+        boolean is_headliner
+        int performance_order
+    }
+    STUDENT {
+        int student_id PK
+        string student_name
+        string email
+        int grad_year
+    }
+    TICKET {
+        int ticket_id PK
+        int event_id FK
+        int student_id FK
+        string seat_assignment
+        date purchase_date
+    }
+    SPONSOR {
+        int sponsor_id PK
+        string sponsor_name
+        string contact_name
+        string contact_email
+    }
+    SPONSOR_EVENT {
+        int sponsor_id FK
+        int event_id FK
+        decimal contribution_amount
+        string sponsorship_tier
+    }`,
+    },
+    {
+      id: "many-to-many",
+      title: "Many-to-many, before and after",
+      description: "A many-to-many relationship, and the same thing drawn with a junction table in the middle.",
+      text: `erDiagram
+    %% Before: students take many classes, and classes have many students.
+    STUDENT }o--o{ CLASS : "takes"
+    %% After: the junction table ENROLLMENT turns it into two one-to-many relationships.
+    STUDENT ||--o{ ENROLLMENT : "has"
+    CLASS ||--o{ ENROLLMENT : "has"`,
+    },
+    {
+      id: "basketball",
+      title: "Thundering Herd basketball",
+      description: "Players and games meet in box scores: one row per player per game.",
+      text: `erDiagram
+    PLAYER ||--o{ BOX_SCORE : "earns"
+    GAME ||--|{ BOX_SCORE : "records"
+
+    PLAYER {
+        int player_id PK
+        string player_name
+        string position
+    }
+    GAME {
+        int game_id PK
+        string opponent
+        date game_date
+    }
+    BOX_SCORE {
+        int box_id PK
+        int player_id FK
+        int game_id FK
+        int points
+    }`,
+    },
+    {
+      id: "dining",
+      title: "Campus dining",
+      description: "Every meal swipe belongs to one student and one dining hall.",
+      text: `erDiagram
+    STUDENT ||--o{ MEAL_SWIPE : "makes"
+    DINING_HALL ||--o{ MEAL_SWIPE : "takes"
+
+    STUDENT {
+        int student_id PK
+        string first_name
+        string meal_plan
+    }
+    DINING_HALL {
+        int hall_id PK
+        string hall_name
+        int seats
+    }
+    MEAL_SWIPE {
+        int swipe_id PK
+        int student_id FK
+        int hall_id FK
+        date swipe_date
+    }`,
+    },
+    {
+      id: "netflix",
+      title: "Netflix binge",
+      description: "A series has one or more episodes, and viewers watch episodes in viewing sessions.",
+      text: `erDiagram
+    SERIES ||--|{ EPISODE : "includes"
+    EPISODE ||--o{ VIEWING_SESSION : "is watched in"
+    VIEWER ||--o{ VIEWING_SESSION : "starts"
+
+    SERIES {
+        int series_id PK
+        string series_title
+        string genre
+    }
+    EPISODE {
+        int episode_id PK
+        int series_id FK
+        int season
+        int runtime_min
+    }
+    VIEWING_SESSION {
+        int session_id PK
+        int episode_id FK
+        int viewer_id FK
+        date watch_date
+    }
+    VIEWER {
+        int viewer_id PK
+        string viewer_name
+    }`,
+    },
+    {
+      id: "fantasy",
+      title: "Fantasy football league",
+      description: "One-to-one and optional ends: each manager runs one team, and a team may win a trophy.",
+      text: `erDiagram
+    MANAGER ||--|| FANTASY_TEAM : "runs"
+    FANTASY_TEAM ||--o| TROPHY : "wins"
+    FANTASY_TEAM ||--o{ ROSTER_SPOT : "fills"
+    NFL_PLAYER ||--o{ ROSTER_SPOT : "takes"
+
+    MANAGER {
+        int manager_id PK
+        string manager_name
+    }
+    FANTASY_TEAM {
+        int team_id PK
+        int manager_id FK
+        string team_name
+    }
+    TROPHY {
+        int trophy_id PK
+        int team_id FK
+        int season
+    }
+    ROSTER_SPOT {
+        int spot_id PK
+        int team_id FK
+        int player_id FK
+        int week
+    }
+    NFL_PLAYER {
+        int player_id PK
+        string player_name
+        string position
+    }`,
+    },
+    {
+      id: "self",
+      title: "A relationship to itself",
+      description: "An entity can relate to itself: one employee manages zero or more other employees.",
+      text: `erDiagram
+    EMPLOYEE ||--o{ EMPLOYEE : "manages"
+
+    EMPLOYEE {
+        int employee_id PK
+        string employee_name
+        int manager_id FK
+    }`,
+    },
+  ];
+
+  const api = { EXAMPLES };
+  if (isNode) module.exports = api;
+  else root.SS = Object.assign(root.SS || {}, api);
+})(this);
+
+</script>
+<script data-src="src/prefs.js">
+// ---- src/prefs.js ----
+// ERD Playground: layout preferences, cleaned up and saved in localStorage. Storage may be missing or blocked.
+(function (root) {
+  'use strict';
+  const isNode = typeof module !== 'undefined' && module.exports;
+
+  const STORAGE_KEY = 'erdPlayground.layout.v1';
+  const TEXT_ZOOM = { min: 70, max: 200, step: 10 };
+  const DIAGRAM_ZOOM = { min: 30, max: 250, step: 10 };
+
+  const DEFAULT_PREFS = Object.freeze({
+    notationWidth: 0.42,     // Notation panel's share of the row (0.2–0.8)
+    height: 560,             // px, the two panels' height on wide screens
+    collapsed: { notation: false, diagram: false },
+    zoom: { notation: 100 }, // text zoom, %
+    diagramZoom: 100,        // %
+    cheatSheetOpen: false,
+  });
+
+  const clamp = (v, lo, hi, dflt) => (typeof v === 'number' && isFinite(v) ? Math.min(hi, Math.max(lo, v)) : dflt);
+  const bool = (v, dflt) => (typeof v === 'boolean' ? v : dflt);
+  const obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
+  const snap = (v, step) => Math.round(v / step) * step;
+
+  function sanitizePrefs(raw) {
+    const r = obj(raw);
+    const d = DEFAULT_PREFS;
+    const collapsed = obj(r.collapsed);
+    const zoom = obj(r.zoom);
+    return {
+      notationWidth: clamp(r.notationWidth, 0.2, 0.8, d.notationWidth),
+      height: clamp(r.height, 320, 2000, d.height),
+      collapsed: { notation: bool(collapsed.notation, false), diagram: bool(collapsed.diagram, false) },
+      zoom: { notation: snap(clamp(zoom.notation, TEXT_ZOOM.min, TEXT_ZOOM.max, 100), TEXT_ZOOM.step) },
+      diagramZoom: snap(clamp(r.diagramZoom, DIAGRAM_ZOOM.min, DIAGRAM_ZOOM.max, 100), DIAGRAM_ZOOM.step),
+      cheatSheetOpen: bool(r.cheatSheetOpen, d.cheatSheetOpen),
+    };
+  }
+
+  function loadPrefs(storage) {
+    try {
+      const text = storage && storage.getItem(STORAGE_KEY);
+      return sanitizePrefs(text ? JSON.parse(text) : {});
+    } catch (e) {
+      return sanitizePrefs({});
+    }
+  }
+
+  function savePrefs(storage, prefs) {
+    try {
+      if (!storage) return false;
+      storage.setItem(STORAGE_KEY, JSON.stringify(sanitizePrefs(prefs)));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Used by the shared panels.js (text zoom) and canvas.js (diagram zoom).
+  const stepZoom = (value, dir, range = TEXT_ZOOM) => clamp(snap(value, range.step) + dir * range.step, range.min, range.max, 100);
+
+  const api = { STORAGE_KEY, TEXT_ZOOM, DIAGRAM_ZOOM, DEFAULT_PREFS, sanitizePrefs, loadPrefs, savePrefs, stepZoom };
+  if (isNode) module.exports = api;
+  else root.SS = Object.assign(root.SS || {}, api);
+})(this);
+
+</script>
+<script data-src="src/editor.js">
+// ---- src/editor.js ----
+// ERD Playground: the notation editor (CodeMirror 5) with a small mode for the ERD notation,
+// error underlines, the highlighted relationship line, and the highlighted end symbol.
+(function (root) {
+  'use strict';
+  const SS = root.SS;
+  const CM = root.CodeMirror;
+
+  // Token classes: keyword (erDiagram), operator (line ends and --/..), string (labels), comment (%%),
+  // variable-2 (entity names), type (attribute types), atom (PK/FK/UK).
+  CM.defineMode('erd', () => ({
+    startState: () => ({ inBlock: false, label: false, lineStart: true }),
+    token(stream, state) {
+      if (stream.sol()) { state.label = false; state.lineStart = true; }
+      if (stream.eatSpace()) return null;
+      const first = state.lineStart;
+      state.lineStart = false;
+      if (stream.match('%%')) { stream.skipToEnd(); return 'comment'; }
+      if (stream.match(/^"[^"]*"?/)) return 'string';
+      if (state.label) { stream.skipToEnd(); return 'string'; }
+      if (!state.inBlock && stream.match(/^erDiagram\b/)) return 'keyword';
+      if (stream.match(/^[|}o{]{1,2}(?:--|\.\.)[|}o{]{1,2}/)) return 'operator';
+      if (stream.match('{')) { state.inBlock = true; return 'bracket'; }
+      if (stream.match('}')) { state.inBlock = false; return 'bracket'; }
+      if (stream.match(':')) { state.label = true; return 'operator'; }
+      if (state.inBlock) {
+        if (first && stream.match(/^\S+/)) return 'type';
+        if (stream.match(/^(PK|FK|UK)\b/)) return 'atom';
+      }
+      if (stream.match(/^[A-Za-z_][\w-]*/)) return 'variable-2';
+      stream.next();
+      return null;
+    },
+  }));
+
+  function createNotationEditor(host, { onChange }) {
+    const cm = CM(host, {
+      mode: 'erd',
+      theme: 'default studio',
+      lineNumbers: true,
+      styleActiveLine: true,
+      matchBrackets: true,
+      inputStyle: 'contenteditable',
+      screenReaderLabel: 'ERD notation editor. Press Tab to leave the editor.',
+      indentUnit: 4,
+      // Tab and Shift-Tab move focus out of the editor, so keyboard users are never stuck.
+      extraKeys: { Tab: false, 'Shift-Tab': false },
+    });
+    cm.on('change', () => onChange(cm.getValue()));
+
+    const at = span => ({ from: { line: span.line - 1, ch: span.col - 1 }, to: { line: span.line - 1, ch: span.col - 1 + Math.max(span.length, 1) } });
+    let errorMark = null;
+    let symbolMark = null;
+    let lineHandle = null;
+
+    return {
+      cm,
+      getText: () => cm.getValue(),
+      setText(text) { cm.setValue(text); cm.clearHistory(); cm.setCursor({ line: 0, ch: 0 }); },
+      // span: { line, col, length } (1-based) or null to clear.
+      markError(span) {
+        if (errorMark) errorMark.clear();
+        errorMark = null;
+        if (span) { const r = at(span); errorMark = cm.markText(r.from, r.to, { className: 'cm-error-mark', attributes: { title: 'The problem starts here' } }); }
+      },
+      markSymbol(span) {
+        if (symbolMark) symbolMark.clear();
+        symbolMark = null;
+        if (span) { const r = at(span); symbolMark = cm.markText(r.from, r.to, { className: 'cm-sym-mark' }); }
+      },
+      highlightLine(line) {
+        if (lineHandle) cm.removeLineClass(lineHandle, 'background', 'cm-rel-line');
+        lineHandle = line ? cm.addLineClass(line - 1, 'background', 'cm-rel-line') : null;
+      },
+      // fn(line, col): both 1-based.
+      onCursorLine(fn) { cm.on('cursorActivity', () => { const c = cm.getCursor(); fn(c.line + 1, c.ch + 1); }); },
+      setCursorLine(line) { cm.setCursor({ line: line - 1, ch: 0 }); cm.focus(); },
+      focus: () => cm.focus(),
+      refresh: () => cm.refresh(),
+    };
+  }
+
+  root.SS = Object.assign(SS, { createNotationEditor });
 })(this);
 
 </script>
