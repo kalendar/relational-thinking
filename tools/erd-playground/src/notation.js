@@ -14,10 +14,28 @@
   const HEADER_NOTE = 'Add `erDiagram` as the first line to use this in Mermaid.';
 
   const NAME = '[A-Za-z_][A-Za-z0-9_-]*';
-  const RE_NAME_ONLY = new RegExp(`^(${NAME})$`);
-  const RE_BLOCK_OPEN = new RegExp(`^(${NAME})\\s*\\{\\s*(\\})?$`);
-  const RE_REL = new RegExp(`^(${NAME})\\s+(\\S+)(?:\\s+(.*))?$`);
-  const RE_SECOND = new RegExp(`^(${NAME})\\s*(?::\\s*(.*))?$`);
+  // An entity: NAME, NAME["Alias"] (Mermaid), or "Quoted name" (Mermaid).
+  const ENT = `(?:"[^"]+"|${NAME}(?:\\["[^"]*"\\])?)`;
+  const RE_NAME_ONLY = new RegExp(`^(${ENT})$`);
+  const RE_BLOCK_OPEN = new RegExp(`^(${ENT})\\s*\\{\\s*(\\})?$`);
+  const RE_REL = new RegExp(`^(${ENT})\\s+(\\S+)(?:\\s+(.*))?$`);
+  const RE_SECOND = new RegExp(`^(${ENT})\\s*(?::\\s*(.*))?$`);
+  // Mermaid's word cardinalities: A one or more to zero or many B : label ("optionally to" = dashed line).
+  const WORD_KINDS = {
+    'only one': 'one', 'zero or one': 'zero-one', 'one or zero': 'zero-one', 'one or more': 'one-many', 'one or many': 'one-many',
+    'many(1)': 'one-many', '1+': 'one-many', 'zero or more': 'zero-many', 'zero or many': 'zero-many', 'many(0)': 'zero-many', '0+': 'zero-many', 1: 'one',
+  };
+  const CARD = Object.keys(WORD_KINDS).sort((x, y) => y.length - x.length).map(w => w.replace(/[()+]/g, '\\$&')).join('|');
+  const RE_WORDS = new RegExp(`^(${ENT})\\s+(${CARD})\\s+(optionally to|to)\\s+(${CARD})\\s+(${ENT})\\s*(?::\\s*(.*))?$`);
+  const RE_IGNORED = /^(direction|style|classDef|class)\b/;
+  const MIRROR = { 'o{': '}o', '|{': '}|', 'o|': '|o' };
+  // "Big Box" → { name: 'Big Box' }; p["Person"] → { name: 'p', display: 'Person' }.
+  function entityToken(tok) {
+    const q = /^"([^"]+)"$/.exec(tok);
+    if (q) return { name: q[1], display: q[1] };
+    const a = /^([^[]+)\["([^"]*)"\]$/.exec(tok);
+    return a ? { name: a[1], display: a[2] } : { name: tok, display: tok };
+  }
   const RE_KEYS = /^((?:PK|FK|UK)(?:\s*,\s*(?:PK|FK|UK))*)?\s*(?:"([^"]*)")?$/;
   const looksLikeSymbol = tok => /[|{}]|--|\.\./.test(tok);
 
@@ -28,6 +46,9 @@
     const R = tok.slice(4, 6);
     if (tok.length === 6 && END_KINDS.left[L] && mid in LINES && END_KINDS.right[R]) {
       return { aEnd: END_KINDS.left[L], bEnd: END_KINDS.right[R], dashed: LINES[mid] };
+    }
+    if (tok.length === 6 && MIRROR[L] && mid in LINES && END_KINDS.right[R]) {
+      return { error: `Line ${n}: On the left side the symbols are mirrored: write \`${MIRROR[L]}\` instead of \`${L}\`.` };
     }
     if (tok.length === 5 && END_KINDS.left[tok.slice(0, 2)] && tok.slice(2, 4) in LINES) {
       return { error: `Line ${n}: \`${tok}\` is missing its last symbol. ${ENDS_HELP}.` };
@@ -47,13 +68,21 @@
   function parseErd(text) {
     const model = { hasHeader: false, entities: [], relationships: [], errors: [], notes: [] };
     const byName = new Map();
-    const ensure = (name, line) => {
+    // tok: the entity as written (NAME, NAME["Alias"], or "Quoted name").
+    const ensure = (tok, line) => {
+      const { name, display } = entityToken(tok);
       if (!byName.has(name)) {
-        const e = { name, display: name, line, attributes: [] };
+        const e = { name, display, line, attributes: [] };
         byName.set(name, e);
         model.entities.push(e);
-      }
+      } else if (display !== name) byName.get(name).display = display;
       return byName.get(name);
+    };
+    const addRel = (aTok, bTok, aEnd, bEnd, dashed, rawLabel, n, aSym, bSym) => {
+      if (rawLabel === undefined) missingLabel = true;
+      const a = ensure(aTok, n).name;
+      const b = ensure(bTok, n).name;
+      model.relationships.push({ a, b, aEnd, bEnd, dashed, label: rawLabel === undefined ? '' : readLabel(rawLabel), line: n, aSym, bSym });
     };
     const fail = (n, col, length, message) => model.errors.push({ line: n, col, length, message });
 
@@ -90,6 +119,8 @@
         }
       }
 
+      if (RE_IGNORED.test(t)) return; // Mermaid styling: doesn't change the picture
+
       let m = RE_BLOCK_OPEN.exec(t);
       if (m) {
         const entity = ensure(m[1], n);
@@ -98,6 +129,15 @@
       }
       m = RE_NAME_ONLY.exec(t);
       if (m) { ensure(m[1], n); return; }
+
+      m = RE_WORDS.exec(t);
+      if (m) {
+        const aCol = line.indexOf(m[2], lead + m[1].length) + 1;
+        const bCol = line.indexOf(m[4], aCol - 1 + m[2].length + m[3].length) + 1;
+        addRel(m[1], m[5], WORD_KINDS[m[2]], WORD_KINDS[m[4]], m[3] === 'optionally to', m[6], n,
+          { line: n, col: aCol, length: m[2].length }, { line: n, col: bCol, length: m[4].length });
+        return;
+      }
 
       m = RE_REL.exec(t);
       if (!m || !looksLikeSymbol(m[2])) {
@@ -114,14 +154,8 @@
         else fail(n, line.indexOf(rest.trim(), symCol) + 1, rest.trim().length, `Line ${n}: Put a \`:\` before the label.`);
         return;
       }
-      const label = second[2] === undefined ? '' : readLabel(second[2]);
-      if (second[2] === undefined) missingLabel = true;
-      ensure(m[1], n);
-      ensure(second[1], n);
-      model.relationships.push({
-        a: m[1], b: second[1], aEnd: sym.aEnd, bEnd: sym.bEnd, dashed: sym.dashed, label, line: n,
-        aSym: { line: n, col: symCol, length: 2 }, bSym: { line: n, col: symCol + 4, length: 2 },
-      });
+      addRel(m[1], second[1], sym.aEnd, sym.bEnd, sym.dashed, second[2], n,
+        { line: n, col: symCol, length: 2 }, { line: n, col: symCol + 4, length: 2 });
     });
 
     if (block) fail(block.line, 1, lines[block.line - 1].length, `Line ${block.line}: This attribute block is missing its closing \`}\`.`);

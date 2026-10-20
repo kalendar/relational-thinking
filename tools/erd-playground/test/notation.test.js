@@ -127,3 +127,43 @@ test('a 300-line paste parses quickly (Review Focus 4)', () => {
 test('parseErd never throws', () => {
   for (const t of ['', '{', '}', '"', 'A ||--o{ "B', ':', 'erDiagram erDiagram', '%%', 'A {}', 'A { }', '\u0000']) assert.doesNotThrow(() => one(t), t);
 });
+
+// ---- Task 3: Mermaid that goes beyond Chapter 6 ----
+
+test("Mermaid's word cardinalities, with `to` and `optionally to`", () => {
+  const r = one('CUSTOMER one or more to zero or many ORDER : places').relationships[0];
+  assert.deepEqual([r.a, r.b, r.aEnd, r.bEnd, r.dashed, r.label], ['CUSTOMER', 'ORDER', 'one-many', 'zero-many', false, 'places']);
+  assert.equal(one('A only one optionally to zero or one B : x').relationships[0].dashed, true);
+  const words = {
+    'only one': 'one', 1: 'one', 'zero or one': 'zero-one', 'one or zero': 'zero-one',
+    'one or more': 'one-many', 'one or many': 'one-many', 'many(1)': 'one-many', '1+': 'one-many',
+    'zero or more': 'zero-many', 'zero or many': 'zero-many', 'many(0)': 'zero-many', '0+': 'zero-many',
+  };
+  for (const [w, kind] of Object.entries(words)) {
+    const rel = one(`A ${w} to ${w} B : x`).relationships[0];
+    assert.ok(rel, w);
+    assert.equal(rel.aEnd, kind, w);
+    assert.equal(rel.bEnd, kind, w);
+  }
+});
+
+test('aliases and quoted names', () => {
+  const m = one('p["Person"] ||--o{ CAR : owns');
+  assert.deepEqual(m.errors, []);
+  assert.deepEqual(m.entities.map(e => [e.name, e.display]), [['p', 'Person'], ['CAR', 'CAR']]);
+  const q = one('"Big Box" ||--o{ ITEM : holds');
+  assert.deepEqual(q.errors, []);
+  assert.deepEqual(q.entities.map(e => e.name), ['Big Box', 'ITEM']);
+});
+
+test('styling lines are accepted and ignored', () => {
+  const m = one('erDiagram\n  direction LR\n  A ||--o{ B : x\n  style A fill:#f00\n  classDef hot fill:#fff\n  class A hot');
+  assert.deepEqual(m.errors, []);
+  assert.deepEqual(m.entities.map(e => e.name), ['A', 'B']);
+});
+
+test('a left end written the right-side way gets a mirroring message', () => {
+  assert.equal(one('A o{--|| B : x').errors[0].message, 'Line 1: On the left side the symbols are mirrored: write `}o` instead of `o{`.');
+  assert.equal(one('A |{--|| B : x').errors[0].message, 'Line 1: On the left side the symbols are mirrored: write `}|` instead of `|{`.');
+  assert.equal(one('A o|--|| B : x').errors[0].message, 'Line 1: On the left side the symbols are mirrored: write `|o` instead of `o|`.');
+});
