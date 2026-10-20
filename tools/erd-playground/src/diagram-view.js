@@ -57,7 +57,12 @@
       cv.zoomBy(dir);
       SS.announce(`Diagram zoom ${Math.round(view.scale * 100)}%`);
     }
-    function fit() { if (tables.length) cv.fitTo(boundsOf(tables.map(boxOf))); }
+    // Everything drawn (boxes, loops, labels), so fit and PNG never cut anything off.
+    function drawnBounds() {
+      const b = viewport.getBBox();
+      return b.width ? { minX: b.x, minY: b.y, maxX: b.x + b.width, maxY: b.y + b.height } : boundsOf(tables.map(boxOf));
+    }
+    function fit() { if (tables.length) cv.fitTo(drawnBounds()); }
 
     // Draws `m`. New entities are placed by the tidy layout; entities that were moved stay where they are.
     function render(m) {
@@ -69,7 +74,14 @@
       const first = pos.size === 0;
       if (tables.some(t => !pos.has(t.name))) {
         const tidyPos = SS.tidyLayout({ tables: tables.map(t => ({ name: t.name, columns: t.columns })), relationships: schema.relationships }, { showColumns: true });
-        for (const t of tables) if (!pos.has(t.name)) pos.set(t.name, tidyPos[t.name]);
+        // A new entity takes its tidy spot, moved down if an entity the student kept is already there.
+        const kept = tables.filter(t => pos.has(t.name));
+        for (const t of tables) {
+          if (pos.has(t.name)) continue;
+          const keptBoxes = kept.map(boxOf);
+          pos.set(t.name, SS.placeClear(tidyPos[t.name], sizeOf(t), keptBoxes));
+          kept.push(t);
+        }
       }
       draw();
       if (first) fit();
@@ -91,7 +103,8 @@
         const k = pairKey(r);
         const nth = seen.get(k) || 0;
         seen.set(k, nth + 1);
-        links.append(drawLink(r, i, nth - (pairCount.get(k) - 1) / 2));
+        // Self-links stack outward (0, 1, …); other repeated pairs get lanes centered on the usual line.
+        links.append(drawLink(r, i, r.a === r.b ? nth : nth - (pairCount.get(k) - 1) / 2));
       });
       for (const t of tables) boxes.append(drawTable(t));
       applyHighlight();
@@ -105,7 +118,7 @@
       let sideA;
       let sideB;
       if (r.a === r.b) {
-        const loop = SS.selfLoopRoute(boxOf(ta));
+        const loop = SS.selfLoopRoute(boxOf(ta), lane);
         points = loop.points;
         sideA = sideB = loop.side;
       } else {
@@ -125,8 +138,12 @@
         g.addEventListener('pointerleave', () => onHoverEnd(i, null));
         return g;
       };
-      const readings = readingsOf(i);
-      const label = r.label ? drawLabel(r.label, SS.labelPoint(points)) : null;
+      const readings = readingsOf(i).map(t => t.replace(/\*\*/g, '')); // plain text for the tooltip and screen readers
+      // A self-loop's label sits just right of its loop, stacked by loop number so two loops' labels never collide.
+      const labelAt = r.a === r.b
+        ? { x: points[1].x + labelWidth(r.label) / 2 + 6, y: (points[1].y + points[2].y) / 2 + 22 * lane }
+        : SS.labelPoint(points);
+      const label = r.label ? drawLabel(r.label, labelAt) : null;
       const g = s('g', { class: 'erd-link', 'data-index': String(i), 'data-key': `rel:${i}`, tabindex: '0', role: 'button', 'aria-label': readings.join(' ') },
         s('title', null, readings.join('\n')),
         s('path', { class: 'hit', d }),
@@ -141,8 +158,9 @@
       return g;
     }
 
+    const labelWidth = text => Math.ceil(text.length * 6.6) + 10;
     function drawLabel(text, p) {
-      const w = Math.ceil(text.length * 6.6) + 10;
+      const w = labelWidth(text);
       return s('g', { class: 'link-label', transform: `translate(${p.x} ${p.y})` },
         s('rect', { x: -w / 2, y: -9, width: w, height: 18, rx: 4 }),
         s('text', { x: 0, y: 4, 'text-anchor': 'middle' }, text));
@@ -214,7 +232,7 @@
 
     async function copyPng() {
       if (!tables.length) return;
-      const how = await cv.copyPng('erd-playground.png', boundsOf(tables.map(boxOf)));
+      const how = await cv.copyPng('erd-playground.png', drawnBounds());
       if (how === 'copied') SS.announce('Copied the diagram as a picture. Paste it anywhere.');
       else if (how === 'downloaded') SS.announce('Your browser would not copy pictures, so we saved erd-playground.png instead.');
       else SS.announce('Sorry, the picture could not be made in this browser.');

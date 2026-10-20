@@ -76,7 +76,8 @@
   // An orthogonal route from the FK row (many side) to the PK row (one side).
   // boxes: { x, y, w, h } for each end. showFrom/showTo: whether each table shows its columns.
   // Returns { points: [{x,y}...], fromSide, toSide }.
-  // lane: for two or more links between the same pair, each lane moves the link 14px down so they don't overlap.
+  // lane: for two or more links between the same pair, each lane moves the link 22px down and its vertical
+  // run 24px over, so no two links share a stretch of line and their labels don't stack.
   function linkRoute(fromBox, fromTable, fromCol, toBox, toTable, toCol, showFrom = true, showTo = showFrom, lane = 0) {
     const fromCenter = fromBox.x + fromBox.w / 2;
     const toCenter = toBox.x + toBox.w / 2;
@@ -86,17 +87,18 @@
     if (overlapX) { fromSide = 'right'; toSide = 'right'; } else if (fromCenter < toCenter) { fromSide = 'right'; toSide = 'left'; } else { fromSide = 'left'; toSide = 'right'; }
     const a = anchor(fromBox, fromTable, fromCol, fromSide, showFrom);
     const b = anchor(toBox, toTable, toCol, toSide, showTo);
-    a.y += lane * 14;
-    b.y += lane * 14;
+    a.y += lane * 22;
+    b.y += lane * 22;
+    const shiftX = lane * 24;
     const out = 28;
     const ax = a.x + (fromSide === 'right' ? out : -out);
     const bx = b.x + (toSide === 'right' ? out : -out);
     let points;
     if (fromSide === toSide) {
-      const x = Math.max(ax, bx);
+      const x = Math.max(ax, bx) + shiftX + (lane ? 12 : 0);
       points = [a, { x, y: a.y }, { x, y: b.y }, b];
     } else {
-      const midX = Math.round((ax + bx) / 2);
+      const midX = Math.round((ax + bx) / 2 + shiftX);
       points = [a, { x: ax, y: a.y }, { x: midX, y: a.y }, { x: midX, y: b.y }, { x: bx, y: b.y }, b];
     }
     return { points: points.map(p => ({ x: p.x, y: p.y })), fromSide, toSide };
@@ -122,12 +124,24 @@
   }
 
   // A link from a box to itself: out of the right edge, around, and back in.
-  function selfLoopRoute(box) {
+  // k: which self-link this is on the same box (0, 1, …); each one loops further out and starts further in.
+  function selfLoopRoute(box, k = 0) {
     const x = box.x + box.w;
-    const y1 = Math.round(box.y + box.h * 0.25);
-    const y2 = Math.round(box.y + box.h * 0.75);
-    const out = x + 40;
+    const y1 = Math.round(box.y + box.h * 0.25 + 6 * k);
+    const y2 = Math.round(box.y + box.h * 0.75 - 6 * k);
+    const out = x + 40 + 20 * k;
     return { points: [{ x, y: y1 }, { x: out, y: y1 }, { x: out, y: y2 }, { x, y: y2 }], side: 'right' };
+  }
+
+  // Moves a new box (top-left `pos`, `size` {w, h}) straight down until it overlaps none of `boxes`.
+  function placeClear(pos, size, boxes, gap = 20) {
+    let y = pos.y;
+    for (let guard = 0; guard < 500; guard++) {
+      const hit = boxes.find(k => pos.x < k.x + k.w && k.x < pos.x + size.w && y < k.y + k.h && k.y < y + size.h);
+      if (!hit) break;
+      y = hit.y + hit.h + gap;
+    }
+    return { x: pos.x, y };
   }
 
   // Where to put a link's label: the middle of its longest segment.
@@ -172,7 +186,7 @@
 
   const pathData = points => points.map((pt, i) => `${i ? 'L' : 'M'}${pt.x} ${pt.y}`).join(' ');
 
-  const api = { BOX, boxSize, layers, tidyLayout, linkRoute, crowFoot, selfLoopRoute, labelPoint, fitView, pathData };
+  const api = { BOX, boxSize, layers, tidyLayout, linkRoute, crowFoot, selfLoopRoute, labelPoint, placeClear, fitView, pathData };
   if (isNode) module.exports = api;
   else root.SS = Object.assign(root.SS || {}, api);
 })(this);

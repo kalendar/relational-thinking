@@ -106,14 +106,14 @@ test("crow's foot: each of the four ends has the right marks", () => {
   assert.deepEqual(M.crowFoot(p, 'left', 'many'), M.crowFoot(p, 'left', 'zero-many'), "'many' stays an alias for SQL Studio");
 });
 
-test('lanes move a link down 14px at both ends and keep it orthogonal', () => {
+test('lanes move a link down 22px at both ends and keep it orthogonal', () => {
   const t = (name, x) => ({ table: { name, columns: [] }, box: { x, y: 0, w: 100, h: 34 } });
   const A = t('A', 0);
   const B = t('B', 300);
   const r0 = M.linkRoute(A.box, A.table, 'x', B.box, B.table, 'y', false, false, 0);
   const r1 = M.linkRoute(A.box, A.table, 'x', B.box, B.table, 'y', false, false, 1);
-  assert.equal(r1.points[0].y, r0.points[0].y + 14);
-  assert.equal(r1.points[r1.points.length - 1].y, r0.points[r0.points.length - 1].y + 14);
+  assert.equal(r1.points[0].y, r0.points[0].y + 22);
+  assert.equal(r1.points[r1.points.length - 1].y, r0.points[r0.points.length - 1].y + 22);
   for (let i = 1; i < r1.points.length; i++) {
     const a = r1.points[i - 1];
     const b = r1.points[i];
@@ -145,4 +145,50 @@ test('labelPoint treats a straight run of short pieces as one segment', () => {
 
 test('labelPoint keeps labels off the ends: with three or more pieces, it uses an inner one', () => {
   assert.deepEqual(M.labelPoint([{ x: 0, y: 0 }, { x: 60, y: 0 }, { x: 60, y: 40 }, { x: 80, y: 40 }]), { x: 60, y: 20 });
+});
+
+// segments [p1, p2] as {x1,y1,x2,y2}; true if two segments lie on the same line and overlap by more than a point.
+function overlapping(ra, rb) {
+  const segs = r => r.points.slice(1).map((p, i) => ({ a: r.points[i], b: p }));
+  for (const s1 of segs(ra)) for (const s2 of segs(rb)) {
+    const h1 = s1.a.y === s1.b.y; const h2 = s2.a.y === s2.b.y;
+    if (h1 && h2 && s1.a.y === s2.a.y) {
+      const lo = Math.max(Math.min(s1.a.x, s1.b.x), Math.min(s2.a.x, s2.b.x)); const hi = Math.min(Math.max(s1.a.x, s1.b.x), Math.max(s2.a.x, s2.b.x));
+      if (hi - lo > 1) return true;
+    }
+    if (!h1 && !h2 && s1.a.x === s2.a.x) {
+      const lo = Math.max(Math.min(s1.a.y, s1.b.y), Math.min(s2.a.y, s2.b.y)); const hi = Math.min(Math.max(s1.a.y, s1.b.y), Math.max(s2.a.y, s2.b.y));
+      if (hi - lo > 1) return true;
+    }
+  }
+  return false;
+}
+
+test('two relationships between the same pair never share a stretch of line, and their labels do not stack', () => {
+  const t = { name: 'T', columns: [] };
+  for (const [A, B] of [[{ x: 40, y: 40, w: 170, h: 34 }, { x: 320, y: 200, w: 170, h: 34 }], [{ x: 40, y: 40, w: 170, h: 34 }, { x: 320, y: 40, w: 170, h: 34 }], [{ x: 40, y: 40, w: 170, h: 34 }, { x: 60, y: 200, w: 170, h: 34 }]]) {
+    const r1 = M.linkRoute(A, t, '', B, t, '', false, false, -0.5);
+    const r2 = M.linkRoute(A, t, '', B, t, '', false, false, 0.5);
+    assert.equal(overlapping(r1, r2), false, JSON.stringify([r1.points, r2.points]));
+    const l1 = M.labelPoint(r1.points);
+    const l2 = M.labelPoint(r2.points);
+    assert.ok(Math.abs(l1.y - l2.y) >= 18 || Math.abs(l1.x - l2.x) >= 60, `labels too close: ${JSON.stringify([l1, l2])}`);
+  }
+});
+
+test('two self-loops on one entity are drawn as separate loops', () => {
+  const box = { x: 0, y: 0, w: 170, h: 100 };
+  const a = M.selfLoopRoute(box, 0);
+  const b = M.selfLoopRoute(box, 1);
+  assert.equal(overlapping(a, b), false);
+  assert.deepEqual(M.selfLoopRoute(box), a, 'index 0 is the default');
+});
+
+test('a new box is moved down until it overlaps no kept box', () => {
+  const kept = [{ x: 40, y: 40, w: 170, h: 34 }, { x: 40, y: 110, w: 170, h: 60 }];
+  const p = M.placeClear({ x: 40, y: 40 }, { w: 170, h: 34 }, kept);
+  const box = { ...p, w: 170, h: 34 };
+  for (const k of kept) assert.ok(!(box.x < k.x + k.w && k.x < box.x + box.w && box.y < k.y + k.h && k.y < box.y + box.h), JSON.stringify(p));
+  assert.equal(p.x, 40);
+  assert.deepEqual(M.placeClear({ x: 400, y: 40 }, { w: 170, h: 34 }, kept), { x: 400, y: 40 }, 'a clear spot is kept as is');
 });
