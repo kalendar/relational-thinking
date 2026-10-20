@@ -258,14 +258,14 @@
     {
       id: "self",
       title: "A relationship to itself",
-      description: "An entity can relate to itself: one employee manages zero or more other employees.",
+      description: "An entity can relate to itself: a student can mentor zero or more other students, and each student has zero or one mentor.",
       text: `erDiagram
-    EMPLOYEE ||--o{ EMPLOYEE : "manages"
+    STUDENT |o--o{ STUDENT : "mentors"
 
-    EMPLOYEE {
-        int employee_id PK
-        string employee_name
-        int manager_id FK
+    STUDENT {
+        int student_id PK
+        string student_name
+        int mentor_id FK
     }`,
     },
   ];

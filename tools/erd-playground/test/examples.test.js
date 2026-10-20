@@ -50,3 +50,9 @@ test('examples 6–9 have attribute blocks with 2–4 attributes per entity', ()
     }
   }
 });
+
+test('the self-relationship example is optional on the "one" side (nobody has to have a mentor)', () => {
+  const r = N.parseErd(EXAMPLES[9].text).relationships[0];
+  assert.equal(r.aEnd, 'zero-one');
+  assert.equal(r.a, 'STUDENT');
+});

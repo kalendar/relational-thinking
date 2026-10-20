@@ -11018,7 +11018,8 @@ window.SS = window.SS || {};
   // An orthogonal route from the FK row (many side) to the PK row (one side).
   // boxes: { x, y, w, h } for each end. showFrom/showTo: whether each table shows its columns.
   // Returns { points: [{x,y}...], fromSide, toSide }.
-  // lane: for two or more links between the same pair, each lane moves the link 14px down so they don't overlap.
+  // lane: for two or more links between the same pair, each lane moves the link 22px down and its vertical
+  // run 24px over, so no two links share a stretch of line and their labels don't stack.
   function linkRoute(fromBox, fromTable, fromCol, toBox, toTable, toCol, showFrom = true, showTo = showFrom, lane = 0) {
     const fromCenter = fromBox.x + fromBox.w / 2;
     const toCenter = toBox.x + toBox.w / 2;
@@ -11028,17 +11029,18 @@ window.SS = window.SS || {};
     if (overlapX) { fromSide = 'right'; toSide = 'right'; } else if (fromCenter < toCenter) { fromSide = 'right'; toSide = 'left'; } else { fromSide = 'left'; toSide = 'right'; }
     const a = anchor(fromBox, fromTable, fromCol, fromSide, showFrom);
     const b = anchor(toBox, toTable, toCol, toSide, showTo);
-    a.y += lane * 14;
-    b.y += lane * 14;
+    a.y += lane * 22;
+    b.y += lane * 22;
+    const shiftX = lane * 24;
     const out = 28;
     const ax = a.x + (fromSide === 'right' ? out : -out);
     const bx = b.x + (toSide === 'right' ? out : -out);
     let points;
     if (fromSide === toSide) {
-      const x = Math.max(ax, bx);
+      const x = Math.max(ax, bx) + shiftX + (lane ? 12 : 0);
       points = [a, { x, y: a.y }, { x, y: b.y }, b];
     } else {
-      const midX = Math.round((ax + bx) / 2);
+      const midX = Math.round((ax + bx) / 2 + shiftX);
       points = [a, { x: ax, y: a.y }, { x: midX, y: a.y }, { x: midX, y: b.y }, { x: bx, y: b.y }, b];
     }
     return { points: points.map(p => ({ x: p.x, y: p.y })), fromSide, toSide };
@@ -11064,12 +11066,24 @@ window.SS = window.SS || {};
   }
 
   // A link from a box to itself: out of the right edge, around, and back in.
-  function selfLoopRoute(box) {
+  // k: which self-link this is on the same box (0, 1, …); each one loops further out and starts further in.
+  function selfLoopRoute(box, k = 0) {
     const x = box.x + box.w;
-    const y1 = Math.round(box.y + box.h * 0.25);
-    const y2 = Math.round(box.y + box.h * 0.75);
-    const out = x + 40;
+    const y1 = Math.round(box.y + box.h * 0.25 + 6 * k);
+    const y2 = Math.round(box.y + box.h * 0.75 - 6 * k);
+    const out = x + 40 + 20 * k;
     return { points: [{ x, y: y1 }, { x: out, y: y1 }, { x: out, y: y2 }, { x, y: y2 }], side: 'right' };
+  }
+
+  // Moves a new box (top-left `pos`, `size` {w, h}) straight down until it overlaps none of `boxes`.
+  function placeClear(pos, size, boxes, gap = 20) {
+    let y = pos.y;
+    for (let guard = 0; guard < 500; guard++) {
+      const hit = boxes.find(k => pos.x < k.x + k.w && k.x < pos.x + size.w && y < k.y + k.h && k.y < y + size.h);
+      if (!hit) break;
+      y = hit.y + hit.h + gap;
+    }
+    return { x: pos.x, y };
   }
 
   // Where to put a link's label: the middle of its longest segment.
@@ -11114,7 +11128,7 @@ window.SS = window.SS || {};
 
   const pathData = points => points.map((pt, i) => `${i ? 'L' : 'M'}${pt.x} ${pt.y}`).join(' ');
 
-  const api = { BOX, boxSize, layers, tidyLayout, linkRoute, crowFoot, selfLoopRoute, labelPoint, fitView, pathData };
+  const api = { BOX, boxSize, layers, tidyLayout, linkRoute, crowFoot, selfLoopRoute, labelPoint, placeClear, fitView, pathData };
   if (isNode) module.exports = api;
   else root.SS = Object.assign(root.SS || {}, api);
 })(this);
@@ -11406,6 +11420,7 @@ window.SS = window.SS || {};
 
   // Checks a relationship symbol like ||--o{. Returns { aEnd, bEnd, dashed } or { error }.
   function readSymbol(tok, n) {
+    if (/[\u2013\u2014]/.test(tok)) return { error: `Line ${n}: Use two hyphens \`--\` in the middle, not a long dash.` };
     const L = tok.slice(0, 2);
     const mid = tok.slice(2, 4);
     const R = tok.slice(4, 6);
@@ -11445,13 +11460,16 @@ window.SS = window.SS || {};
     };
     const addRel = (aTok, bTok, aEnd, bEnd, dashed, rawLabel, n, aSym, bSym) => {
       if (rawLabel === undefined) missingLabel = true;
+      else if (!rawLabel.trim()) model.notes.push(`Line ${n} has a \`:\` but no label. To use it in Mermaid, add a label after the \`:\` or remove the \`:\`.`);
       const a = ensure(aTok, n).name;
       const b = ensure(bTok, n).name;
       model.relationships.push({ a, b, aEnd, bEnd, dashed, label: rawLabel === undefined ? '' : readLabel(rawLabel), line: n, aSym, bSym });
     };
     const fail = (n, col, length, message) => model.errors.push({ line: n, col, length, message });
 
-    const lines = String(text == null ? '' : text).replace(/\r\n?/g, '\n').replace(/ /g, ' ').split('\n');
+    // Pasted text: Windows line endings, non-breaking spaces, and a word processor's curly quotes.
+    const lines = String(text == null ? '' : text).replace(/\r\n?/g, '\n').replace(/\u00A0/g, ' ')
+      .replace(/[\u201C\u201D]/g, '"').replace(/[\u2018\u2019]/g, "'").split('\n');
     let seenContent = false;
     let block = null; // { entity, line }
     let missingLabel = false;
@@ -11462,6 +11480,11 @@ window.SS = window.SS || {};
       if (!t || t.startsWith('%%')) return;
       const lead = line.indexOf(t);
 
+      // A line that starts a new block or is a relationship means the open block was never closed.
+      if (block && (RE_BLOCK_OPEN.test(t) || RE_WORDS.test(t) || (RE_REL.test(t) && looksLikeSymbol(RE_REL.exec(t)[2])))) {
+        fail(block.line, 1, lines[block.line - 1].length, `Line ${block.line}: This attribute block is missing its closing \`}\`.`);
+        block = null;
+      }
       if (block) {
         if (t === '}') { block = null; return; }
         const m = /^(\S+)\s+([A-Za-z_][A-Za-z0-9_-]*)(.*)$/.exec(t);
@@ -11830,14 +11853,14 @@ window.SS = window.SS || {};
     {
       id: "self",
       title: "A relationship to itself",
-      description: "An entity can relate to itself: one employee manages zero or more other employees.",
+      description: "An entity can relate to itself: a student can mentor zero or more other students, and each student has zero or one mentor.",
       text: `erDiagram
-    EMPLOYEE ||--o{ EMPLOYEE : "manages"
+    STUDENT |o--o{ STUDENT : "mentors"
 
-    EMPLOYEE {
-        int employee_id PK
-        string employee_name
-        int manager_id FK
+    STUDENT {
+        int student_id PK
+        string student_name
+        int mentor_id FK
     }`,
     },
   ];
@@ -11965,6 +11988,12 @@ window.SS = window.SS || {};
       // Tab and Shift-Tab move focus out of the editor, so keyboard users are never stuck.
       extraKeys: { Tab: false, 'Shift-Tab': false },
     });
+    // Curly quotes (from a word processor or a phone keyboard) become straight ones, so Copy gives text Mermaid accepts.
+    cm.on('beforeChange', (_, change) => {
+      if (change.update && change.text.some(t => /[\u201C\u201D\u2018\u2019]/.test(t))) {
+        change.update(change.from, change.to, change.text.map(t => t.replace(/[\u201C\u201D]/g, '"').replace(/[\u2018\u2019]/g, "'")));
+      }
+    });
     cm.on('change', () => onChange(cm.getValue()));
 
     const at = span => ({ from: { line: span.line - 1, ch: span.col - 1 }, to: { line: span.line - 1, ch: span.col - 1 + Math.max(span.length, 1) } });
@@ -12064,7 +12093,12 @@ window.SS = window.SS || {};
       cv.zoomBy(dir);
       SS.announce(`Diagram zoom ${Math.round(view.scale * 100)}%`);
     }
-    function fit() { if (tables.length) cv.fitTo(boundsOf(tables.map(boxOf))); }
+    // Everything drawn (boxes, loops, labels), so fit and PNG never cut anything off.
+    function drawnBounds() {
+      const b = viewport.getBBox();
+      return b.width ? { minX: b.x, minY: b.y, maxX: b.x + b.width, maxY: b.y + b.height } : boundsOf(tables.map(boxOf));
+    }
+    function fit() { if (tables.length) cv.fitTo(drawnBounds()); }
 
     // Draws `m`. New entities are placed by the tidy layout; entities that were moved stay where they are.
     function render(m) {
@@ -12076,7 +12110,14 @@ window.SS = window.SS || {};
       const first = pos.size === 0;
       if (tables.some(t => !pos.has(t.name))) {
         const tidyPos = SS.tidyLayout({ tables: tables.map(t => ({ name: t.name, columns: t.columns })), relationships: schema.relationships }, { showColumns: true });
-        for (const t of tables) if (!pos.has(t.name)) pos.set(t.name, tidyPos[t.name]);
+        // A new entity takes its tidy spot, moved down if an entity the student kept is already there.
+        const kept = tables.filter(t => pos.has(t.name));
+        for (const t of tables) {
+          if (pos.has(t.name)) continue;
+          const keptBoxes = kept.map(boxOf);
+          pos.set(t.name, SS.placeClear(tidyPos[t.name], sizeOf(t), keptBoxes));
+          kept.push(t);
+        }
       }
       draw();
       if (first) fit();
@@ -12098,7 +12139,8 @@ window.SS = window.SS || {};
         const k = pairKey(r);
         const nth = seen.get(k) || 0;
         seen.set(k, nth + 1);
-        links.append(drawLink(r, i, nth - (pairCount.get(k) - 1) / 2));
+        // Self-links stack outward (0, 1, …); other repeated pairs get lanes centered on the usual line.
+        links.append(drawLink(r, i, r.a === r.b ? nth : nth - (pairCount.get(k) - 1) / 2));
       });
       for (const t of tables) boxes.append(drawTable(t));
       applyHighlight();
@@ -12112,7 +12154,7 @@ window.SS = window.SS || {};
       let sideA;
       let sideB;
       if (r.a === r.b) {
-        const loop = SS.selfLoopRoute(boxOf(ta));
+        const loop = SS.selfLoopRoute(boxOf(ta), lane);
         points = loop.points;
         sideA = sideB = loop.side;
       } else {
@@ -12132,8 +12174,12 @@ window.SS = window.SS || {};
         g.addEventListener('pointerleave', () => onHoverEnd(i, null));
         return g;
       };
-      const readings = readingsOf(i);
-      const label = r.label ? drawLabel(r.label, SS.labelPoint(points)) : null;
+      const readings = readingsOf(i).map(t => t.replace(/\*\*/g, '')); // plain text for the tooltip and screen readers
+      // A self-loop's label sits just right of its loop, stacked by loop number so two loops' labels never collide.
+      const labelAt = r.a === r.b
+        ? { x: points[1].x + labelWidth(r.label) / 2 + 6, y: (points[1].y + points[2].y) / 2 + 22 * lane }
+        : SS.labelPoint(points);
+      const label = r.label ? drawLabel(r.label, labelAt) : null;
       const g = s('g', { class: 'erd-link', 'data-index': String(i), 'data-key': `rel:${i}`, tabindex: '0', role: 'button', 'aria-label': readings.join(' ') },
         s('title', null, readings.join('\n')),
         s('path', { class: 'hit', d }),
@@ -12148,8 +12194,9 @@ window.SS = window.SS || {};
       return g;
     }
 
+    const labelWidth = text => Math.ceil(text.length * 6.6) + 10;
     function drawLabel(text, p) {
-      const w = Math.ceil(text.length * 6.6) + 10;
+      const w = labelWidth(text);
       return s('g', { class: 'link-label', transform: `translate(${p.x} ${p.y})` },
         s('rect', { x: -w / 2, y: -9, width: w, height: 18, rx: 4 }),
         s('text', { x: 0, y: 4, 'text-anchor': 'middle' }, text));
@@ -12221,7 +12268,7 @@ window.SS = window.SS || {};
 
     async function copyPng() {
       if (!tables.length) return;
-      const how = await cv.copyPng('erd-playground.png', boundsOf(tables.map(boxOf)));
+      const how = await cv.copyPng('erd-playground.png', drawnBounds());
       if (how === 'copied') SS.announce('Copied the diagram as a picture. Paste it anywhere.');
       else if (how === 'downloaded') SS.announce('Your browser would not copy pictures, so we saved erd-playground.png instead.');
       else SS.announce('Sorry, the picture could not be made in this browser.');

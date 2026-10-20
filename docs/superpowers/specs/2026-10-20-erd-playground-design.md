@@ -132,7 +132,7 @@ All are editable. Picking another example while you have unsaved edits asks firs
 7. **Campus dining**: Students, Dining halls, Meal swipes.
 8. **Netflix binge**: Series, Episodes, Viewing sessions.
 9. **Fantasy football league**: one-to-one and optional ends. The Query Explorer data set has no one-to-one relationship, so this example adds plausible ones (for example, each fantasy team has zero or one trophy).
-10. **A relationship to itself**: Employee manages Employee.
+10. **A relationship to itself**: a student mentors other students (`STUDENT |o--o{ STUDENT`). Each student has zero or one mentor, so the "one" side is optional. *(Changed from Employee manages Employee after review: `||` claimed that every employee, including the top boss, has exactly one manager.)*
 
 Examples 6–9 echo the Query Explorer data sets students already know.
 
