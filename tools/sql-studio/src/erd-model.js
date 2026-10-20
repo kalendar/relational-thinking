@@ -28,8 +28,21 @@
       memo.set(name, d);
       return d;
     };
+    const layer = new Map(visible.map(t => [t.name, depth(t.name, new Set())]));
+    // Pull each parent right, to just left of its nearest child, so no link has to cross a column of tables
+    // (e.g. User sits under Song, next to Stream, instead of beside Artist).
+    const children = name => schema.relationships.filter(r => r.to.table === name && r.from.table !== name && layer.has(r.from.table)).map(r => r.from.table);
+    for (let changed = true, guard = 0; changed && guard < 50; guard++) {
+      changed = false;
+      for (const t of visible) {
+        const kids = children(t.name);
+        if (!kids.length) continue;
+        const want = Math.min(...kids.map(k => layer.get(k))) - 1;
+        if (want > layer.get(t.name)) { layer.set(t.name, want); changed = true; }
+      }
+    }
     const out = [];
-    visible.forEach(t => { const d = depth(t.name, new Set()); (out[d] = out[d] || []).push(t); });
+    visible.forEach(t => { const d = layer.get(t.name); (out[d] = out[d] || []).push(t); });
     return out.filter(Boolean);
   }
 

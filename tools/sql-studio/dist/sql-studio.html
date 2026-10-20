@@ -12502,7 +12502,11 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
   const quoteIdent = name => `"${String(name).replace(/"/g, '""')}"`;
   const pkOf = table => table.columns.find(c => c.pk);
 
+  // SQLite has no true/false type: booleans are stored as INTEGER 1/0 (and TRUE/FALSE mean 1/0 in queries).
+  const toBit = v => (v === true ? 1 : v === false ? 0 : v);
+
   function sqlTypeFor(type, values) {
+    if (type === 'boolean') return 'INTEGER';
     if (type !== 'number') return 'TEXT';
     return values.every(v => v === null || v === undefined || Number.isInteger(v)) ? 'INTEGER' : 'REAL';
   }
@@ -12522,7 +12526,9 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
         pk: c.key === 'pk',
         fk: c.key === 'fk' ? { table: c.ref, column: pkName(c.ref) || c.name } : null,
       })),
-      rows: t.rows,
+      rows: t.columns.some(c => c.type === 'boolean')
+        ? t.rows.map(r => r.map((v, i) => (t.columns[i].type === 'boolean' ? toBit(v) : v)))
+        : t.rows,
     }));
     return {
       id: dataset.id,
@@ -13919,6 +13925,7 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
       const pat = mode === 'starts' ? `${piece}%` : mode === 'ends' ? `%${piece}` : `%${piece}%`;
       return `${col.expr} LIKE ${lit(pat)}`;
     }
+    if (col.type === 'boolean') return `${col.expr} = ${value ? 'TRUE' : 'FALSE'}`;
     const others = [...new Set(sampleValues.filter(v => v !== null && v !== value))];
     const other = others.length ? rng.pick(others) : null;
     if (col.type === 'text') {
@@ -14491,8 +14498,21 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
       memo.set(name, d);
       return d;
     };
+    const layer = new Map(visible.map(t => [t.name, depth(t.name, new Set())]));
+    // Pull each parent right, to just left of its nearest child, so no link has to cross a column of tables
+    // (e.g. User sits under Song, next to Stream, instead of beside Artist).
+    const children = name => schema.relationships.filter(r => r.to.table === name && r.from.table !== name && layer.has(r.from.table)).map(r => r.from.table);
+    for (let changed = true, guard = 0; changed && guard < 50; guard++) {
+      changed = false;
+      for (const t of visible) {
+        const kids = children(t.name);
+        if (!kids.length) continue;
+        const want = Math.min(...kids.map(k => layer.get(k))) - 1;
+        if (want > layer.get(t.name)) { layer.set(t.name, want); changed = true; }
+      }
+    }
     const out = [];
-    visible.forEach(t => { const d = depth(t.name, new Set()); (out[d] = out[d] || []).push(t); });
+    visible.forEach(t => { const d = layer.get(t.name); (out[d] = out[d] || []).push(t); });
     return out.filter(Boolean);
   }
 
@@ -14583,6 +14603,191 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
   const api = { BOX, boxSize, layers, tidyLayout, linkRoute, crowFoot, fitView, pathData };
   if (isNode) module.exports = api;
   else root.SS = Object.assign(root.SS || {}, api);
+})(this);
+
+</script>
+<script data-src="datasets/00-ch8-sample.js">
+// ---- datasets/00-ch8-sample.js ----
+// SQL Studio only (not in the Query Explorer): the music streaming database used for the examples
+// in Chapters 8 and 9. Same format as the Query Explorer data sets, plus a 'boolean' column type.
+// Real names, made-up numbers. A few details are here on purpose because the chapters rely on them:
+// song 3 ("Paint the Town Red") and song 29 have no streams, artist 22 has no songs yet, user 12 has
+// never streamed, some hometowns are NULL, and four streams have no seconds_listened recorded.
+(function (root) {
+  'use strict';
+  const dataset = {
+    id: 'ch8sample',
+    number: 0,
+    name: 'Ch 8 and 9 Sample Data',
+    description: 'Artist · Song · User · Stream',
+    tables: [
+      {
+        name: 'Artist',
+        columns: [
+          { name: 'artist_id', type: 'number', key: 'pk' },
+          { name: 'artist_name', type: 'text' },
+          { name: 'genre', type: 'text' },
+          { name: 'hometown', type: 'text' },
+        ],
+        rows: [
+          [10, 'Sabrina Carpenter', 'Pop', 'Quakertown, PA'],
+          [11, 'Taylor Swift', 'Pop', 'West Reading, PA'],
+          [12, 'Doja Cat', 'Hip-Hop', 'Los Angeles, CA'],
+          [13, 'SZA', 'R&B', 'St. Louis, MO'],
+          [14, 'Kendrick Lamar', 'Hip-Hop', 'Compton, CA'],
+          [15, 'The Weeknd', 'R&B', 'Toronto, ON'],
+          [16, 'Morgan Wallen', 'Country', 'Sneedville, TN'],
+          [17, 'Chappell Roan', 'Pop', 'Willard, MO'],
+          [18, 'Bad Bunny', 'Latin', 'Vega Baja, PR'],
+          [19, 'The Marías', 'Indie', null],
+          [20, 'Noah Kahan', 'Indie', 'Strafford, VT'],
+          [21, 'Zach Bryan', 'Country', null],
+          [22, 'Gracie Abrams', 'Pop', null],
+        ],
+      },
+      {
+        name: 'Song',
+        columns: [
+          { name: 'song_id', type: 'number', key: 'pk' },
+          { name: 'song_title', type: 'text' },
+          { name: 'artist_id', type: 'number', key: 'fk', ref: 'Artist' },
+          { name: 'duration_seconds', type: 'number' },
+          { name: 'explicit', type: 'boolean' },
+          { name: 'release_date', type: 'date' },
+        ],
+        rows: [
+          [1, 'Espresso', 10, 175, false, '2024-04-11'],
+          [2, 'Cruel Summer', 11, 178, false, '2019-08-23'],
+          [3, 'Paint the Town Red', 12, 231, true, '2023-08-04'],
+          [4, 'Please Please Please', 10, 186, true, '2024-06-06'],
+          [5, 'Taste', 10, 157, true, '2024-08-23'],
+          [6, 'Love Story', 11, 235, false, '2008-09-12'],
+          [7, 'Fortnight', 11, 228, true, '2024-04-19'],
+          [8, 'Agora Hills', 12, 265, true, '2023-09-22'],
+          [9, 'Saturn', 13, 186, false, '2024-02-22'],
+          [10, 'Kill Bill', 13, 153, true, '2022-12-09'],
+          [11, 'Snooze', 13, 201, true, '2022-12-09'],
+          [12, 'Not Like Us', 14, 274, true, '2024-05-04'],
+          [13, 'luther', 14, 177, true, '2024-11-22'],
+          [14, 'squabble up', 14, 157, true, '2024-11-22'],
+          [15, 'Blinding Lights', 15, 200, false, '2019-11-29'],
+          [16, 'Timeless', 15, 256, true, '2024-09-27'],
+          [17, 'Last Night', 16, 163, false, '2023-01-31'],
+          [18, 'Lies Lies Lies', 16, 196, false, '2024-07-19'],
+          [19, 'Good Luck, Babe!', 17, 218, false, '2024-04-05'],
+          [20, 'HOT TO GO!', 17, 184, false, '2023-08-11'],
+          [21, 'Pink Pony Club', 17, 258, false, '2020-04-03'],
+          [22, 'DtMF', 18, 237, true, '2025-01-05'],
+          [23, 'Tití Me Preguntó', 18, 243, true, '2022-05-06'],
+          [24, 'No One Noticed', 19, 230, false, '2024-05-24'],
+          [25, 'Sienna', 19, 215, false, '2024-05-24'],
+          [26, 'Stick Season', 20, 182, false, '2022-07-08'],
+          [27, 'Dial Drunk', 20, 175, false, '2023-06-09'],
+          [28, 'Something in the Orange', 21, 228, false, '2022-04-22'],
+          [29, 'Pink Skies', 21, 159, false, '2024-05-24'],
+          [30, 'Love Galore', 13, 275, true, '2017-04-28'],
+        ],
+      },
+      {
+        name: 'User',
+        columns: [
+          { name: 'user_id', type: 'number', key: 'pk' },
+          { name: 'username', type: 'text' },
+          { name: 'email', type: 'text' },
+          { name: 'subscription_tier', type: 'text' },
+          { name: 'signup_date', type: 'date' },
+        ],
+        rows: [
+          [1, 'herdfan23', 'herdfan23@example.com', 'Student', '2024-08-19'],
+          [2, 'mayabeats', 'maya.beats@example.com', 'Premium', '2023-02-11'],
+          [3, 'jordan_k', 'jordan.k@example.com', 'Free', '2025-01-06'],
+          [4, 'priya.listens', 'priya@example.com', 'Student', '2024-09-02'],
+          [5, 'devonplays', 'devon.plays@example.com', 'Premium', '2022-11-30'],
+          [6, 'chrisxmusic', 'chris.x@example.com', 'Family', '2023-06-14'],
+          [7, 'sofia_s', 'sofia.s@example.com', 'Free', '2025-09-21'],
+          [8, 'tylerrr', 'tyler.r@example.com', 'Student', '2025-08-25'],
+          [9, 'aaliyah.m', 'aaliyah.m@example.com', 'Premium', '2024-03-03'],
+          [10, 'marcus_tunes', 'marcus@example.com', 'Free', '2026-01-15'],
+          [11, 'emmajams', 'emma.jams@example.com', 'Family', '2023-12-24'],
+          [12, 'carlos.r', 'carlos.r@example.com', 'Student', '2026-02-28'],
+        ],
+      },
+      {
+        name: 'Stream',
+        columns: [
+          { name: 'stream_id', type: 'number', key: 'pk' },
+          { name: 'user_id', type: 'number', key: 'fk', ref: 'User' },
+          { name: 'song_id', type: 'number', key: 'fk', ref: 'Song' },
+          { name: 'stream_date', type: 'date' },
+          { name: 'seconds_listened', type: 'number' },
+        ],
+        rows: [
+          [101, 4, 1, '2026-03-15', 175],
+          [102, 2, 1, '2026-03-16', 160],
+          [103, 9, 2, '2026-03-17', 178],
+          [104, 4, 10, '2026-02-25', 153],
+          [105, 10, 19, '2026-03-08', 218],
+          [106, 2, 25, '2026-04-09', 215],
+          [107, 8, 13, '2026-03-01', 177],
+          [108, 2, 23, '2026-03-10', 243],
+          [109, 2, 26, '2026-04-13', 175],
+          [110, 4, 20, '2026-04-14', 184],
+          [111, 5, 11, '2026-02-10', 201],
+          [112, 8, 6, '2026-01-04', 235],
+          [113, 2, 18, '2026-03-04', 196],
+          [114, 2, 16, '2026-01-17', 180],
+          [115, 1, 8, '2026-02-24', 231],
+          [116, 9, 22, '2026-01-21', 202],
+          [117, 7, 21, '2026-02-22', null],
+          [118, 1, 15, '2026-01-29', 200],
+          [119, 8, 28, '2026-02-26', 198],
+          [120, 6, 27, '2026-04-05', 175],
+          [121, 9, 7, '2026-01-08', 228],
+          [122, 2, 9, '2026-03-01', 186],
+          [123, 11, 30, '2026-03-15', 63],
+          [124, 3, 4, '2026-03-18', 186],
+          [125, 7, 14, '2026-03-02', 157],
+          [126, 4, 5, '2026-01-01', 157],
+          [127, 1, 17, '2026-01-29', 163],
+          [128, 5, 24, '2026-03-20', 230],
+          [129, 5, 12, '2026-01-26', 274],
+          [130, 3, 7, '2026-03-26', 180],
+          [131, 3, 22, '2026-02-28', null],
+          [132, 4, 30, '2026-02-25', 200],
+          [133, 2, 20, '2026-03-30', 184],
+          [134, 4, 12, '2026-03-17', 274],
+          [135, 2, 9, '2026-01-01', 62],
+          [136, 4, 30, '2026-03-19', 275],
+          [137, 3, 25, '2026-03-22', 123],
+          [138, 4, 9, '2026-03-07', 186],
+          [139, 4, 19, '2026-02-18', 32],
+          [140, 2, 1, '2026-01-16', 175],
+          [141, 8, 14, '2026-02-05', 53],
+          [142, 6, 8, '2026-04-08', 44],
+          [143, 10, 26, '2026-03-20', 182],
+          [144, 1, 9, '2026-02-13', 174],
+          [145, 8, 20, '2026-02-03', 120],
+          [146, 2, 15, '2026-01-29', null],
+          [147, 2, 25, '2026-02-15', 92],
+          [148, 3, 12, '2026-01-18', 274],
+          [149, 11, 25, '2026-02-05', 215],
+          [150, 2, 28, '2026-02-24', 228],
+          [151, 4, 17, '2026-02-02', 51],
+          [152, 4, 19, '2026-04-08', 61],
+          [153, 2, 1, '2026-03-07', 139],
+          [154, 3, 1, '2026-01-10', 175],
+          [155, 6, 12, '2026-03-25', 78],
+          [156, 1, 22, '2026-03-06', 237],
+          [157, 1, 13, '2026-03-28', 39],
+          [158, 5, 12, '2026-02-08', null],
+          [159, 6, 7, '2026-02-10', 52],
+          [160, 5, 15, '2026-02-10', 112],
+        ],
+      },
+    ],
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = dataset;
+  else (root.QE_DATASETS = root.QE_DATASETS || []).push(dataset);
 })(this);
 
 </script>
@@ -16428,13 +16633,15 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
     let data = { schema: null, list: [], assessment: false, index: 0 };
     const items = [];
 
-    function setData({ schema, list, assessment, index }) {
+    function setData({ schema, list, assessment, index, uploaded = false }) {
       data = { schema, list, assessment, index: Math.min(index || 0, Math.max(0, list.length - 1)) };
       countEl.textContent = list.length ? ` (${list.length})` : '';
       items.length = 0;
       clear(panel.body);
       if (!list.length) {
-        panel.body.append(h('p', { class: 'ex-empty' }, 'There are no exercises for your own data. Try ', h('strong', null, 'Random Query'), ' to get started.'));
+        panel.body.append(uploaded
+          ? h('p', { class: 'ex-empty' }, 'There are no exercises for your own data. Try ', h('strong', null, 'Random Query'), ' to get started.')
+          : h('p', { class: 'ex-empty' }, 'This data set has no exercises. Try the example queries from the chapter, or press ', h('strong', null, 'Random Query'), '.'));
       } else {
         panel.body.append(h('ol', { class: 'ex-list' }, list.map((ex, i) => item(ex, i))));
       }
@@ -16465,7 +16672,7 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
     function setCurrent(i, { quiet = false } = {}) {
       if (!data.list.length) {
         numEl.textContent = '';
-        textEl.textContent = 'No exercises for this data';
+        textEl.textContent = 'No exercises for this data set';
         prev.disabled = next.disabled = true;
         return;
       }
@@ -16525,7 +16732,7 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
     closeHomeworkDialog();
     const appEl = document.getElementById('app');
     const previous = opener || document.activeElement;
-    const datasetLabel = schema.number ? `${schema.number}. ${schema.name}` : `${schema.name} (${schema.description})`;
+    const datasetLabel = schema.id === 'upload' ? `${schema.name} (${schema.description})` : `${schema.number}. ${schema.name}`;
     let done = false;
 
     const pickId = 'ss-hw-pick';
@@ -17237,7 +17444,8 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
   'use strict';
   const SS = root.SS;
   const { h, icon } = SS;
-  const DATASETS = root.QE_DATASETS || [];
+  // Picker order is by number: 0. Ch 8 and 9 Sample Data comes first.
+  const DATASETS = (root.QE_DATASETS || []).slice().sort((a, b) => a.number - b.number);
 
   const storage = () => { try { return root.localStorage; } catch (e) { return null; } };
   const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -17350,7 +17558,7 @@ self.SS.workerMain(self, function () {
       runBtn.disabled = !st.text.trim();
       results.showEmpty();
       const list = id === 'upload' ? [] : SS.EXERCISES[id] || [];
-      exercises.setData({ schema, list, assessment: SS.isAssessment(schema.number), index: st.exerciseIndex });
+      exercises.setData({ schema, list, assessment: SS.isAssessment(schema.number), index: st.exerciseIndex, uploaded: id === 'upload' });
       erd.setSchema(schema, { renamed: id === 'upload' ? upload.renamed : [] });
       dataView.setStudio(studio);
       desc.textContent = schema.description;

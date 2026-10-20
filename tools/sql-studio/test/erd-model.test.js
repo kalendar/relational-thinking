@@ -2,9 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const M = require('../src/erd-model.js');
 const S = require('../src/schema.js');
-const { loadDatasets } = require('./helpers.js');
+const { loadAllDatasets } = require('./helpers.js');
 
-const schemas = loadDatasets().map(S.buildSchema);
+const schemas = loadAllDatasets().map(S.buildSchema);
 const boxesFor = (schema, pos, showColumns = true) => Object.fromEntries(schema.tables.map(t => [t.name, { ...pos[t.name], ...M.boxSize(t, { showColumns }) }]));
 const overlap = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
@@ -23,7 +23,7 @@ test('tidy boxes never overlap, with or without columns', () => {
 });
 
 test('hidden tables get no position', () => {
-  const s = schemas[0];
+  const s = schemas.find(x => x.id === 'spotify');
   const pos = M.tidyLayout(s, { hidden: new Set(['Songs']) });
   assert.deepEqual(Object.keys(pos).sort(), ['Artists', 'Streams']);
 });
@@ -35,7 +35,7 @@ test('a cycle of references does not hang', () => {
 });
 
 test('link routes start at the FK row, end at the PK row, and only move straight', () => {
-  const s = schemas[0];
+  const s = schemas.find(x => x.id === 'spotify');
   const boxes = boxesFor(s, M.tidyLayout(s));
   const songs = s.tables.find(t => t.name === 'Songs');
   const artists = s.tables.find(t => t.name === 'Artists');
@@ -74,4 +74,15 @@ test('fitView keeps the preferred zoom when the diagram fits, and zooms out (not
   assert.ok(narrow.tx + bounds.maxX * narrow.scale <= 800, 'right edge visible');
   assert.equal(M.fitView(bounds, { width: 100, height: 340 }, 1).scale, 0.3);
   assert.equal(M.fitView(bounds, { width: 0, height: 0 }, 1.2).scale, 1.2, 'hidden canvas keeps the zoom');
+});
+
+test('no link skips over a column of tables (a parent sits just left of its nearest child)', () => {
+  for (const s of schemas) {
+    const pos = M.tidyLayout(s);
+    const cols = [...new Set(Object.values(pos).map(p => p.x))].sort((a, b) => a - b);
+    for (const r of s.relationships) {
+      const gap = cols.indexOf(pos[r.from.table].x) - cols.indexOf(pos[r.to.table].x);
+      assert.equal(gap, 1, `${s.id}: ${r.to.table} → ${r.from.table} spans ${gap} columns`);
+    }
+  }
 });
