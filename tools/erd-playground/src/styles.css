@@ -195,3 +195,14 @@ li.CodeMirror-hint-active{background:var(--teal); color:var(--on-teal);}
 .cm-s-studio .cm-bracket{color:var(--muted);}
 .cm-rel-line{background:var(--teal-soft);}
 .cm-sym-mark{outline:2px solid var(--indigo); border-radius:2px; background:var(--indigo-soft);}
+/* diagram */
+.diagram-panel .panel-body{position:relative; overflow:hidden;}
+.erd-canvas.stale{opacity:.45;}
+.erd-link path.line.dashed{stroke-dasharray:6 4;}
+.erd-link{cursor:pointer;}
+.erd-link.selected path.line,.erd-link:focus path.line{stroke:var(--teal); stroke-width:3;}
+.erd-link.selected .end line,.erd-link.selected .end circle{stroke:var(--teal);}
+.erd-link .end-hit{fill:transparent; stroke:none;}
+.erd-link .end.end-on line,.erd-link .end.end-on circle{stroke:var(--indigo); stroke-width:3;}
+.link-label rect{fill:var(--surface); stroke:var(--line);}
+.link-label text{fill:var(--muted); font-size:11.5px; font-family:'Nunito Sans',system-ui,sans-serif;}
