@@ -552,7 +552,7 @@ li.CodeMirror-hint-active{background:var(--teal); color:var(--on-teal);}
 
 /* popovers */
 .pop-wrap{position:relative; display:inline-flex;}
-.popover{position:absolute; top:calc(100% + 6px); left:0; z-index:30; min-width:240px; background:var(--surface); border:1px solid var(--line); border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.18); padding:10px 12px; display:flex; flex-direction:column; gap:6px;}
+.popover{position:absolute; top:calc(100% + 6px); left:0; z-index:30; min-width:240px; max-width:min(340px, calc(100vw - 16px)); background:var(--surface); border:1px solid var(--line); border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.18); padding:10px 12px; display:flex; flex-direction:column; gap:6px;}
 .popover[hidden]{display:none;}
 .popover h3{font-size:.8rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted);}
 .pop-rule{border:0; border-top:1px solid var(--line); margin:4px 0; width:100%;}
@@ -16527,6 +16527,27 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
   const modKey = isMac ? '⌘' : 'Ctrl';
   const reducedMotion = () => !!(root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
+  // Places an open popover against the window (position: fixed), just below its button, so the panel it sits in
+  // can't clip it. It stays on screen: it moves left or up if needed and scrolls when it's taller than the space.
+  function placePopover(button, panel) {
+    const gap = 6;
+    const margin = 8;
+    const b = button.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth;
+    const vh = window.innerHeight;
+    Object.assign(panel.style, { position: 'fixed', zIndex: '45', maxHeight: '', overflowY: '', left: '0px', top: '0px', right: 'auto' });
+    const w = panel.offsetWidth;
+    const left = Math.max(margin, Math.min(b.left, vw - w - margin));
+    const below = vh - b.bottom - gap - margin;
+    const above = b.top - gap - margin;
+    const h = panel.scrollHeight;
+    const goUp = h > below && above > below;
+    const room = goUp ? above : below;
+    panel.style.left = `${left}px`;
+    panel.style.top = `${goUp ? Math.max(margin, b.top - gap - Math.min(h, room)) : b.bottom + gap}px`;
+    if (h > room) { panel.style.maxHeight = `${Math.max(120, room)}px`; panel.style.overflowY = 'auto'; }
+  }
+
   // A disclosure popover: a button that shows/hides a panel. Escape or a click outside closes it and returns focus.
   function popover(button, panel, { onOpen } = {}) {
     const wrap = h('span', { class: 'pop-wrap' }, button, panel);
@@ -16540,15 +16561,21 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
       panel.hidden = true;
       button.setAttribute('aria-expanded', 'false');
       document.removeEventListener('pointerdown', outside, true);
+      window.removeEventListener('scroll', reposition, true);
+      window.removeEventListener('resize', reposition);
       if (refocus) button.focus();
     };
+    const reposition = e => { if (!panel.hidden && !(e && e.target && panel.contains(e.target))) placePopover(button, panel); };
     const outside = e => { if (!wrap.contains(e.target)) close(false); };
     button.addEventListener('click', () => {
       if (!panel.hidden) { close(); return; }
       panel.hidden = false;
       button.setAttribute('aria-expanded', 'true');
       document.addEventListener('pointerdown', outside, true);
+      window.addEventListener('scroll', reposition, true);
+      window.addEventListener('resize', reposition);
       if (onOpen) onOpen();
+      placePopover(button, panel);
       const first = panel.querySelector('input,button,select,[tabindex]');
       if (first) first.focus();
     });
