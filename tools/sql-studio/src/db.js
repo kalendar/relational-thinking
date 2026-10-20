@@ -47,7 +47,17 @@
     }
   }
 
-  const api = { MAX_ROWS, isReadOnly, openStudio, closeStudio, runQuery };
+  // Compiles (never runs) `text`; returns SQLite's error message, or null if it compiles. Used to find where an error starts.
+  function probeError(studio, text) {
+    try {
+      studio.db.prepare(text).free();
+      return null;
+    } catch (e) {
+      return String((e && e.message) || e);
+    }
+  }
+
+  const api = { MAX_ROWS, isReadOnly, openStudio, closeStudio, runQuery, probeError };
   if (isNode) module.exports = api;
   else root.SS = Object.assign(root.SS || {}, api);
 })(this);

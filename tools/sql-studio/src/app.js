@@ -123,7 +123,7 @@
     }
 
     function showRunError(stmt, error) {
-      const ex = SS.explainError(error, stmt ? stmt.text : '', studio.schema);
+      const ex = SS.explainError(error, stmt ? stmt.text : '', studio.schema, { probe: q => SS.probeError(studio, q) });
       const abs = stmt && ex.offset !== null ? stmt.start + ex.offset : null;
       editor.markError(abs, ex.length);
       const where = abs !== null ? SS.lineCol(editor.getText(), abs) : null;

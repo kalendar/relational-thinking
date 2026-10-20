@@ -121,3 +121,33 @@ test('closest ignores case and respects the distance limit', () => {
   assert.equal(E.closest('artist', ['Artists', 'Songs']), 'Artists');
   assert.equal(E.closest('zzz', ['Artists', 'Songs']), null);
 });
+
+async function explainProbed(sql) {
+  const d = loadDatasets().find(x => x.id === 'spotify');
+  const st2 = D.openStudio(await getSQL(), S.buildSchema(d));
+  const r = D.runQuery(st2, sql);
+  assert.equal(r.ok, false);
+  const ex = E.explainError(r.error, sql, st2.schema, { probe: s => D.probeError(st2, s) });
+  D.closeStudio(st2);
+  return ex;
+}
+
+test('probeError: null when SQLite can compile the text, the message when it cannot', async () => {
+  const st2 = D.openStudio(await getSQL(), S.buildSchema(loadDatasets()[0]));
+  assert.equal(D.probeError(st2, 'SELECT * FROM Songs'), null);
+  assert.match(D.probeError(st2, 'SELECT * FROM'), /incomplete input/);
+  D.closeStudio(st2);
+});
+
+test('a missing ; between two queries points at the second SELECT and says so', async () => {
+  const sql = 'SELECT * FROM Songs\n-- my first query\nSELECT * FROM Artists';
+  const ex = await explainProbed(sql);
+  assert.equal(ex.offset, sql.lastIndexOf('SELECT'));
+  assert.equal(ex.headline, 'SQL got confused at `SELECT`. Did you forget a `;` between two queries?');
+});
+
+test('a repeated word is marked where it actually breaks, not at its first use', async () => {
+  const sql = 'SELECT * FROM Songs WHERE duration_sec BETWEEN 100 AND 200 AND AND song_id > 1';
+  const ex = await explainProbed(sql);
+  assert.equal(ex.offset, sql.indexOf('AND AND') + 4);
+});

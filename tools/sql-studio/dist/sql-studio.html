@@ -12655,7 +12655,17 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
     }
   }
 
-  const api = { MAX_ROWS, isReadOnly, openStudio, closeStudio, runQuery };
+  // Compiles (never runs) `text`; returns SQLite's error message, or null if it compiles. Used to find where an error starts.
+  function probeError(studio, text) {
+    try {
+      studio.db.prepare(text).free();
+      return null;
+    } catch (e) {
+      return String((e && e.message) || e);
+    }
+  }
+
+  const api = { MAX_ROWS, isReadOnly, openStudio, closeStudio, runQuery, probeError };
   if (isNode) module.exports = api;
   else root.SS = Object.assign(root.SS || {}, api);
 })(this);
@@ -12716,6 +12726,18 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
     return findTok(text, sameWord(col));
   }
 
+  // The word in "near X" can appear more than once. Ask SQLite which one: cut the query off right after each
+  // copy, and the first cut that gives the same error (not "incomplete input") is where it really breaks.
+  function findSyntaxSpot(text, word, message, probe) {
+    const toks = meaningful(text).filter(sameWord(word));
+    if (probe && toks.length > 1) {
+      for (const t of toks) {
+        if (probe(text.slice(0, t.end)) === message) return { offset: t.start, length: t.end - t.start };
+      }
+    }
+    return toks.length ? { offset: toks[0].start, length: toks[0].end - toks[0].start } : { offset: null, length: 0 };
+  }
+
   const tableNames = schema => (schema ? schema.tables.map(t => t.name) : []);
   const columnNames = schema => (schema ? [...new Set(schema.tables.flatMap(t => t.columns.map(c => c.name)))] : []);
   const didYouMean = s => (s ? ` Did you mean ${code(s)}?` : '');
@@ -12742,8 +12764,11 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
     [/incomplete input/, (m, text) => [
       `The query stops too early. Is something missing at the end, like a closing ${code(')')} or ${code("'")}?`,
       { offset: text.replace(/\s+$/, '').length, length: 0 }]],
-    [/near "(.+?)": syntax error/, (m, text) => {
-      const loc = findTok(text, sameWord(m[1]));
+    [/near "(.+?)": syntax error/, (m, text, schema, opts) => {
+      const loc = findSyntaxSpot(text, m[1], m[0], opts.probe);
+      if (/^(SELECT|WITH)$/i.test(m[1]) && loc.offset > 0) {
+        return [`SQL got confused at ${code(m[1].toUpperCase())}. Did you forget a ${code(';')} between two queries?`, loc];
+      }
       const kw = /^[A-Za-z]+$/.test(m[1]) && !T.isKeyword(m[1]) ? closest(m[1].toUpperCase(), [...T.KEYWORDS], 1) : null;
       if (kw) return [`SQL didn't understand the word ${code(m[1])}. Did you mean ${code(kw)}?`, loc];
       return [`SQL got confused at ${code(m[1])}. Check the word just before it: a missing comma, quote, or keyword is common.`, loc];
@@ -12781,7 +12806,8 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
     }],
   ];
 
-  function explainError(error, statementText, schema) {
+  // opts.probe(sqlText) -> SQLite's error message or null (see db.probeError); optional, sharpens error locations.
+  function explainError(error, statementText, schema, opts = {}) {
     const raw = (error && error.message) || '';
     if (error && error.kind === 'readonly') {
       return { headline: 'SQL Studio only runs queries that read data (SELECT). Changing data comes later in the course.', raw, ...findTok(statementText, () => true) };
@@ -12790,7 +12816,7 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
     for (const [re, build] of RULES) {
       const m = re.exec(raw);
       if (m) {
-        const [headline, loc] = build(m, statementText, schema);
+        const [headline, loc] = build(m, statementText, schema, opts);
         return { headline, raw, offset: loc.offset, length: loc.length };
       }
     }
@@ -12970,25 +12996,47 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
     return s.replace(/\n\s*$/, '\n');
   }
 
+  const endsInLineComment = text => {
+    const toks = T.tokenize(text).filter(t => t.type !== 'ws');
+    const last = toks[toks.length - 1];
+    return !!last && last.type === 'comment' && last.text.startsWith('--');
+  };
+
+  // A comment on the same line right after a ";" belongs to the statement before it.
+  function splitTrailingComment(text) {
+    const m = /^[ \t]*/.exec(text);
+    const toks = T.tokenize(text.slice(m[0].length));
+    if (!toks.length || toks[0].type !== 'comment') return { trailing: '', rest: text };
+    const c = toks[0];
+    if (c.text.startsWith('/*') && c.text.includes('\n')) return { trailing: '', rest: text };
+    return { trailing: c.text, rest: text.slice(m[0].length + c.end) };
+  }
+
   function formatSql(text) {
     const parts = T.splitStatements(text);
-    const hadFinalSemi = /;\s*$/.test(T.tokenize(text).filter(t => t.type !== 'comment').map(t => t.text).join(''));
-    const formatted = [];
-    for (const p of parts) {
-      if (p.empty) {
-        const c = p.text.trim();
-        if (c) formatted.push({ text: c, comment: true });
-        continue;
+    const blocks = []; // { text, semi, trailing } or { comment }
+    parts.forEach((p, i) => {
+      let body = p.text;
+      if (i > 0 && blocks.length && blocks[blocks.length - 1].semi) {
+        const { trailing, rest } = splitTrailingComment(body);
+        if (trailing) { blocks[blocks.length - 1].trailing = trailing; body = rest; }
       }
-      formatted.push({ text: formatStatement(p.text) });
-    }
-    let out = '';
-    formatted.forEach((f, k) => {
-      if (k > 0) out += f.comment ? '\n' : ';\n\n';
-      out += f.text;
+      const semi = p.end > p.start + p.text.length; // this part ended with ";"
+      const isEmpty = T.tokenize(body).every(t => t.type === 'ws' || t.type === 'comment');
+      if (isEmpty) {
+        const c = body.trim();
+        if (c) blocks.push({ comment: c, semi: false });
+        return;
+      }
+      blocks.push({ text: formatStatement(body), semi, trailing: '' });
     });
-    if (hadFinalSemi && formatted.length && !formatted[formatted.length - 1].comment) out += ';';
-    return out;
+    return blocks.map(bk => {
+      if (bk.comment) return bk.comment;
+      let out = bk.text;
+      if (bk.semi) out += endsInLineComment(out) ? '\n;' : ';';
+      if (bk.trailing) out += ' ' + bk.trailing;
+      return out;
+    }).join('\n\n');
   }
 
   const api = { formatSql, formatStatement };
@@ -13978,7 +14026,8 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
       const s = show(safeText(v));
       return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    return [columns.map(cell).join(','), ...rows.map(r => r.map(cell).join(','))].join('\r\n') + '\r\n';
+    // The byte order mark tells Excel the file is UTF-8, so names like "Tití" show correctly.
+    return '\uFEFF' + [columns.map(cell).join(','), ...rows.map(r => r.map(cell).join(','))].join('\r\n') + '\r\n';
   }
 
   // Same cleanup the Query Explorer uses for lines it copies: no newlines, no live [links].
@@ -14032,6 +14081,19 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
 
   class UploadError extends Error {}
 
+  // Every SQLite keyword (sqlite.org/lang_keywords.html). A column or table with one of these names
+  // would need quotes in every query, so uploads rename them.
+  const SQLITE_KEYWORDS = new Set(('ABORT ACTION ADD AFTER ALL ALTER ALWAYS ANALYZE AND AS ASC ATTACH AUTOINCREMENT BEFORE BEGIN ' +
+    'BETWEEN BY CASCADE CASE CAST CHECK COLLATE COLUMN COMMIT CONFLICT CONSTRAINT CREATE CROSS CURRENT CURRENT_DATE ' +
+    'CURRENT_TIME CURRENT_TIMESTAMP DATABASE DEFAULT DEFERRABLE DEFERRED DELETE DESC DETACH DISTINCT DO DROP EACH ELSE END ' +
+    'ESCAPE EXCEPT EXCLUDE EXCLUSIVE EXISTS EXPLAIN FAIL FILTER FIRST FOLLOWING FOR FOREIGN FROM FULL GENERATED GLOB GROUP ' +
+    'GROUPS HAVING IF IGNORE IMMEDIATE IN INDEX INDEXED INITIALLY INNER INSERT INSTEAD INTERSECT INTO IS ISNULL JOIN KEY LAST ' +
+    'LEFT LIKE LIMIT MATCH MATERIALIZED NATURAL NO NOT NOTHING NOTNULL NULL NULLS OF OFFSET ON OR ORDER OTHERS OUTER OVER ' +
+    'PARTITION PLAN PRAGMA PRECEDING PRIMARY QUERY RAISE RANGE RECURSIVE REFERENCES REGEXP REINDEX RELEASE RENAME REPLACE ' +
+    'RESTRICT RETURNING RIGHT ROLLBACK ROW ROWS SAVEPOINT SELECT SET TABLE TEMP TEMPORARY THEN TIES TO TRANSACTION TRIGGER ' +
+    'UNBOUNDED UNION UNIQUE UPDATE USING VACUUM VALUES VIEW VIRTUAL WHEN WHERE WINDOW WITH WITHOUT').split(' '));
+  const reserved = n => SQLITE_KEYWORDS.has(n.toUpperCase()) || X.isKeyword(n);
+
   // RFC 4180: quoted fields, "" escapes, commas/newlines inside quotes, CRLF, BOM. Drops blank lines.
   function parseCSV(text) {
     const s = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
@@ -14063,9 +14125,9 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
   function cleanColumnName(raw, used) {
     let n = String(raw === null || raw === undefined ? '' : raw).trim().toLowerCase()
       .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-    if (!n) n = 'column';
+    if (!n) n = 'unnamed';
     if (/^[0-9]/.test(n)) n = `c_${n}`;
-    if (X.isKeyword(n)) n = `${n}_col`;
+    if (reserved(n)) n = `${n}_col`;
     return unique(n, used);
   }
 
@@ -14073,7 +14135,8 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
     let n = String(raw || '').replace(/\.(csv|xlsx|xls)$/i, '').trim().replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
     if (!n) n = 'Table';
     if (/^[0-9]/.test(n)) n = `T_${n}`;
-    if (X.isKeyword(n)) n = `${n}_table`;
+    if (reserved(n)) n = `${n}_table`;
+    if (/^sqlite_/i.test(n)) n = `T_${n}`; // SQLite keeps sqlite_ names for itself
     return unique(n, used);
   }
 
@@ -17188,7 +17251,7 @@ window.SS_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
     }
 
     function showRunError(stmt, error) {
-      const ex = SS.explainError(error, stmt ? stmt.text : '', studio.schema);
+      const ex = SS.explainError(error, stmt ? stmt.text : '', studio.schema, { probe: q => SS.probeError(studio, q) });
       const abs = stmt && ex.offset !== null ? stmt.start + ex.offset : null;
       editor.markError(abs, ex.length);
       const where = abs !== null ? SS.lineCol(editor.getText(), abs) : null;

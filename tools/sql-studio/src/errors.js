@@ -51,6 +51,18 @@
     return findTok(text, sameWord(col));
   }
 
+  // The word in "near X" can appear more than once. Ask SQLite which one: cut the query off right after each
+  // copy, and the first cut that gives the same error (not "incomplete input") is where it really breaks.
+  function findSyntaxSpot(text, word, message, probe) {
+    const toks = meaningful(text).filter(sameWord(word));
+    if (probe && toks.length > 1) {
+      for (const t of toks) {
+        if (probe(text.slice(0, t.end)) === message) return { offset: t.start, length: t.end - t.start };
+      }
+    }
+    return toks.length ? { offset: toks[0].start, length: toks[0].end - toks[0].start } : { offset: null, length: 0 };
+  }
+
   const tableNames = schema => (schema ? schema.tables.map(t => t.name) : []);
   const columnNames = schema => (schema ? [...new Set(schema.tables.flatMap(t => t.columns.map(c => c.name)))] : []);
   const didYouMean = s => (s ? ` Did you mean ${code(s)}?` : '');
@@ -77,8 +89,11 @@
     [/incomplete input/, (m, text) => [
       `The query stops too early. Is something missing at the end, like a closing ${code(')')} or ${code("'")}?`,
       { offset: text.replace(/\s+$/, '').length, length: 0 }]],
-    [/near "(.+?)": syntax error/, (m, text) => {
-      const loc = findTok(text, sameWord(m[1]));
+    [/near "(.+?)": syntax error/, (m, text, schema, opts) => {
+      const loc = findSyntaxSpot(text, m[1], m[0], opts.probe);
+      if (/^(SELECT|WITH)$/i.test(m[1]) && loc.offset > 0) {
+        return [`SQL got confused at ${code(m[1].toUpperCase())}. Did you forget a ${code(';')} between two queries?`, loc];
+      }
       const kw = /^[A-Za-z]+$/.test(m[1]) && !T.isKeyword(m[1]) ? closest(m[1].toUpperCase(), [...T.KEYWORDS], 1) : null;
       if (kw) return [`SQL didn't understand the word ${code(m[1])}. Did you mean ${code(kw)}?`, loc];
       return [`SQL got confused at ${code(m[1])}. Check the word just before it: a missing comma, quote, or keyword is common.`, loc];
@@ -116,7 +131,8 @@
     }],
   ];
 
-  function explainError(error, statementText, schema) {
+  // opts.probe(sqlText) -> SQLite's error message or null (see db.probeError); optional, sharpens error locations.
+  function explainError(error, statementText, schema, opts = {}) {
     const raw = (error && error.message) || '';
     if (error && error.kind === 'readonly') {
       return { headline: 'SQL Studio only runs queries that read data (SELECT). Changing data comes later in the course.', raw, ...findTok(statementText, () => true) };
@@ -125,7 +141,7 @@
     for (const [re, build] of RULES) {
       const m = re.exec(raw);
       if (m) {
-        const [headline, loc] = build(m, statementText, schema);
+        const [headline, loc] = build(m, statementText, schema, opts);
         return { headline, raw, offset: loc.offset, length: loc.length };
       }
     }
