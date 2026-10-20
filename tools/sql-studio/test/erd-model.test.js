@@ -142,3 +142,7 @@ test('labelPoint treats a straight run of short pieces as one segment', () => {
   const straight = [{ x: 0, y: 0 }, { x: 28, y: 0 }, { x: 55, y: 0 }, { x: 55, y: 0 }, { x: 82, y: 0 }, { x: 110, y: 0 }];
   assert.deepEqual(M.labelPoint(straight), { x: 55, y: 0 });
 });
+
+test('labelPoint keeps labels off the ends: with three or more pieces, it uses an inner one', () => {
+  assert.deepEqual(M.labelPoint([{ x: 0, y: 0 }, { x: 60, y: 0 }, { x: 60, y: 40 }, { x: 80, y: 40 }]), { x: 60, y: 20 });
+});

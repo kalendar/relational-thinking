@@ -142,7 +142,10 @@
     }
     let best = null;
     let bestLen = -1;
-    for (let i = 1; i < points.length; i++) {
+    // With three or more pieces, skip the first and last: they touch the boxes, where the end marks are.
+    const from = points.length >= 4 ? 2 : 1;
+    const to = points.length >= 4 ? points.length - 1 : points.length;
+    for (let i = from; i < to; i++) {
       const a = points[i - 1];
       const b = points[i];
       const len = Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
