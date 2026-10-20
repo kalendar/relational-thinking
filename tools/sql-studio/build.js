@@ -6,6 +6,7 @@ const ROOT = __dirname;
 const SRC = path.join(ROOT, 'src');
 const VENDOR = path.join(ROOT, 'vendor');
 const DATASETS = path.join(ROOT, '..', 'query-explorer', 'src', 'datasets');
+const OWN_DATASETS = path.join(ROOT, 'datasets'); // SQL Studio only, e.g. 0. Ch 8 and 9 Sample Data
 const OUT = path.join(ROOT, 'dist', 'sql-studio.html');
 
 const VENDOR_CSS = ['codemirror/codemirror.css', 'codemirror/show-hint.css'];
@@ -19,7 +20,8 @@ const SCRIPT_ORDER = ['sql-text.js', 'schema.js', 'db.js', 'query-runner.js', 'e
   'random-ui.js', 'erd.js', 'data-view.js', 'upload.js', 'app.js'];
 
 function datasetFiles() {
-  return fs.readdirSync(DATASETS).filter(f => f.endsWith('.js')).sort().map(f => path.join(DATASETS, f));
+  const list = dir => (fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith('.js')).sort().map(f => path.join(dir, f)) : []);
+  return [...list(OWN_DATASETS), ...list(DATASETS)];
 }
 
 const read = p => fs.readFileSync(p, 'utf8');
@@ -49,4 +51,4 @@ if (require.main === module) {
   const out = build();
   console.log(`Built ${out} (${(fs.statSync(out).size / 1024 / 1024).toFixed(2)} MB)`);
 }
-module.exports = { build, OUT, SCRIPT_ORDER, VENDOR_JS, DATASETS };
+module.exports = { build, OUT, SCRIPT_ORDER, VENDOR_JS, DATASETS, OWN_DATASETS };

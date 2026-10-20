@@ -19,13 +19,15 @@
     let data = { schema: null, list: [], assessment: false, index: 0 };
     const items = [];
 
-    function setData({ schema, list, assessment, index }) {
+    function setData({ schema, list, assessment, index, uploaded = false }) {
       data = { schema, list, assessment, index: Math.min(index || 0, Math.max(0, list.length - 1)) };
       countEl.textContent = list.length ? ` (${list.length})` : '';
       items.length = 0;
       clear(panel.body);
       if (!list.length) {
-        panel.body.append(h('p', { class: 'ex-empty' }, 'There are no exercises for your own data. Try ', h('strong', null, 'Random Query'), ' to get started.'));
+        panel.body.append(uploaded
+          ? h('p', { class: 'ex-empty' }, 'There are no exercises for your own data. Try ', h('strong', null, 'Random Query'), ' to get started.')
+          : h('p', { class: 'ex-empty' }, 'This data set has no exercises. Try the example queries from the chapter, or press ', h('strong', null, 'Random Query'), '.'));
       } else {
         panel.body.append(h('ol', { class: 'ex-list' }, list.map((ex, i) => item(ex, i))));
       }
@@ -56,7 +58,7 @@
     function setCurrent(i, { quiet = false } = {}) {
       if (!data.list.length) {
         numEl.textContent = '';
-        textEl.textContent = 'No exercises for this data';
+        textEl.textContent = 'No exercises for this data set';
         prev.disabled = next.disabled = true;
         return;
       }

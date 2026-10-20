@@ -111,6 +111,7 @@
       const pat = mode === 'starts' ? `${piece}%` : mode === 'ends' ? `%${piece}` : `%${piece}%`;
       return `${col.expr} LIKE ${lit(pat)}`;
     }
+    if (col.type === 'boolean') return `${col.expr} = ${value ? 'TRUE' : 'FALSE'}`;
     const others = [...new Set(sampleValues.filter(v => v !== null && v !== value))];
     const other = others.length ? rng.pick(others) : null;
     if (col.type === 'text') {

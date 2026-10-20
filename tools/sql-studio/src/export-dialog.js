@@ -13,7 +13,7 @@
     closeHomeworkDialog();
     const appEl = document.getElementById('app');
     const previous = opener || document.activeElement;
-    const datasetLabel = schema.number ? `${schema.number}. ${schema.name}` : `${schema.name} (${schema.description})`;
+    const datasetLabel = schema.id === 'upload' ? `${schema.name} (${schema.description})` : `${schema.number}. ${schema.name}`;
     let done = false;
 
     const pickId = 'ss-hw-pick';

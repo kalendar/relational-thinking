@@ -3,7 +3,8 @@
   'use strict';
   const SS = root.SS;
   const { h, icon } = SS;
-  const DATASETS = root.QE_DATASETS || [];
+  // Picker order is by number: 0. Ch 8 and 9 Sample Data comes first.
+  const DATASETS = (root.QE_DATASETS || []).slice().sort((a, b) => a.number - b.number);
 
   const storage = () => { try { return root.localStorage; } catch (e) { return null; } };
   const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -116,7 +117,7 @@ self.SS.workerMain(self, function () {
       runBtn.disabled = !st.text.trim();
       results.showEmpty();
       const list = id === 'upload' ? [] : SS.EXERCISES[id] || [];
-      exercises.setData({ schema, list, assessment: SS.isAssessment(schema.number), index: st.exerciseIndex });
+      exercises.setData({ schema, list, assessment: SS.isAssessment(schema.number), index: st.exerciseIndex, uploaded: id === 'upload' });
       erd.setSchema(schema, { renamed: id === 'upload' ? upload.renamed : [] });
       dataView.setStudio(studio);
       desc.textContent = schema.description;

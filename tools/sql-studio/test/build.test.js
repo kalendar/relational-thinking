@@ -53,3 +53,9 @@ test('the worker can be assembled from named scripts already in the page', () =>
     assert.ok(html.includes(`<script data-src="${name}">`), name);
   }
 });
+
+test("SQL Studio's own data sets are built in too, before the Query Explorer's", () => {
+  const own = html.indexOf('// ---- datasets/00-ch8-sample.js ----');
+  assert.ok(own > 0, 'datasets/00-ch8-sample.js is in the page');
+  assert.ok(own < html.indexOf('// ---- ../query-explorer/src/datasets/01-spotify.js ----'));
+});
