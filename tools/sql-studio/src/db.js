@@ -12,6 +12,11 @@
   }
 
   const isReadOnly = text => ['SELECT', 'WITH', 'VALUES'].includes(firstWord(text));
+  // Statements that change data or settings. Anything else (even a typo like SELCT) goes to SQLite,
+  // so students get its error rather than "only runs queries that read data". query_only still stops writes.
+  const WRITE_WORDS = new Set(['INSERT', 'UPDATE', 'DELETE', 'REPLACE', 'UPSERT', 'MERGE', 'CREATE', 'DROP', 'ALTER', 'ATTACH', 'DETACH',
+    'PRAGMA', 'VACUUM', 'REINDEX', 'ANALYZE', 'BEGIN', 'COMMIT', 'END', 'ROLLBACK', 'SAVEPOINT', 'RELEASE', 'TRUNCATE']);
+  const isWrite = text => WRITE_WORDS.has(firstWord(text));
 
   function openStudio(SQL, schema) {
     const db = new SQL.Database();
@@ -26,7 +31,7 @@
 
   function runQuery(studio, text, { maxRows = MAX_ROWS } = {}) {
     if (!firstWord(text) || firstWord(text) === ';') return { ok: false, error: { kind: 'empty', message: '' } };
-    if (!isReadOnly(text)) return { ok: false, error: { kind: 'readonly', message: '' } };
+    if (isWrite(text)) return { ok: false, error: { kind: 'readonly', message: '' } };
     let stmt = null;
     try {
       stmt = studio.db.prepare(text);
@@ -57,7 +62,7 @@
     }
   }
 
-  const api = { MAX_ROWS, isReadOnly, openStudio, closeStudio, runQuery, probeError };
+  const api = { MAX_ROWS, isReadOnly, isWrite, openStudio, closeStudio, runQuery, probeError };
   if (isNode) module.exports = api;
   else root.SS = Object.assign(root.SS || {}, api);
 })(this);

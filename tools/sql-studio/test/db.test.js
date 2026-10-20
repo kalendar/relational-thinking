@@ -64,3 +64,15 @@ test('runaway queries stop at the row cap and say so', async () => {
   assert.equal(big.truncated, false);
   D.closeStudio(st);
 });
+
+test('a misspelled SELECT goes to SQLite (so it gets a did-you-mean), but real writes are still blocked', async () => {
+  const st = await studio();
+  const r = D.runQuery(st, 'SELCT * FROM Artists');
+  assert.equal(r.error.kind, 'sqlite');
+  assert.match(r.error.message, /near "SELCT": syntax error/);
+  for (const w of ['INSERT INTO Artists VALUES (99, 1, 2, 3)', 'UPDATE Artists SET genre = 1', 'drop table Artists', 'CREATE TABLE x (a)', 'PRAGMA query_only = OFF', 'ATTACH DATABASE ":memory:" AS x']) {
+    assert.equal(D.runQuery(st, w).error.kind, 'readonly', w);
+  }
+  assert.equal(D.runQuery(st, 'SELECT COUNT(*) FROM Artists').rows[0][0], 8);
+  D.closeStudio(st);
+});

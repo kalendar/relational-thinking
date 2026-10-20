@@ -157,3 +157,9 @@ test('a stopped (too slow) query gets a plain explanation', () => {
   assert.equal(ex.headline, 'This query was taking too long, so SQL Studio stopped it. Is a JOIN missing its ON condition?');
   assert.equal(ex.offset, null);
 });
+
+test('a misspelled SELECT gets a did-you-mean', async () => {
+  const ex = await explainProbed('SELCT * FROM Songs');
+  assert.equal(ex.headline, "SQL didn't understand the word `SELCT`. Did you mean `SELECT`?");
+  assert.equal(ex.offset, 0);
+});
