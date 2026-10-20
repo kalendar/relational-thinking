@@ -59,3 +59,9 @@ test("SQL Studio's own data sets are built in too, before the Query Explorer's",
   assert.ok(own > 0, 'datasets/00-ch8-sample.js is in the page');
   assert.ok(own < html.indexOf('// ---- ../query-explorer/src/datasets/01-spotify.js ----'));
 });
+
+test('the shared panels.js and canvas.js load before the files that use them', () => {
+  const i = f => SCRIPT_ORDER.indexOf(f);
+  assert.ok(i('panels.js') !== -1 && i('panels.js') < i('layout.js'), 'panels.js before layout.js');
+  assert.ok(i('canvas.js') !== -1 && i('canvas.js') < i('erd.js'), 'canvas.js before erd.js');
+});

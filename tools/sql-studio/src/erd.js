@@ -28,13 +28,23 @@
     panel.tools.append(zoomGroup, tidyBtn, editBtn, pngBtn, h('label', { class: 'check-label', for: 'erd-attrs' }, attrBox, 'Attributes'));
 
     // ---- canvas ----
-    const viewport = s('g', { class: 'viewport' });
-    const svg = s('svg', { role: 'group', 'aria-label': 'Entity relationship diagram' }, viewport);
-    const canvas = h('div', { class: 'erd-canvas' }, svg);
+    // Zoom, pan, pinch, fit, and PNG live in the shared canvas.js.
+    const cv = SS.createCanvas(panel.body, {
+      label: 'Entity relationship diagram',
+      getPreferredScale: () => prefs.erdZoom / 100,
+      onScale: sc => { prefs.erdZoom = Math.round(sc * 100); save(); },
+      onView: v => { zoomOut.textContent = `${Math.round(v.scale * 100)}%`; },
+      canPan: target => {
+        if (target.closest('.erd-table') || target.closest('.erd-link')) return false;
+        if (editing) { selected = null; render(); }
+        return true;
+      },
+    });
+    const { svg, viewport, canvas, view } = cv;
     const chips = h('div', { class: 'erd-chips' });
     const note = h('div', { class: 'erd-note', hidden: true });
     const form = h('div', { class: 'erd-links-form', hidden: true });
-    panel.body.append(canvas, chips, note, form);
+    panel.body.append(chips, note, form);
 
     // ---- state ----
     let schema = null;
@@ -45,7 +55,6 @@
     let folded = new Set();
     let editing = false;
     let selected = null; // relationship index
-    let view = { scale: prefs.erdZoom / 100, tx: 0, ty: 0 };
     let focusKey = null;
 
     const showCols = name => prefs.attributes && !folded.has(name);
@@ -93,35 +102,18 @@
       fit();
     }
 
-    // ---- view transform ----
-    function applyView() {
-      viewport.setAttribute('transform', `translate(${view.tx} ${view.ty}) scale(${view.scale})`);
-      zoomOut.textContent = `${Math.round(view.scale * 100)}%`;
-    }
-    function zoomAt(newScale, cx, cy) {
-      const sc = Math.min(SS.ERD_ZOOM.max / 100, Math.max(SS.ERD_ZOOM.min / 100, newScale));
-      view.tx = cx - ((cx - view.tx) * sc) / view.scale;
-      view.ty = cy - ((cy - view.ty) * sc) / view.scale;
-      view.scale = sc;
-      prefs.erdZoom = Math.round(sc * 100);
-      save();
-      applyView();
-    }
+    // ---- view ----
+    const applyView = () => cv.applyView();
     function zoomBy(dir) {
-      const r = svg.getBoundingClientRect();
-      zoomAt(SS.stepZoom(Math.round(view.scale * 100), dir, SS.ERD_ZOOM) / 100, r.width / 2, r.height / 2);
+      cv.zoomBy(dir);
       SS.announce(`Diagram zoom ${Math.round(view.scale * 100)}%`);
     }
+    const boundsOf = boxes => ({ minX: Math.min(...boxes.map(b => b.x)), minY: Math.min(...boxes.map(b => b.y)), maxX: Math.max(...boxes.map(b => b.x + b.w)), maxY: Math.max(...boxes.map(b => b.y + b.h)) });
     // Centers the visible tables in the canvas, zoomed out if needed so all of them show.
     function fit() {
       const ts = visibleTables();
       if (!ts.length) { applyView(); return; }
-      const boxes = ts.map(boxOf);
-      const bounds = { minX: Math.min(...boxes.map(b => b.x)), minY: Math.min(...boxes.map(b => b.y)), maxX: Math.max(...boxes.map(b => b.x + b.w)), maxY: Math.max(...boxes.map(b => b.y + b.h)) };
-      const r = svg.getBoundingClientRect();
-      // Zooms out (without changing the saved zoom) when the diagram is wider or taller than the canvas.
-      view = SS.fitView(bounds, { width: r.width, height: r.height }, prefs.erdZoom / 100);
-      applyView();
+      cv.fitTo(boundsOf(ts.map(boxOf)));
     }
 
     // ---- drawing ----
@@ -250,10 +242,7 @@
       e.preventDefault();
       const ghost = s('path', { class: 'erd-ghost' });
       viewport.append(ghost);
-      const toLocal = ev => {
-        const r = svg.getBoundingClientRect();
-        return { x: (ev.clientX - r.left - view.tx) / view.scale, y: (ev.clientY - r.top - view.ty) / view.scale };
-      };
+      const toLocal = ev => cv.toLocal(ev.clientX, ev.clientY);
       const b = boxOf(t);
       const startPt = { x: b.x + b.w, y: b.y + B.header + t.columns.indexOf(c) * B.row + B.row / 2 + 3 };
       let target = null;
@@ -348,100 +337,17 @@
         iconButton('x', `Show the ${name} table`, { onclick: () => { hidden.delete(name); render(); SS.announce(`${name} is back.`); } }))));
     }
 
-    // ---- pan, wheel zoom, pinch ----
-    const pointers = new Map();
-    let pinch = null;
-    svg.addEventListener('pointerdown', e => {
-      if (e.target.closest('.erd-table') || e.target.closest('.erd-link')) return;
-      if (editing) { selected = null; render(); }
-      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      svg.setPointerCapture(e.pointerId);
-      canvas.classList.add('panning');
-      if (pointers.size === 2) {
-        const [a, b] = [...pointers.values()];
-        pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y), scale: view.scale };
-      }
-    });
-    svg.addEventListener('pointermove', e => {
-      if (!pointers.has(e.pointerId)) return;
-      const prev = pointers.get(e.pointerId);
-      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (pointers.size === 2 && pinch) {
-        const [a, b] = [...pointers.values()];
-        const r = svg.getBoundingClientRect();
-        zoomAt(pinch.scale * (Math.hypot(a.x - b.x, a.y - b.y) / pinch.dist), (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top);
-      } else if (pointers.size === 1) {
-        view.tx += e.clientX - prev.x;
-        view.ty += e.clientY - prev.y;
-        applyView();
-      }
-    });
-    const endPointer = e => {
-      pointers.delete(e.pointerId);
-      if (pointers.size < 2) pinch = null;
-      if (!pointers.size) canvas.classList.remove('panning');
-    };
-    svg.addEventListener('pointerup', endPointer);
-    svg.addEventListener('pointercancel', endPointer);
-    // Ctrl/⌘ + wheel (and trackpad pinch) zooms; a plain wheel scrolls the page as usual.
-    svg.addEventListener('wheel', e => {
-      if (!e.ctrlKey && !e.metaKey) return;
-      e.preventDefault();
-      const r = svg.getBoundingClientRect();
-      zoomAt(view.scale * Math.exp(-e.deltaY * 0.002), e.clientX - r.left, e.clientY - r.top);
-    }, { passive: false });
-
     // ---- PNG ----
-    const STYLE_PROPS = ['fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'font-family', 'font-size', 'font-weight', 'opacity'];
     async function copyPng() {
       if (!schema) return;
       const ts = visibleTables();
       if (!ts.length) return;
-      const boxes = ts.map(boxOf);
-      const pad = 30;
-      const minX = Math.min(...boxes.map(b => b.x)) - pad;
-      const minY = Math.min(...boxes.map(b => b.y)) - pad;
-      const w = Math.max(...boxes.map(b => b.x + b.w)) + pad - minX;
-      const hgt = Math.max(...boxes.map(b => b.y + b.h)) + pad - minY;
-      const clone = svg.cloneNode(true);
-      // Copy computed colors and fonts so the picture matches the screen (and the current theme).
-      const src = svg.querySelectorAll('*');
-      const dst = clone.querySelectorAll('*');
-      src.forEach((el, i) => {
-        const cs = getComputedStyle(el);
-        dst[i].setAttribute('style', STYLE_PROPS.map(p => `${p}:${cs.getPropertyValue(p)}`).join(';'));
-      });
-      clone.querySelector('.viewport').removeAttribute('transform');
-      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-      clone.setAttribute('viewBox', `${minX} ${minY} ${w} ${hgt}`);
-      clone.setAttribute('width', String(w * 2));
-      clone.setAttribute('height', String(hgt * 2));
-      const bg = getComputedStyle(canvas).backgroundColor;
-      clone.insertBefore(s('rect', { x: minX, y: minY, width: w, height: hgt, fill: bg }), clone.firstChild);
-      const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml' }));
-      try {
-        const img = new Image();
-        await new Promise((ok, bad) => { img.onload = ok; img.onerror = bad; img.src = url; });
-        const cv = document.createElement('canvas');
-        cv.width = w * 2;
-        cv.height = hgt * 2;
-        cv.getContext('2d').drawImage(img, 0, 0);
-        const blob = await new Promise(ok => cv.toBlob(ok, 'image/png'));
-        try {
-          await root.navigator.clipboard.write([new root.ClipboardItem({ 'image/png': blob })]);
-          SS.announce('Copied the diagram as a picture. Paste it anywhere.');
-        } catch (e) {
-          SS.downloadBlob(`erd-${schema.id}.png`, blob);
-          SS.announce(`Your browser would not copy pictures, so we saved erd-${schema.id}.png instead.`);
-        }
-      } catch (e) {
-        SS.announce('Sorry, the picture could not be made in this browser.');
-      } finally {
-        URL.revokeObjectURL(url);
-      }
+      const name = `erd-${schema.id}.png`;
+      const how = await cv.copyPng(name, boundsOf(ts.map(boxOf)));
+      if (how === 'copied') SS.announce('Copied the diagram as a picture. Paste it anywhere.');
+      else if (how === 'downloaded') SS.announce(`Your browser would not copy pictures, so we saved ${name} instead.`);
+      else SS.announce('Sorry, the picture could not be made in this browser.');
     }
-
-    if (root.ResizeObserver) new root.ResizeObserver(() => { if (schema && !panel.el.classList.contains('collapsed')) applyView(); }).observe(canvas);
 
     return { setSchema, tidy, fit, counts, addLink, removeLink };
   }
