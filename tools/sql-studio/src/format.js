@@ -26,6 +26,19 @@
   }
 
   function formatStatement(text) {
+    // Comment lines above the query (like a question header) are kept exactly, each on its own line.
+    const all = T.tokenize(text);
+    let k = 0;
+    const lead = [];
+    while (k < all.length && (all[k].type === 'ws' || all[k].type === 'comment')) {
+      if (all[k].type === 'comment') lead.push(all[k].text.trim());
+      k++;
+    }
+    if (lead.length && k < all.length) return `${lead.join('\n')}\n${formatBody(text.slice(all[k].start))}`;
+    return formatBody(text);
+  }
+
+  function formatBody(text) {
     const toks = T.tokenize(text).filter(t => t.type !== 'ws');
     // Pass 1: split into top-level clauses per nesting level; we render recursively.
     return render(toks, 0).replace(/[ \t]+\n/g, '\n').trim();

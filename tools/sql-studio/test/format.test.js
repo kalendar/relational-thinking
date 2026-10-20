@@ -113,3 +113,11 @@ test('comments never change how many statements there are, and formatting twice 
     assert.equal(F.formatSql(once), once, `not idempotent:\n${once}`);
   }
 });
+
+test('comment lines above a query stay exactly as they are, right above it', () => {
+  const head = '-- Question: For each genre, show the total.\n-- This query has 1 mistake. Fix it.';
+  assert.equal(F.formatStatement(`${head}\nselect a.genre from A a`), `${head}\nSELECT a.genre\nFROM A a`);
+  assert.equal(F.formatSql(`${head}\nselect 1;`), `${head}\nSELECT 1;`);
+  const once = F.formatSql(`${head}\nselect 1;`);
+  assert.equal(F.formatSql(once), once);
+});
