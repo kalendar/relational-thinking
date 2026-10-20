@@ -76,7 +76,8 @@
   // An orthogonal route from the FK row (many side) to the PK row (one side).
   // boxes: { x, y, w, h } for each end. showFrom/showTo: whether each table shows its columns.
   // Returns { points: [{x,y}...], fromSide, toSide }.
-  function linkRoute(fromBox, fromTable, fromCol, toBox, toTable, toCol, showFrom = true, showTo = showFrom) {
+  // lane: for two or more links between the same pair, each lane moves the link 14px down so they don't overlap.
+  function linkRoute(fromBox, fromTable, fromCol, toBox, toTable, toCol, showFrom = true, showTo = showFrom, lane = 0) {
     const fromCenter = fromBox.x + fromBox.w / 2;
     const toCenter = toBox.x + toBox.w / 2;
     const overlapX = fromBox.x < toBox.x + toBox.w && toBox.x < fromBox.x + fromBox.w;
@@ -85,6 +86,8 @@
     if (overlapX) { fromSide = 'right'; toSide = 'right'; } else if (fromCenter < toCenter) { fromSide = 'right'; toSide = 'left'; } else { fromSide = 'left'; toSide = 'right'; }
     const a = anchor(fromBox, fromTable, fromCol, fromSide, showFrom);
     const b = anchor(toBox, toTable, toCol, toSide, showTo);
+    a.y += lane * 14;
+    b.y += lane * 14;
     const out = 28;
     const ax = a.x + (fromSide === 'right' ? out : -out);
     const bx = b.x + (toSide === 'right' ? out : -out);
@@ -101,17 +104,45 @@
 
   // Crow's foot marks at a line end. `p` is the point on the box edge; `side` is the edge it leaves from.
   // kind 'one' draws || (exactly one); kind 'many' draws o{ (zero or more).
+  // Crow's foot marks at a line end. `p` is the point on the box edge; `side` is the edge it leaves from.
+  // The mark next to the box is the most (bar = one, prongs = many); the one further out is the least
+  // (bar = one, circle = zero). kind: 'one' ||, 'zero-one' o|, 'one-many' |{, 'zero-many' o{ ('many' = 'zero-many').
   function crowFoot(p, side, kind) {
     const dir = side === 'right' ? 1 : -1;
     const at = d => p.x + dir * d;
-    if (kind === 'one') {
-      return { lines: [[at(8), p.y - 7, at(8), p.y + 7], [at(13), p.y - 7, at(13), p.y + 7]], circle: null };
+    const bar = d => [at(d), p.y - 7, at(d), p.y + 7];
+    const prongs = [[p.x, p.y - 7, at(12), p.y], [p.x, p.y + 7, at(12), p.y], [p.x, p.y, at(12), p.y]];
+    const circle = d => ({ cx: at(d), cy: p.y, r: 4.5 });
+    switch (kind) {
+      case 'one': return { lines: [bar(8), bar(13)], circle: null };
+      case 'zero-one': return { lines: [bar(8)], circle: circle(18) };
+      case 'one-many': return { lines: [...prongs, bar(17)], circle: null };
+      default: return { lines: prongs, circle: circle(18) }; // 'zero-many' and 'many'
     }
-    return {
-      lines: [[p.x, p.y - 7, at(12), p.y], [p.x, p.y + 7, at(12), p.y], [p.x, p.y, at(12), p.y]],
-      circle: { cx: at(18), cy: p.y, r: 4.5 },
-    };
   }
+
+  // A link from a box to itself: out of the right edge, around, and back in.
+  function selfLoopRoute(box) {
+    const x = box.x + box.w;
+    const y1 = Math.round(box.y + box.h * 0.25);
+    const y2 = Math.round(box.y + box.h * 0.75);
+    const out = x + 40;
+    return { points: [{ x, y: y1 }, { x: out, y: y1 }, { x: out, y: y2 }, { x, y: y2 }], side: 'right' };
+  }
+
+  // Where to put a link's label: the middle of its longest segment.
+  function labelPoint(points) {
+    let best = null;
+    let bestLen = -1;
+    for (let i = 1; i < points.length; i++) {
+      const a = points[i - 1];
+      const b = points[i];
+      const len = Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+      if (len > bestLen) { bestLen = len; best = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; }
+    }
+    return best || { x: 0, y: 0 };
+  }
+
 
   // Where to put the diagram in a canvas: the preferred zoom, or smaller (down to 30%) so it all fits, centered.
   // bounds: { minX, minY, maxX, maxY } in diagram units; canvas: { width, height } in px.
@@ -130,7 +161,7 @@
 
   const pathData = points => points.map((pt, i) => `${i ? 'L' : 'M'}${pt.x} ${pt.y}`).join(' ');
 
-  const api = { BOX, boxSize, layers, tidyLayout, linkRoute, crowFoot, fitView, pathData };
+  const api = { BOX, boxSize, layers, tidyLayout, linkRoute, crowFoot, selfLoopRoute, labelPoint, fitView, pathData };
   if (isNode) module.exports = api;
   else root.SS = Object.assign(root.SS || {}, api);
 })(this);

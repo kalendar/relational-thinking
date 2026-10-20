@@ -86,3 +86,54 @@ test('no link skips over a column of tables (a parent sits just left of its near
     }
   }
 });
+
+// ---- all four crow's foot ends, lanes, self-loops, label points (shared with the ERD Playground) ----
+
+test("crow's foot: each of the four ends has the right marks", () => {
+  const p = { x: 100, y: 50 };
+  const one = M.crowFoot(p, 'right', 'one');
+  assert.equal(one.lines.length, 2);
+  assert.equal(one.circle, null);
+  const zeroOne = M.crowFoot(p, 'right', 'zero-one');
+  assert.equal(zeroOne.lines.length, 1, 'one bar');
+  assert.ok(zeroOne.circle && zeroOne.circle.cx > zeroOne.lines[0][0], 'the circle sits further out than the bar');
+  const oneMany = M.crowFoot(p, 'right', 'one-many');
+  assert.equal(oneMany.lines.length, 4, 'three prongs and a bar');
+  assert.equal(oneMany.circle, null);
+  const zeroMany = M.crowFoot(p, 'right', 'zero-many');
+  assert.equal(zeroMany.lines.length, 3);
+  assert.ok(zeroMany.circle);
+  assert.deepEqual(M.crowFoot(p, 'left', 'many'), M.crowFoot(p, 'left', 'zero-many'), "'many' stays an alias for SQL Studio");
+});
+
+test('lanes move a link down 14px at both ends and keep it orthogonal', () => {
+  const t = (name, x) => ({ table: { name, columns: [] }, box: { x, y: 0, w: 100, h: 34 } });
+  const A = t('A', 0);
+  const B = t('B', 300);
+  const r0 = M.linkRoute(A.box, A.table, 'x', B.box, B.table, 'y', false, false, 0);
+  const r1 = M.linkRoute(A.box, A.table, 'x', B.box, B.table, 'y', false, false, 1);
+  assert.equal(r1.points[0].y, r0.points[0].y + 14);
+  assert.equal(r1.points[r1.points.length - 1].y, r0.points[r0.points.length - 1].y + 14);
+  for (let i = 1; i < r1.points.length; i++) {
+    const a = r1.points[i - 1];
+    const b = r1.points[i];
+    assert.ok(a.x === b.x || a.y === b.y);
+  }
+});
+
+test('a self-loop leaves and returns on the right edge, outside the box', () => {
+  const r = M.selfLoopRoute({ x: 0, y: 0, w: 100, h: 60 });
+  const first = r.points[0];
+  const last = r.points[r.points.length - 1];
+  assert.equal(r.side, 'right');
+  assert.equal(first.x, 100);
+  assert.equal(last.x, 100);
+  assert.notEqual(first.y, last.y);
+  for (const p of [first, last]) assert.ok(p.y > 0 && p.y < 60);
+  for (const p of r.points.slice(1, -1)) assert.ok(p.x > 100);
+  for (let i = 1; i < r.points.length; i++) assert.ok(r.points[i - 1].x === r.points[i].x || r.points[i - 1].y === r.points[i].y);
+});
+
+test('labelPoint is the middle of the longest segment', () => {
+  assert.deepEqual(M.labelPoint([{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 20 }]), { x: 50, y: 0 });
+});
