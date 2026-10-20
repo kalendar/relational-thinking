@@ -121,6 +121,8 @@ select.picker option{background:var(--surface); color:var(--ink);}
 .ex-current{display:flex; align-items:center; gap:8px; min-width:0; flex:1;}
 .ex-current .text{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .ex-num{font-family:'Montserrat',sans-serif; font-weight:700; color:var(--teal-ink);}
+/* The open list scrolls inside the strip, so the SQL panel stays on screen. */
+.ex-strip .panel-body{max-height:45vh;}
 .ex-list{list-style:none; margin:0; padding:8px 14px 12px; display:flex; flex-direction:column; gap:10px;}
 .ex-item{padding:8px 10px; border-radius:10px; border:1px solid transparent;}
 .ex-item.current{border-color:var(--teal); background:var(--teal-soft);}
@@ -248,6 +250,9 @@ th:hover .col-opts, th:focus-within .col-opts, .col-opts[aria-expanded="true"]{o
 @media (max-width:759px){
   .app{padding:10px 10px 20px;}
   .picker-wrap{margin-left:0; align-items:flex-start;}
+  .ex-current{flex-basis:100%; order:3;}
+  .picker-row{flex-wrap:wrap;}
+  select.picker{max-width:100%;}
   .workspace{display:flex; flex-direction:column; gap:10px;}
   .toprow{display:flex; flex-direction:column; gap:10px;}
   .splitter{display:none;}
