@@ -20,7 +20,8 @@
       const s = show(safeText(v));
       return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    return [columns.map(cell).join(','), ...rows.map(r => r.map(cell).join(','))].join('\r\n') + '\r\n';
+    // The byte order mark tells Excel the file is UTF-8, so names like "Tití" show correctly.
+    return '\uFEFF' + [columns.map(cell).join(','), ...rows.map(r => r.map(cell).join(','))].join('\r\n') + '\r\n';
   }
 
   // Same cleanup the Query Explorer uses for lines it copies: no newlines, no live [links].

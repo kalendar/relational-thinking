@@ -9,7 +9,7 @@ test('TSV: tabs and newlines in cells become spaces, NULL is empty', () => {
 });
 
 test('CSV: quotes, commas, and newlines are quoted; CRLF line ends', () => {
-  assert.equal(X.toCSV(result), 'name,total\r\nBad Bunny,5950000\r\n"Say ""hi"", ok",2.5\r\n"two\nlines",\r\n');
+  assert.equal(X.toCSV(result).slice(1), 'name,total\r\nBad Bunny,5950000\r\n"Say ""hi"", ok",2.5\r\n"two\nlines",\r\n');
 });
 
 test('formula-looking text is made safe; negative numbers are not changed', () => {
@@ -59,4 +59,10 @@ test('homeworkText when the query did not run or had an error or no rows', () =>
 test('homeworkFilename', () => {
   assert.equal(X.homeworkFilename('1.3'), 'sql-studio-1.3.txt');
   assert.equal(X.homeworkFilename('my question?'), 'sql-studio-my-question-.txt');
+});
+
+test('CSV starts with a UTF-8 byte order mark so Excel shows accents correctly', () => {
+  const csv = X.toCSV({ columns: ['song_title'], rows: [['Tití Me Preguntó']] });
+  assert.equal(csv.charCodeAt(0), 0xFEFF);
+  assert.equal(csv.slice(1), 'song_title\r\nTití Me Preguntó\r\n');
 });
