@@ -167,3 +167,37 @@ test('a left end written the right-side way gets a mirroring message', () => {
   assert.equal(one('A |{--|| B : x').errors[0].message, 'Line 1: On the left side the symbols are mirrored: write `}|` instead of `|{`.');
   assert.equal(one('A o|--|| B : x').errors[0].message, 'Line 1: On the left side the symbols are mirrored: write `|o` instead of `o|`.');
 });
+
+// ---- review fixes ----
+
+test('a missing } in the middle points at the block that was left open, and the next lines still parse', () => {
+  const a = one('erDiagram\n  ARTIST {\n    int artist_id PK\n  ARTIST ||--o{ SONG : "records"');
+  assert.equal(a.errors[0].line, 2);
+  assert.equal(a.errors[0].message, 'Line 2: This attribute block is missing its closing `}`.');
+  assert.equal(a.relationships.length, 1, 'the relationship after it is still read');
+  const b = one('erDiagram\n  ARTIST {\n    int artist_id PK\n  SONG {\n    int song_id PK\n  }');
+  assert.equal(b.errors.length, 1);
+  assert.equal(b.errors[0].line, 2);
+  assert.deepEqual(b.entities.map(e => [e.name, e.attributes.length]), [['ARTIST', 1], ['SONG', 1]]);
+});
+
+test('curly quotes from a word processor work like straight quotes', () => {
+  const m = one('erDiagram\n  “Big Box” ||--o{ SONG : “records”\n  SONG {\n    int id PK “the id”\n  }');
+  assert.deepEqual(m.errors, []);
+  assert.equal(m.relationships[0].label, 'records');
+  assert.equal(m.entities[0].name, 'Big Box');
+  assert.equal(m.entities[1].attributes[0].comment, 'the id');
+});
+
+test('a long dash in the middle of a symbol gets a clear message', () => {
+  assert.equal(one('A ||–o{ B : x').errors[0].message, 'Line 1: Use two hyphens `--` in the middle, not a long dash.');
+  assert.equal(one('A ||—o{ B : x').errors[0].message, 'Line 1: Use two hyphens `--` in the middle, not a long dash.');
+});
+
+test('an empty label after the colon works here, with a note (Mermaid rejects it)', () => {
+  const m = one('erDiagram\n  A ||--o{ B :');
+  assert.deepEqual(m.errors, []);
+  assert.equal(m.relationships[0].label, '');
+  assert.ok(m.notes.includes('Line 2 has a `:` but no label. To use it in Mermaid, add a label after the `:` or remove the `:`.'));
+  assert.deepEqual(one('erDiagram\n  A ||--o{ B : plays for').notes, [], 'a label with spaces is fine in Mermaid');
+});

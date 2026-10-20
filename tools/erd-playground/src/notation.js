@@ -41,6 +41,7 @@
 
   // Checks a relationship symbol like ||--o{. Returns { aEnd, bEnd, dashed } or { error }.
   function readSymbol(tok, n) {
+    if (/[\u2013\u2014]/.test(tok)) return { error: `Line ${n}: Use two hyphens \`--\` in the middle, not a long dash.` };
     const L = tok.slice(0, 2);
     const mid = tok.slice(2, 4);
     const R = tok.slice(4, 6);
@@ -80,13 +81,16 @@
     };
     const addRel = (aTok, bTok, aEnd, bEnd, dashed, rawLabel, n, aSym, bSym) => {
       if (rawLabel === undefined) missingLabel = true;
+      else if (!rawLabel.trim()) model.notes.push(`Line ${n} has a \`:\` but no label. To use it in Mermaid, add a label after the \`:\` or remove the \`:\`.`);
       const a = ensure(aTok, n).name;
       const b = ensure(bTok, n).name;
       model.relationships.push({ a, b, aEnd, bEnd, dashed, label: rawLabel === undefined ? '' : readLabel(rawLabel), line: n, aSym, bSym });
     };
     const fail = (n, col, length, message) => model.errors.push({ line: n, col, length, message });
 
-    const lines = String(text == null ? '' : text).replace(/\r\n?/g, '\n').replace(/ /g, ' ').split('\n');
+    // Pasted text: Windows line endings, non-breaking spaces, and a word processor's curly quotes.
+    const lines = String(text == null ? '' : text).replace(/\r\n?/g, '\n').replace(/\u00A0/g, ' ')
+      .replace(/[\u201C\u201D]/g, '"').replace(/[\u2018\u2019]/g, "'").split('\n');
     let seenContent = false;
     let block = null; // { entity, line }
     let missingLabel = false;
@@ -97,6 +101,11 @@
       if (!t || t.startsWith('%%')) return;
       const lead = line.indexOf(t);
 
+      // A line that starts a new block or is a relationship means the open block was never closed.
+      if (block && (RE_BLOCK_OPEN.test(t) || RE_WORDS.test(t) || (RE_REL.test(t) && looksLikeSymbol(RE_REL.exec(t)[2])))) {
+        fail(block.line, 1, lines[block.line - 1].length, `Line ${block.line}: This attribute block is missing its closing \`}\`.`);
+        block = null;
+      }
       if (block) {
         if (t === '}') { block = null; return; }
         const m = /^(\S+)\s+([A-Za-z_][A-Za-z0-9_-]*)(.*)$/.exec(t);

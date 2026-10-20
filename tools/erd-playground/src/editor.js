@@ -45,6 +45,12 @@
       // Tab and Shift-Tab move focus out of the editor, so keyboard users are never stuck.
       extraKeys: { Tab: false, 'Shift-Tab': false },
     });
+    // Curly quotes (from a word processor or a phone keyboard) become straight ones, so Copy gives text Mermaid accepts.
+    cm.on('beforeChange', (_, change) => {
+      if (change.update && change.text.some(t => /[\u201C\u201D\u2018\u2019]/.test(t))) {
+        change.update(change.from, change.to, change.text.map(t => t.replace(/[\u201C\u201D]/g, '"').replace(/[\u2018\u2019]/g, "'")));
+      }
+    });
     cm.on('change', () => onChange(cm.getValue()));
 
     const at = span => ({ from: { line: span.line - 1, ch: span.col - 1 }, to: { line: span.line - 1, ch: span.col - 1 + Math.max(span.length, 1) } });
