@@ -163,25 +163,47 @@
     return s.replace(/\n\s*$/, '\n');
   }
 
+  const endsInLineComment = text => {
+    const toks = T.tokenize(text).filter(t => t.type !== 'ws');
+    const last = toks[toks.length - 1];
+    return !!last && last.type === 'comment' && last.text.startsWith('--');
+  };
+
+  // A comment on the same line right after a ";" belongs to the statement before it.
+  function splitTrailingComment(text) {
+    const m = /^[ \t]*/.exec(text);
+    const toks = T.tokenize(text.slice(m[0].length));
+    if (!toks.length || toks[0].type !== 'comment') return { trailing: '', rest: text };
+    const c = toks[0];
+    if (c.text.startsWith('/*') && c.text.includes('\n')) return { trailing: '', rest: text };
+    return { trailing: c.text, rest: text.slice(m[0].length + c.end) };
+  }
+
   function formatSql(text) {
     const parts = T.splitStatements(text);
-    const hadFinalSemi = /;\s*$/.test(T.tokenize(text).filter(t => t.type !== 'comment').map(t => t.text).join(''));
-    const formatted = [];
-    for (const p of parts) {
-      if (p.empty) {
-        const c = p.text.trim();
-        if (c) formatted.push({ text: c, comment: true });
-        continue;
+    const blocks = []; // { text, semi, trailing } or { comment }
+    parts.forEach((p, i) => {
+      let body = p.text;
+      if (i > 0 && blocks.length && blocks[blocks.length - 1].semi) {
+        const { trailing, rest } = splitTrailingComment(body);
+        if (trailing) { blocks[blocks.length - 1].trailing = trailing; body = rest; }
       }
-      formatted.push({ text: formatStatement(p.text) });
-    }
-    let out = '';
-    formatted.forEach((f, k) => {
-      if (k > 0) out += f.comment ? '\n' : ';\n\n';
-      out += f.text;
+      const semi = p.end > p.start + p.text.length; // this part ended with ";"
+      const isEmpty = T.tokenize(body).every(t => t.type === 'ws' || t.type === 'comment');
+      if (isEmpty) {
+        const c = body.trim();
+        if (c) blocks.push({ comment: c, semi: false });
+        return;
+      }
+      blocks.push({ text: formatStatement(body), semi, trailing: '' });
     });
-    if (hadFinalSemi && formatted.length && !formatted[formatted.length - 1].comment) out += ';';
-    return out;
+    return blocks.map(bk => {
+      if (bk.comment) return bk.comment;
+      let out = bk.text;
+      if (bk.semi) out += endsInLineComment(out) ? '\n;' : ';';
+      if (bk.trailing) out += ' ' + bk.trailing;
+      return out;
+    }).join('\n\n');
   }
 
   const api = { formatSql, formatStatement };

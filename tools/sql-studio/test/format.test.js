@@ -84,3 +84,32 @@ test('formatting never changes the result of any exercise answer', async () => {
     D.closeStudio(st);
   }
 });
+
+const T = require('../src/sql-text.js');
+const realStatements = sql => T.splitStatements(sql).filter(p => !p.empty).length;
+
+test('a comment after a ; stays after that statement, and the ; is kept', () => {
+  assert.equal(F.formatSql('SELECT * FROM Songs; -- my first query'), 'SELECT *\nFROM Songs; -- my first query');
+  assert.equal(F.formatSql('SELECT 1; -- a\nSELECT 2; -- b'), 'SELECT 1; -- a\n\nSELECT 2; -- b');
+});
+
+test('a statement ending in a -- comment gets its ; on the next line, not inside the comment', () => {
+  const out = F.formatSql('SELECT 1 -- one\n;\nSELECT 2;');
+  assert.equal(out, 'SELECT 1 -- one\n;\n\nSELECT 2;');
+});
+
+test('comments never change how many statements there are, and formatting twice changes nothing', () => {
+  const inputs = [
+    'SELECT * FROM Songs; -- my first query',
+    'SELECT * FROM Songs; -- my first query\nSELECT * FROM Artists;',
+    'SELECT 1 -- one\n;\nSELECT 2;',
+    '-- top\nSELECT 1; /* mid */ SELECT 2; -- end',
+    'SELECT 1;\n-- just a note\n\nSELECT 2',
+    'select a -- why\nfrom t; select b from u -- last',
+  ];
+  for (const sql of inputs) {
+    const once = F.formatSql(sql);
+    assert.equal(realStatements(once), realStatements(sql), `statement count changed:\n${sql}\n→\n${once}`);
+    assert.equal(F.formatSql(once), once, `not idempotent:\n${once}`);
+  }
+});
