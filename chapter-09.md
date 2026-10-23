@@ -1,5 +1,13 @@
 # Chapter 9: Joins and Aggregation
 
+By the end of this chapter, you will be able to:
+
+- **Explain** why normalization and joins work as a pair, and **describe** how a missing or wrong join condition produces a Cartesian product.
+- **Choose** between INNER JOIN and LEFT JOIN based on whether the business question needs to keep unmatched rows, and **interpret** the NULLs a LEFT JOIN puts in its results.
+- **Write** multi-table joins that follow a foreign-key join path, and **recognize** when joining through two one-to-many relationships creates a fan trap that inflates totals.
+- **Use** COUNT, SUM, AVG, MIN, and MAX with GROUP BY and HAVING to summarize data at a stated grain, and **distinguish** COUNT(*) from COUNT(DISTINCT column) and WHERE from HAVING.
+- **Prompt** an AI assistant for join and aggregation queries by stating the join path and the expected grain, and **verify** the result with row-count sanity checks and comparisons against known totals.
+
 ---
 
 In Chapter 8 you wrote your first SQL queries. You can now filter rows with WHERE, choose columns with SELECT, and get results from a single table. That's a solid foundation — but most real business questions can't be answered from a single table.
