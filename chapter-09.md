@@ -100,6 +100,8 @@ This is one of the most damaging mistakes in SQL because it's silent. No error m
 
 SQL supports several join types, but two cover the vast majority of real queries: INNER JOIN and LEFT JOIN. Understanding the difference is one of the most important SQL skills you'll develop.
 
+https://www.youtube.com/watch?v=tgx3hFGi_mc
+
 ### INNER JOIN: only matching rows
 
 An **INNER JOIN** returns rows only where a match exists in *both* tables. If a row in the left table has no corresponding row in the right table, it's excluded from the result. If a row in the right table has no corresponding row in the left table, it's also excluded.
