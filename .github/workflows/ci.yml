@@ -172,7 +172,10 @@ jobs:
           python3 publish_to_pressbooks.py --dry-run --state "$RUNNER_TEMP/publish-state.json" \
             --render-to _preview --report "$RUNNER_TEMP/report.md"
           code=$?
-          [ -f "$RUNNER_TEMP/report.md" ] && cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "$RUNNER_TEMP/report.md" ]; then
+            cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
+            echo "::group::Report"; cat "$RUNNER_TEMP/report.md"; echo "::endgroup::"
+          fi
           exit $code
       - name: Save chapter previews
         if: always() && hashFiles('_preview/**') != ''
@@ -235,7 +238,11 @@ jobs:
           python3 publish_to_pressbooks.py "${args[@]}"
       - name: Job summary
         if: always() && steps.publish.outcome != 'skipped'
-        run: '[ -f "$RUNNER_TEMP/report.md" ] && cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY" || true'
+        run: |
+          if [ -f "$RUNNER_TEMP/report.md" ]; then
+            cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
+            cat "$RUNNER_TEMP/report.md"
+          fi
       - name: Save the publish state
         if: always() && steps.publish.outcome != 'skipped'
         run: |

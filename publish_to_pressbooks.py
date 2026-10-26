@@ -201,6 +201,16 @@ def text_diff(old_html: str, new_html: str, old_label: str, new_label: str, limi
     return "\n".join(lines)
 
 
+def markup_diff(old_html: str, new_html: str, old_label: str, new_label: str, limit: int = 80) -> str:
+    """Diff of the HTML itself (image URLs masked), one tag per line, for when
+    the visible text is the same but the markup isn't."""
+    split = lambda h: [l for l in re.sub(r">\s*<", ">\n<", mask_images(h)).split("\n") if l.strip()]
+    lines = list(difflib.unified_diff(split(old_html), split(new_html), old_label, new_label, lineterm="", n=0))
+    if len(lines) > limit:
+        lines = lines[:limit] + [f"... ({len(lines) - limit} more diff lines not shown)"]
+    return "\n".join(lines)
+
+
 def markdown_at_commit(commit: str, filename: str) -> str:
     """The chapter's markdown as of a past commit, or "" if git can't provide it."""
     try:
@@ -915,6 +925,11 @@ def main():
 
         # 1. Refuse to clobber edits made in Pressbooks since our last publish.
         status, why = drift_check(current, recorded)
+        if status == "blocked" and live_fingerprint(current) == new_fp:
+            # The live page is already exactly what the source would publish
+            # (apart from image URLs), so there is no edit to lose. This also
+            # covers state recorded before content hashes existed.
+            status, why = "moved", "live page already matches the source exactly"
         if status == "blocked" and not args.force:
             baseline_commit = recorded.get("commit", "")
             baseline_md = markdown_at_commit(baseline_commit, filename) if baseline_commit else ""
@@ -963,8 +978,13 @@ def main():
         what = f"{n_lines} text line(s) differ" if n_lines else "markup/title/position only"
         if args.render_to:
             write_preview(args.render_to, filename, live_title, preview_html)
-        details.append(f"<details><summary><code>{filename}</code>: text changes "
-                       f"(plain text)</summary>\n\n```diff\n{diff or '(no text difference)'}\n```\n</details>")
+        if not diff:
+            diff = markup_diff(live_raw, preview_html, "live on Pressbooks", "after this publish")
+            title_now = (current.get("title") or {}).get("raw", "")
+            if title_now != live_title:
+                diff = f"title: {title_now!r} -> {live_title!r}\n" + diff
+        details.append(f"<details><summary><code>{filename}</code>: changes "
+                       f"({'plain text' if n_lines else 'markup'})</summary>\n\n```diff\n{diff or '(no difference in content)'}\n```\n</details>")
 
         if args.dry_run:
             print(f"       dry run — would publish ({what})")

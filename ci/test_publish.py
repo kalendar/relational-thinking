@@ -155,6 +155,22 @@ class PublishTests(unittest.TestCase):
         self.assertIn("content is identical", out)
         self.assertEqual(self.server.updates, [CH1[1]], "no second write")
 
+    def test_old_state_timestamp_tick_is_safe_when_live_matches_source(self):
+        # State written before content hashes existed, plus Pressbooks' 1-second tick.
+        self.live_as_published(CH1)
+        self.server.chapters[CH1[1]]["modified_gmt"] = self.server.tick()
+        code, out = self.run_script("--only", "chapter-01.md")
+        self.assertEqual(code, 0, out)
+        self.assertIn("already matches the source", out)
+        self.assertEqual(self.server.updates, [])
+
+    def test_old_state_timestamp_tick_still_blocks_when_live_differs(self):
+        self.live_as_published(CH1, raw="<p>someone's edit</p>")
+        self.server.chapters[CH1[1]]["modified_gmt"] = self.server.tick()
+        code, out = self.run_script("--only", "chapter-01.md")
+        self.assertEqual(code, 1, out)
+        self.assertEqual(self.server.updates, [])
+
     def test_edit_made_in_pressbooks_blocks_and_is_reported(self):
         self.live_as_published(CH1, raw="<p>old</p>")
         self.run_script("--only", "chapter-01.md")
