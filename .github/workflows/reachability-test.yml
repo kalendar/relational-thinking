@@ -1,0 +1,39 @@
+# Temporary: checks whether GitHub-hosted runners can reach Pressbooks.
+# Read-only requests; prints status codes only. Delete this branch after the test.
+name: Pressbooks reachability test
+on:
+  push:
+    branches: [ci-reachability-test]
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    env:
+      API: https://pressbooks.marshall.edu/mis340/wp-json
+      UA: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    steps:
+      - name: 0. Runner public IP
+        continue-on-error: true
+        run: curl -sS --max-time 15 https://api.ipify.org; echo
+
+      - name: 1. Public API, default user-agent (expected to be blocked)
+        continue-on-error: true
+        run: curl -sS -o /dev/null --max-time 30 -w "HTTP %{http_code}\n" "$API/"
+
+      - name: 2. Public API, browser user-agent (same as the publish script)
+        continue-on-error: true
+        run: curl -sS -o /dev/null --max-time 30 -A "$UA" -w "HTTP %{http_code}\n" "$API/pressbooks/v2/chapters?per_page=1"
+
+      - name: 3. Authenticated read (who am I)
+        continue-on-error: true
+        env:
+          PB_USER: ${{ secrets.PRESSBOOKS_USERNAME }}
+          PB_PASS: ${{ secrets.PRESSBOOKS_APP_PASSWORD }}
+        run: |
+          if [ -z "$PB_USER" ] || [ -z "$PB_PASS" ]; then echo "Secrets not available to this run"; exit 1; fi
+          curl -sS -o /dev/null --max-time 30 -A "$UA" -u "$PB_USER:$PB_PASS" -w "HTTP %{http_code}\n" "$API/wp/v2/users/me"
+
+      - name: 4. mermaid.ink (diagram rendering)
+        continue-on-error: true
+        run: curl -sS -o /dev/null --max-time 30 -w "HTTP %{http_code}\n" "https://mermaid.ink/img/Z3JhcGggVEQ7IEEtLT5C"
