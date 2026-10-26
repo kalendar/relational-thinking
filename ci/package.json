@@ -1,0 +1,12 @@
+{
+  "name": "relational-thinking-ci",
+  "private": true,
+  "description": "Tools used only by the CI checks in ci/. Install with: npm ci --prefix ci",
+  "devDependencies": {
+    "@mermaid-js/mermaid-cli": "11.16.0",
+    "playwright": "1.63.0"
+  },
+  "overrides": {
+    "playwright-core": "1.63.0"
+  }
+}
