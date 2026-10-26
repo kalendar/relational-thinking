@@ -936,7 +936,8 @@ def main():
             label = f"last published (commit {baseline_commit[:7]})" if baseline_md else "current markdown"
             try:
                 baseline_html = markdown_to_html(baseline_md or raw_md, None, chapter_slug)
-                diff = text_diff(baseline_html, live_raw, label, "live on Pressbooks")
+                diff = (text_diff(baseline_html, live_raw, label, "live on Pressbooks")
+                        or markup_diff(baseline_html, live_raw, label, "live on Pressbooks"))
             except PublishError:
                 diff = ""
             print(f"       BLOCKED — {why}")
@@ -946,7 +947,7 @@ def main():
             annotate("error", f"BLOCKED {filename}", why)
             report.append(f"| `{filename}` | 🛑 BLOCKED | {why} — [live page]({live_url}) |")
             details.append(f"<details><summary><code>{filename}</code>: what changed on Pressbooks "
-                           f"(plain text)</summary>\n\n```diff\n{diff or '(no text difference: only markup changed)'}\n```\n</details>")
+                           f"(plain text)</summary>\n\n```diff\n{diff or '(no difference in content)'}\n```\n</details>")
             counts["blocked"] += 1
             continue
         if status == "moved":
