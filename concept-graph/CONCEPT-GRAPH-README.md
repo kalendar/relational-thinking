@@ -157,3 +157,14 @@ Three imprecise cross-references, none of which block a reader:
 Four vocabulary-drift items also remain — the most substantive being `schema`,
 used from ch1's course outcomes onward but only ever defined in ch6's Key Terms
 as "relational schema".
+
+## Used by CI
+
+`ci/check_concept_order.py` reads this graph on every pull request (see
+`ci/README.md`). Two additions support it:
+
+- `key_terms_forms` (optional, on a node): how a chapter's Key Terms list words
+  the concept, when that wording is too common to scan the text for — e.g.
+  "Project" for *projecting*. Used only to match Key Terms to concepts.
+- `concept-order-allowlist.json`: early uses that were reviewed and are fine,
+  each with a reason. Only consulted when a chapter is finalized.

@@ -19,11 +19,40 @@ in the Pressbooks web editor.** The pipeline owns all three.
 | Chapters | `lint_chapters.py`: H1 matches the file; every chapter is listed in `CHAPTERS`; learning-outcomes list in the exact form the publish script styles (required once a chapter's `wip` flag is `False`); every activity prompt is a blockquote; code fences balanced; local images exist; links to practice tools point at a page the build produces | Yes |
 | Chapters | `check_mermaid.py`: every Mermaid diagram renders | Yes |
 | Chapters | `test_publish.py`: the publish script's decisions, against a fake Pressbooks | Yes |
+| Chapters | `check_reading_level.py`: Flesch-Kincaid grade of every section the change touches; warns above 10.5 (target 10) or on a rise of more than one grade, and lists the longest sentences | No (warns) |
+| Chapters | `check_concept_order.py`: warns when a change adds a use of a concept the book introduces in a later chapter, and on Key Terms defined twice or missing from the concept graph | Only when a chapter is finalized (see below) |
 | Tools | Unit tests in `tools/*/test` | Yes |
 | Tools | Committed `tools/*/dist/*.html` match a fresh build from `src/` | Yes |
 | Tools | `smoke_test.js`: every page of the site opens in Chromium with no errors | Yes |
 | Pressbooks preview | Dry run: fails if a chapter the PR touches was edited on Pressbooks (BLOCKED) | Not yet required |
 | External links | `check_external_links.py`: warns about dead links | No |
+
+## Writing checks
+
+Both run on the chapters a change touches, compared with the base branch, and
+write a table into the run's summary page.
+
+**Reading level** is an estimate: the formula only counts sentence length and
+syllables. Words from any chapter's Key Terms count as at most two syllables,
+so the vocabulary the book teaches doesn't push a section over by itself. It
+never blocks.
+
+**Concept order** uses the concept graph in `concept-graph/`. It only reports
+uses a change *adds*: the existing text has about 60 mechanical matches, nearly
+all ordinary words ("column", "key", "where"). Sentences that point forward
+("Chapter 5 will cover…") are skipped. When a change flips a chapter's `wip`
+flag to `False`, every early use in that chapter fails the check until it's
+reworked, glossed, or recorded with a reason in
+`concept-graph/concept-order-allowlist.json`:
+
+```json
+[{"chapter": 13, "concept": "window function", "reason": "named in passing; Chapter 14 teaches it"}]
+```
+
+A "not in the concept graph" warning means a Key Term's wording doesn't match
+any concept. Add the wording to that concept's `surface_forms` in
+`knowledge-graph.json`, or to `key_terms_forms` if it's an everyday word
+(like "Project") that shouldn't be scanned for in the text.
 
 ## How publishing decides what to do
 
