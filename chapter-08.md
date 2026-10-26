@@ -45,6 +45,7 @@ Recall from Chapter 4 that the relational model is based on set theory and uses 
 Compare these two approaches to the same question — "which artists have more than 50 songs?":
 
 **Procedural (how you'd do it manually):**
+
 1. Go to the Song table.
 2. Read through every row.
 3. Keep a running count per artist.
@@ -469,6 +470,7 @@ Let's trace through a complete cycle: business question → AI prompt → SQL ou
 **Business question:** "Which subscription tier has the highest average listening session length, in minutes?"
 
 **Planning the query (Chapter 7 style):**
+
 - Grain of result: one row per subscription tier
 - Tables needed: USER (for subscription_tier), STREAM (for seconds_listened)
 - Join: USER joined to STREAM on user_id

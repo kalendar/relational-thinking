@@ -45,6 +45,7 @@ Working through the narrative, here's what we get:
 **Entities:** Student, Concert, Performer, Venue, Ticket
 
 **Attributes:**
+
 - Student: student_id (PK), name, email
 - Concert: concert_id (PK), venue_id (FK), date, title
 - Venue: venue_id (PK), venue_name, location, capacity
@@ -52,6 +53,7 @@ Working through the narrative, here's what we get:
 - Ticket: ticket_id (PK), student_id (FK), concert_id (FK), price_paid, purchase_date
 
 **Relationships:**
+
 - Concert is held at one Venue; a Venue can host many Concerts → one-to-many, FK lives on Concert
 - A Student can buy many Tickets; each Ticket belongs to one Student → one-to-many, FK lives on Ticket
 - A Ticket is for one Concert; a Concert has many Tickets → one-to-many, FK lives on Ticket
@@ -183,6 +185,7 @@ USER (user_id PK, username, email, role)
 ```
 
 This works for simple cases ("admin" vs. "regular user"), but breaks down quickly:
+
 - What if a user can have multiple roles? (A student who is also a student government officer and a teaching assistant.)
 - What if roles have properties of their own? (Each role has a description, a set of permissions, and a date it was last updated.)
 
@@ -296,6 +299,7 @@ The general rule: **additive changes first, breaking changes last (or never).**
 **Breaking changes** are risky: remove a column, split a table into two, rename a column, change a data type. These break existing queries and application code that references the old structure. They require careful coordination.
 
 A common pattern for safely refactoring a column:
+
 1. Add the new column (additive change)
 2. Write a migration script that populates the new column from the old one for all existing rows
 3. Update application code to write to both columns during a transition period
@@ -319,6 +323,7 @@ Here's a denormalized table someone might have built in a spreadsheet and import
 | 3 | Maya Johnson | maya@mu.edu | Fall Concert | Big Sandy | Huntington, WV | Tyler Childers | | 2026-10-10 | 35.00 |
 
 Problems visible immediately:
+
 - `student_name` and `student_email` repeat for every ticket Maya buys (update anomaly: change her email in one row, miss it in another)
 - `venue_name` and `venue_location` repeat for every concert at that venue (same issue)
 - `concert_title`, `concert_date`, and `ticket_price` repeat for every ticket to the same concert
@@ -357,6 +362,7 @@ Say: *"The system won't let anyone enter a negative ticket price. If someone tri
 The goal isn't to hide the technical details — it's to connect them to the business problem they solve. Every design decision was made for a reason, and that reason is always expressible in business terms.
 
 **Useful translation patterns:**
+
 - "Foreign key" → "a pointer to the [related table]" or "a reference to the associated [entity]"
 - "Junction table" → "a record of the relationship between X and Y" or "an [event/enrollment/assignment] that connects X and Y"
 - "NOT NULL constraint" → "a required field — the system won't accept a row without it"
@@ -368,12 +374,14 @@ The goal isn't to hide the technical details — it's to connect them to the bus
 The ER diagram is your primary communication tool — but it's not always the right tool for the right audience.
 
 **Show the ER diagram when:**
+
 - You're presenting the design to developers or technical reviewers who will implement it
 - You're onboarding a new team member who needs to understand the full schema
 - You're documenting the design for future reference
 - You're getting design feedback from someone who can read it
 
 **Don't show the ER diagram when:**
+
 - You're explaining to an executive why the ticketing system works the way it does
 - You're in a requirements meeting with a business owner who hasn't asked to see a schema
 - The diagram is large and complex and the audience only cares about one part of it

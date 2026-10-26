@@ -137,6 +137,7 @@ Let's try it with a real example. Here's a business description for a campus mus
 *"Our organization puts on live music events on campus. We book artists to perform at specific events. Each event happens at one campus venue and has a set start time and ticket price. Students buy tickets to attend events. A student can buy multiple tickets to the same event to bring friends. Each ticket has a seat or standing area assignment. We also have sponsors who contribute money to support events; a sponsor can support multiple events and an event can have multiple sponsors."*
 
 **Nouns (candidate entities):**
+
 - Organization (probably not - it's the system owner, not something we track)
 - Artist
 - Event
@@ -147,6 +148,7 @@ Let's try it with a real example. Here's a business description for a campus mus
 - Sponsor
 
 **Verbs (candidate relationships):**
+
 - Artist *performs at* Event
 - Event *happens at* Venue
 - Student *buys* Ticket
@@ -154,6 +156,7 @@ Let's try it with a real example. Here's a business description for a campus mus
 - Sponsor *supports* Event
 
 Now we can start classifying relationships:
+
 - Artist performs at Event: an artist can perform at many events; an event can have multiple artists → **many-to-many**
 - Event happens at Venue: an event happens at one venue; a venue can host many events → **many-to-one** (or one-to-many from Venue's perspective)
 - Student buys Ticket: a student can buy many tickets → **one-to-many**
@@ -451,6 +454,7 @@ ACTIVITY (activity_id, user_id, content_id, type, value, timestamp, notes)
 ```
 
 Problems:
+
 - `val1`, `val2`, `val3`, `extra1`, `extra2`, `misc` tell us nothing. What are these?
 - `type` columns on both CONTENT and ACTIVITY suggest polymorphism - these tables are trying to represent multiple different things.
 - `data` on CONTENT could mean anything - song audio? Podcast transcript? Album artwork?
@@ -475,6 +479,7 @@ Good initial design reduces the frequency of breaking changes. When you've corre
 Here's a concrete example. Suppose the campus music system is live and the student government wants to add a feature: students can add events to a personal "watchlist" before tickets go on sale.
 
 If the original design was good, this is a purely additive change:
+
 - Add a `WATCHLIST` table with `student_id`, `event_id`, and `added_date`.
 - No existing tables change.
 - No existing queries break.

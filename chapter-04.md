@@ -80,6 +80,7 @@ This is why we spend time on the theory before the practice. The theory explains
 In everyday speech, we say "table," "row," and "column." Those words are fine and we'll keep using them throughout this book. But it's worth knowing the formal terms, because you'll encounter them in the wild - in technical documentation, job interviews, conversations with database professionals - and because the formal terms are more precise.
 
 In relational theory:
+
 - A **relation** is what we've been calling a table.
 - A **tuple** is what we've been calling a row.
 - An **attribute** is what we've been calling a column.

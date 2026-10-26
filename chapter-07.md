@@ -160,6 +160,7 @@ Two specific problems arise from join errors:
 **Aggregating** means collapsing many rows into fewer rows by computing a summary value. Instead of seeing every individual stream, you see total streams per artist. Instead of every individual ticket price, you see total revenue per event.
 
 The common aggregation functions:
+
 - **COUNT** - how many rows? (How many streams? How many tickets sold?)
 - **SUM** - what's the total? (Total revenue? Total minutes streamed?)
 - **AVG** - what's the average? (Average ticket price? Average stream duration?)

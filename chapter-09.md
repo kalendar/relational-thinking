@@ -181,6 +181,7 @@ LEFT JOIN Stream st ON s.song_id = st.song_id;
 Now "Paint the Town Red" appears — with NULL in `stream_date` because it has no streams. The song wasn't dropped; it was preserved with a null to indicate the absence of a match.
 
 This is powerful for questions like:
+
 - "Which songs have never been streamed?" — Filter the LEFT JOIN result for `stream_date IS NULL`
 - "How many streams does each song have, including songs with zero streams?" — GROUP BY song, COUNT streams, and songs with no streams will have a count of 0
 - "Which students haven't bought a ticket yet?" — LEFT JOIN students to tickets, filter for NULL ticket
@@ -340,6 +341,7 @@ Each of these is a different question about the same data. Getting the function 
 Here's a behavior that surprises many people: **aggregate functions ignore NULL values** (except COUNT(*)).
 
 If you have 100 stream rows and 10 of them have a NULL in `seconds_listened`, then:
+
 - `COUNT(*)` returns 100 (counts all rows regardless of NULLs)
 - `COUNT(seconds_listened)` returns 90 (counts only non-NULL rows)
 - `SUM(seconds_listened)` adds up the 90 non-NULL values, ignoring the 10 NULLs
@@ -433,6 +435,7 @@ ORDER BY avg_duration DESC;
 ```
 
 Reading this query in execution order (not written order):
+
 1. FROM Song — start with the Song table
 2. WHERE explicit = false — keep only non-explicit rows
 3. GROUP BY genre — group remaining rows by genre

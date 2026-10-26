@@ -133,6 +133,7 @@ Whether the lakehouse fully delivers on that promise is still being worked out i
 **Extract:** Pull data from the source systems. This might mean querying the OLTP database for all records changed since the last extract, calling an API to retrieve new events, or reading files deposited by partner systems.
 
 **Transform:** Clean, reshape, and enrich the data so it fits the warehouse schema. Transformations might include:
+
 - Standardizing inconsistent values ("West Virginia," "WV," and "w. virginia" → "WV")
 - Converting data types (a timestamp stored as text → a proper datetime)
 - Joining data from multiple sources (combining stream events with user attributes)
