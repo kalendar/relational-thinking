@@ -144,6 +144,7 @@ We'll cover the three most important ones: First Normal Form (1NF), Second Norma
 ### First Normal Form: atomicity and repeating groups
 
 A table is in **First Normal Form (1NF)** when:
+
 1. Every cell contains a single, atomic value (no lists or nested values).
 2. There are no repeating groups (no multiple columns representing the same type of thing).
 
@@ -171,6 +172,7 @@ Now each row is one fact (one song in one setlist), and the table is in 1NF.
 ### Every attribute must contain a single, indivisible value
 
 The atomicity requirement of 1NF is violated by:
+
 - Comma-separated lists in a single cell ("Pop, R&B, Soul")
 - Concatenated values ("Houston, TX" when city and state should be separate)
 - JSON or structured objects embedded in a column
@@ -181,6 +183,7 @@ Each of these makes the data harder to query. The fix is always to either split 
 ### Second Normal Form: eliminating partial dependencies
 
 A table is in **Second Normal Form (2NF)** when:
+
 1. It's already in 1NF.
 2. Every non-key attribute depends on the *whole* primary key, not just part of it.
 
@@ -224,6 +227,7 @@ If a column depends on just part of a composite key, it's a partial dependency a
 ### Third Normal Form: eliminating transitive dependencies
 
 A table is in **Third Normal Form (3NF)** when:
+
 1. It's already in 2NF.
 2. Every non-key attribute depends *directly* on the primary key - not on another non-key attribute.
 
@@ -283,6 +287,7 @@ You might be wondering: are there normal forms beyond 3NF? Yes - there's BCNF (B
 For most business databases, **3NF is the target**. It eliminates the update, insert, and delete anomalies that cause real problems, without over-engineering the design. Going further is rarely necessary and sometimes counterproductive.
 
 The signs that you've reached a good stopping point:
+
 - Each table represents exactly one entity or relationship.
 - Every non-key column is a fact about the primary key, the whole primary key, and nothing but the primary key. (This is a useful mnemonic - we'll return to it.)
 - Changing any real-world fact requires changing exactly one row in exactly one table.

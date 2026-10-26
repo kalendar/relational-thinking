@@ -14,6 +14,8 @@ Checks:
     chapter without one only gets a warning.
   - Every "Copy and paste this prompt into your AI tool:" is followed by a
     blockquote (the publish script turns that blockquote into a gray box).
+  - Every list has a blank line before it (otherwise python-markdown folds
+    it into the paragraph above and the dashes or numbers print literally).
   - Code fences are balanced.
   - Every local image (./file) exists.
   - Every link to a practice tool on kalendar.github.io/relational-thinking
@@ -29,6 +31,7 @@ import sys
 LEAD_IN = "By the end of this chapter, you will be able to:"
 PROMPT_LINE = "Copy and paste this prompt into your AI tool:"
 TOOLS_URL = re.compile(r"https://kalendar\.github\.io/relational-thinking/([A-Za-z0-9._/-]*)")
+LIST_ITEM = re.compile(r"^\s*([-*+]|\d+\.)\s")
 LOCAL_IMG = re.compile(r'(?:src="|\]\()\./([^")]+)')
 
 errors = 0
@@ -91,6 +94,17 @@ def lint(path, site, wip_flags):
                 report("error", path, i + 1, "This activity prompt isn't followed by a blockquote, so it won't get its gray box.")
     if not any(PROMPT_LINE in l for l in lines):
         report("warning", path, 1, "No interactive activities found.")
+
+    in_fence = False
+    for i, l in enumerate(lines):
+        if l.lstrip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        prev = lines[i - 1] if i else ""
+        if (not in_fence and LIST_ITEM.match(l) and prev.strip() and not LIST_ITEM.match(prev)
+                and not prev.lstrip().startswith(("#", ">", "|"))):
+            report("error", path, i + 1, "This list needs a blank line before it; without one it "
+                                         "publishes as a run-on paragraph with literal dashes or numbers.")
 
     fences = [i for i, l in enumerate(lines) if l.lstrip().startswith("```")]
     if len(fences) % 2:

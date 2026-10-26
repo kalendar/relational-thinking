@@ -107,6 +107,7 @@ CREATE TABLE Ticket (
 ```
 
 The CHECK constraints here encode two business rules:
+
 - Tickets cannot have a negative price
 - A single purchase can include between 1 and 10 tickets
 
@@ -190,6 +191,7 @@ Foreign key violations and other constraint errors are often experienced as frus
 A constraint violation error means: *"You just tried to put bad data in the database, and I stopped you."* The error is the database doing its job. The alternative — no constraint, no error, bad data inserted — is much worse. You'd rather have an error message now than an incorrect report six months from now.
 
 Learning to read database error messages is a practical skill. A foreign key violation error typically tells you:
+
 - Which table the violation occurred in
 - Which foreign key constraint was violated
 - What value you tried to insert that didn't have a matching parent
@@ -238,6 +240,7 @@ The risk is highest in complex schemas with multiple levels of cascading. If del
 Constraints protect individual rows and relationships. But many business operations require multiple changes to the database, and those changes need to succeed or fail together.
 
 Think about what happens when a student buys a ticket. In our system, that involves:
+
 1. Inserting a new row into the Ticket table
 2. Updating the available ticket count on the Concert table (decreasing it by 1)
 3. Recording the payment in a Payment table
@@ -276,6 +279,7 @@ If anything goes wrong between BEGIN and COMMIT, you can issue a ROLLBACK — or
 ### The classic example: the bank transfer
 
 The canonical example for transactions is a bank transfer. Moving $500 from Account A to Account B requires two operations:
+
 1. Subtract $500 from Account A
 2. Add $500 to Account B
 
@@ -388,11 +392,13 @@ SELECT * FROM Student WHERE is_active = true;
 Both application-level validation and database-level constraints are valuable, and they serve different purposes.
 
 **Application-level validation** is what happens in the web form, the API, or the business logic layer before data reaches the database. It's responsible for:
+
 - Showing users helpful error messages ("Please enter a valid email address")
 - Catching errors early, before a database round-trip
 - Implementing complex business rules that involve calculations or cross-system lookups
 
 **Database-level constraints** are what happens inside the database itself, regardless of how the data got there. They're responsible for:
+
 - Serving as the final safety net for all data entry, from any source
 - Enforcing rules that must hold for the data to be meaningful
 - Making the schema self-documenting — the constraints tell you what the rules are

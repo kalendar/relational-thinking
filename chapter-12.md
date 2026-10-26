@@ -90,6 +90,7 @@ A user document in a concert platform might look like:
 This document is self-describing. You don't need to consult a schema definition to know what `preferences.genres` means — it's right there in the structure. And another user's document could have different fields — maybe they have `premium_since` or `billing_address` — without breaking anything.
 
 **When documents are the right unit.** Document stores work best when:
+
 - Each record is relatively self-contained (you retrieve it as a unit, not by joining it to other records)
 - The structure varies between records
 - You read the whole object far more than you query into its parts
@@ -232,12 +233,14 @@ The `->` and `->>` operators in PostgreSQL navigate into JSON objects. `preferen
 JSON columns are powerful but easy to misuse. The right question is: **does this data have a stable, known structure that will be queried predictably?** If yes, normalize it. If no, JSON might be appropriate.
 
 **Use JSON columns when:**
+
 - The structure genuinely varies between rows, and you can't predict what fields will appear
 - The data is written and read as a unit — you're not often filtering or joining on individual fields within it
 - The content is configuration, preferences, or metadata that doesn't need integrity enforcement
 - You're storing event data or logs where each event type has different properties
 
 **Normalize instead when:**
+
 - You need to filter, sort, or join on values inside the JSON
 - You need integrity enforcement (NOT NULL, UNIQUE, FK) on individual fields
 - The structure is actually consistent — every record has the same fields
@@ -293,6 +296,7 @@ This principle — "use the simplest tool that solves the problem" — applies b
 Modern applications commonly use more than one database system, each chosen for a specific purpose. This approach is called **polyglot persistence** — using multiple data storage technologies in parallel.
 
 A typical large application might use:
+
 - A **relational database** (PostgreSQL, MySQL) for core business data: users, orders, transactions, structured records that need integrity guarantees
 - A **document store** (MongoDB) for product catalog data or user-generated content with flexible structure
 - A **key-value store** (Redis) for caching, sessions, and real-time counters
