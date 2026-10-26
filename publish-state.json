@@ -1,10 +1,10 @@
 {
   "114": {
-    "commit": "0ba24c40e979ac663ca362e03270996b96113991",
+    "commit": "4e25b29ff295457d9e16ad12dcd7b0875a0ab986",
     "file": "chapter-12.md",
-    "live_sha256": "3065a3f56251c4bcb2b4c4cf87e3712234a6af4b73b81ee9211e2dea1cf9625c",
-    "modified_gmt": "2026-10-26T17:37:53",
-    "sent_sha256": "a78b06fd14cfe053318e3bb335dd605fde9bf8c2d82757ac705b3c2e340b1386",
+    "live_sha256": "391e6a48af1143f0d6cdcda96fa8b3ca0c55b702b31007306a6a4c310f20a009",
+    "modified_gmt": "2026-10-26T18:22:47",
+    "sent_sha256": "88d45cefef5e161a16670e5fa5537ede4f9bd6c90b71a095baa66177279a2201",
     "slug": "when-relational-isnt-enough"
   },
   "21": {
@@ -32,75 +32,75 @@
     "slug": "relationships-how-things-connect"
   },
   "28": {
-    "commit": "0ba24c40e979ac663ca362e03270996b96113991",
+    "commit": "4e25b29ff295457d9e16ad12dcd7b0875a0ab986",
     "file": "chapter-04.md",
-    "live_sha256": "2704c0ac684ab0a6f1a0f80340e0c80335215e83e6878c859a84c2e9d69d8af0",
-    "modified_gmt": "2026-09-04T16:21:45",
-    "sent_sha256": "e15bb8edae34419477e040ae232494147030488f9d5eba94267b45c8dedaf96b",
+    "live_sha256": "1fa780122f71614bdf25105fa7c98fa2e0a506b452f6c32f61c9461013cd7bdc",
+    "modified_gmt": "2026-10-26T18:22:09",
+    "sent_sha256": "2ae64186182689953c361d4d10de481024993b2e6fc29c066529450b209f294c",
     "slug": "the-relational-model"
   },
   "30": {
-    "commit": "0ba24c40e979ac663ca362e03270996b96113991",
+    "commit": "4e25b29ff295457d9e16ad12dcd7b0875a0ab986",
     "file": "chapter-05.md",
-    "live_sha256": "9a9eba9d66740daf9ebb6386bf38584d452b976e135129230c956cbd0155db9f",
-    "modified_gmt": "2026-10-13T16:29:18",
-    "sent_sha256": "6e65ff2011899b6258e9d9721c18f01e01f66f5a7fa2f0f3b96fd2be966abbd1",
+    "live_sha256": "81cc0c753cc9a00cbff8cf2ee1cf1be6fd0bd460f94fafe56fcc3325bcf8269d",
+    "modified_gmt": "2026-10-26T18:22:12",
+    "sent_sha256": "f4cc65c6f3efc99fa66ee2907a42f4e10ad453b2fba43b5e65fcb0f64b6e98c2",
     "slug": "normalization-as-a-design-philosophy"
   },
   "32": {
-    "commit": "0ba24c40e979ac663ca362e03270996b96113991",
+    "commit": "4e25b29ff295457d9e16ad12dcd7b0875a0ab986",
     "file": "chapter-06.md",
-    "live_sha256": "f78eb968fb036e9a5db964defc17f4f7066470dd5669d9b337e46b6d9f71946a",
-    "modified_gmt": "2026-10-26T17:37:27",
-    "sent_sha256": "30bdeacfc4519b07c1969612819f6970cb444222ccd03f45b31bb2adc9971952",
+    "live_sha256": "3689f9a0d41dcb5c4cacab4b060e9bdfcb51657ec1eef1ff6d587aebdcfe6066",
+    "modified_gmt": "2026-10-26T18:22:23",
+    "sent_sha256": "37df21d1e7650c35f6c420ec402793353fe3ac0c4cc8956d5c461f9a9eef3c7d",
     "slug": "data-modeling-in-practice"
   },
   "34": {
-    "commit": "0ba24c40e979ac663ca362e03270996b96113991",
+    "commit": "4e25b29ff295457d9e16ad12dcd7b0875a0ab986",
     "file": "chapter-07.md",
-    "live_sha256": "b82c1b5bf2ebaf6ad72c778ade2865f433711b256069ad27b76800dc56ff233d",
-    "modified_gmt": "2026-10-26T17:37:29",
-    "sent_sha256": "ee6082702618356b4e671da3496a57150bda6dc5b279ba33373943247b4c3f74",
+    "live_sha256": "b399cd6b8dd24154eec54b2fc3168c5ff9cf30ab3fb8ea1b5392a9689f558e81",
+    "modified_gmt": "2026-10-26T18:22:26",
+    "sent_sha256": "a9356c10503cc5d2d6b45b6557972b384a19e6f0b13f06e4aca103329b472a1e",
     "slug": "query-thinking-what-do-you-want-to-know"
   },
   "36": {
-    "commit": "0ba24c40e979ac663ca362e03270996b96113991",
+    "commit": "4e25b29ff295457d9e16ad12dcd7b0875a0ab986",
     "file": "chapter-08.md",
-    "live_sha256": "296d519c7274b08e15698208683c1ef8f9eac651afaa2829f0005a2644bda761",
-    "modified_gmt": "2026-10-26T17:37:34",
-    "sent_sha256": "48159db8d8acf69e8bc765febf97337a4ce3732feb89c67dee2bd58a5e6054b1",
+    "live_sha256": "166ef04a3b65b2a4765e40e30b324d4c9fa47a41a403a13964bcaf1aecc3226a",
+    "modified_gmt": "2026-10-26T18:22:31",
+    "sent_sha256": "610a1cefe9bdb5e48c63bb38a668d17d1dc79127bf4ba37eec93171a79c8e361",
     "slug": "introduction-to-sql-with-ai-assistance"
   },
   "38": {
-    "commit": "0ba24c40e979ac663ca362e03270996b96113991",
+    "commit": "4e25b29ff295457d9e16ad12dcd7b0875a0ab986",
     "file": "chapter-09.md",
-    "live_sha256": "2d961dc6f12bdafe361fe7aaf998697b914cd1090bcaa89c3172be23e228b5b2",
-    "modified_gmt": "2026-10-26T17:37:38",
-    "sent_sha256": "ccebda5a5fb4bc2c6614a991ba3432d55c7646949f25ae69a611b37860c878c5",
+    "live_sha256": "3e3081b634d137b5bcbbcf8fb8422eeb966907e5b83bce62afcb1b082c345aea",
+    "modified_gmt": "2026-10-26T18:22:36",
+    "sent_sha256": "50a8ffb583368f34b3f77782a844c400e1bb770f40a54d3f6c5e5b977f7bf921",
     "slug": "joins-and-aggregation"
   },
   "40": {
-    "commit": "0ba24c40e979ac663ca362e03270996b96113991",
+    "commit": "4e25b29ff295457d9e16ad12dcd7b0875a0ab986",
     "file": "chapter-10.md",
-    "live_sha256": "a8396da7452f079d8ab0e3b955ba51d7acf8f64ce1eb09e5c3de78eceb775af4",
-    "modified_gmt": "2026-10-26T17:37:48",
-    "sent_sha256": "c1aa5d5092058f1f30880c73ef462cf0b4317cbfb11f3d077932d65352295cd8",
+    "live_sha256": "84f820071dbfcf93f9f409f00975da6bb3b43fd7fa24bb4384979fa7a3fca65d",
+    "modified_gmt": "2026-10-26T18:22:41",
+    "sent_sha256": "9d6d91905cbf2028068e34d2b4250177cb68b9a157d7d959ab0d0af25fce3ea3",
     "slug": "designing-for-a-business-domain"
   },
   "42": {
-    "commit": "0ba24c40e979ac663ca362e03270996b96113991",
+    "commit": "4e25b29ff295457d9e16ad12dcd7b0875a0ab986",
     "file": "chapter-11.md",
-    "live_sha256": "a403e8d51dc8b861fbe402b4fa497bb93a0aeb20e9d853892d8e66e17f9885c4",
-    "modified_gmt": "2026-10-26T17:37:50",
-    "sent_sha256": "16be36ac736af7223b7e16bb4899918312d688e24dc60113972c5e6b6d7aa955",
+    "live_sha256": "9299866ff55feb8ac2473552789160e155b15081b0a6fa493a5db282f767defe",
+    "modified_gmt": "2026-10-26T18:22:44",
+    "sent_sha256": "30a00b1fed5fd97e5ba0dfa7804cbe379961b2d261b888cb33dba646189b1ab1",
     "slug": "data-integrity-and-constraints"
   },
   "46": {
-    "commit": "0ba24c40e979ac663ca362e03270996b96113991",
+    "commit": "4e25b29ff295457d9e16ad12dcd7b0875a0ab986",
     "file": "chapter-13.md",
-    "live_sha256": "7488565c9d96a2360f17c0a57fa36643ac04b49e3fbf7d1c1e85ee2e9aa42fe1",
-    "modified_gmt": "2026-10-26T17:37:55",
-    "sent_sha256": "5b0fe3853c802c05eb0961fee61d0fee924dec6ebd5d7c6280de2ee3fcdb7e23",
+    "live_sha256": "e0ca488eee22e022d575517759dfb32583a7c24aa795b44cac4a106aedf9dfb8",
+    "modified_gmt": "2026-10-26T18:22:50",
+    "sent_sha256": "168439d6d699fd67e06476c682e4b8662b9103102a8ed47b0d8d29176a552795",
     "slug": "data-at-scale-and-the-modern-data-stack"
   },
   "48": {
