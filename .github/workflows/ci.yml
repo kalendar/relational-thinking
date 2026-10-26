@@ -1,10 +1,12 @@
-# Phase 1 CI/CD for Relational Thinking.
+# CI/CD for Relational Thinking.
 #
-# On every pull request: check the chapters and the practice tools.
-# On every merge to master: run the same checks, then deploy the tools to
-# GitHub Pages (kalendar.github.io/relational-thinking) if anything changed.
+# On every pull request: check the chapters and the practice tools, and do a
+# read-only dry run against Pressbooks that previews every chapter the PR
+# would change.
+# On every merge to master: run the same checks, deploy the tools to GitHub
+# Pages, then publish every changed chapter to Pressbooks. The publish state
+# is kept on the `publish-state` branch.
 #
-# Chapters are still published to Pressbooks by hand; that moves here in Phase 2.
 # See ci/README.md for what each check does and how to run it locally.
 name: CI
 
@@ -13,6 +15,21 @@ on:
   push:
     branches: [master]
   workflow_dispatch:
+    inputs:
+      mode:
+        description: >-
+          publish: a normal publish run.
+          accept-current: adopt the live Pressbooks version of the listed chapters
+          as the baseline (only after reviewing a BLOCKED issue).
+        type: choice
+        options: [publish, accept-current]
+        default: publish
+      chapters:
+        description: >-
+          Optional: chapter files to write even if unchanged, space-separated
+          (e.g. chapter-02.md). Required for accept-current.
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -33,12 +50,18 @@ jobs:
           cache: npm
           cache-dependency-path: ci/package-lock.json
       - run: npm ci --prefix ci
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r ci/requirements-publish.txt
       - name: Build the tools site (needed to check tool links)
         run: ci/assemble_site.sh
       - name: Structure, images and tool links
         run: python3 ci/lint_chapters.py --site _site
       - name: Mermaid diagrams render
         run: python3 ci/check_mermaid.py
+      - name: Publish script tests (offline, fake Pressbooks)
+        run: python3 -m unittest -v ci/test_publish.py
 
   tools:
     name: Tools
@@ -121,3 +144,149 @@ jobs:
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
               commit -m "Deploy tools from ${GITHUB_SHA::7}"
           git push origin gh-pages
+
+  pressbooks-preview:
+    name: Pressbooks preview
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r ci/requirements-publish.txt
+      - name: Get the publish state
+        run: |
+          git fetch --depth 1 origin publish-state
+          git show FETCH_HEAD:publish-state.json > "$RUNNER_TEMP/publish-state.json"
+      - name: Dry run against the live book (reads only)
+        env:
+          PRESSBOOKS_USERNAME: ${{ secrets.PRESSBOOKS_USERNAME }}
+          PRESSBOOKS_APP_PASSWORD: ${{ secrets.PRESSBOOKS_APP_PASSWORD }}
+        run: |
+          if [ -z "$PRESSBOOKS_USERNAME" ]; then
+            echo "::warning::No Pressbooks secrets available (a pull request from a fork?), so the dry run was skipped."
+            exit 0
+          fi
+          set +e
+          python3 publish_to_pressbooks.py --dry-run --state "$RUNNER_TEMP/publish-state.json" \
+            --render-to _preview --report "$RUNNER_TEMP/report.md"
+          code=$?
+          if [ -f "$RUNNER_TEMP/report.md" ]; then
+            cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
+            echo "::group::Report"; cat "$RUNNER_TEMP/report.md"; echo "::endgroup::"
+          fi
+          exit $code
+      - name: Save chapter previews
+        if: always() && hashFiles('_preview/**') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: chapter-previews
+          path: _preview
+          retention-days: 14
+
+  publish-chapters:
+    name: Publish chapters to Pressbooks
+    needs: [chapters, tools, deploy-tools]
+    # Runs after the tools deploy (so chapter links to tools are already live),
+    # and also on a manual run, when the tools deploy is skipped.
+    if: >-
+      always() && github.ref == 'refs/heads/master' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      needs.chapters.result == 'success' && needs.tools.result == 'success' &&
+      (needs.deploy-tools.result == 'success' || needs.deploy-tools.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    concurrency:
+      group: publish-pressbooks
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # a BLOCKED report diffs against the last published commit
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r ci/requirements-publish.txt
+      - name: Check out the publish state
+        run: |
+          git fetch origin publish-state
+          git worktree add -B publish-state "$RUNNER_TEMP/state" origin/publish-state
+      - name: Publish
+        id: publish
+        env:
+          PRESSBOOKS_USERNAME: ${{ secrets.PRESSBOOKS_USERNAME }}
+          PRESSBOOKS_APP_PASSWORD: ${{ secrets.PRESSBOOKS_APP_PASSWORD }}
+          MODE: ${{ inputs.mode || 'publish' }}
+          CHAPTERS: ${{ inputs.chapters }}
+        run: |
+          args=(--state "$RUNNER_TEMP/state/publish-state.json" --report "$RUNNER_TEMP/report.md")
+          if [ "$MODE" = "accept-current" ]; then
+            if [ -z "$CHAPTERS" ]; then
+              echo "::error::accept-current needs the chapter file(s) to adopt, e.g. chapter-02.md"
+              exit 1
+            fi
+            args+=(--accept-current)
+          fi
+          if [ -n "$CHAPTERS" ]; then
+            read -ra files <<< "$CHAPTERS"
+            args+=(--only "${files[@]}")
+            [ "$MODE" = "publish" ] && args+=(--always)
+          fi
+          python3 publish_to_pressbooks.py "${args[@]}"
+      - name: Job summary
+        if: always() && steps.publish.outcome != 'skipped'
+        run: |
+          if [ -f "$RUNNER_TEMP/report.md" ]; then
+            cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
+            cat "$RUNNER_TEMP/report.md"
+          fi
+      - name: Save the publish state
+        if: always() && steps.publish.outcome != 'skipped'
+        run: |
+          cd "$RUNNER_TEMP/state"
+          git add publish-state.json
+          if git diff --cached --quiet; then
+            echo "Publish state unchanged."
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "State after publishing ${GITHUB_SHA::7} (run ${GITHUB_RUN_NUMBER})"
+          git push origin publish-state
+      - name: Tag what was published
+        if: always() && steps.publish.outcome != 'skipped'
+        run: |
+          if grep -q "published |" "$RUNNER_TEMP/report.md" 2>/dev/null; then
+            tag="pub-$(date -u +%Y-%m-%d)-run${GITHUB_RUN_NUMBER}"
+            git tag "$tag" "$GITHUB_SHA"
+            git push origin "$tag"
+            echo "Tagged $tag"
+          fi
+      - name: Open an issue if a chapter was blocked or failed
+        if: failure() && steps.publish.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "The Pressbooks publish for commit ${GITHUB_SHA::7} stopped on at least one chapter."
+            echo "Chapters marked BLOCKED were **not** overwritten."
+            echo
+            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            cat "$RUNNER_TEMP/report.md" 2>/dev/null || echo "(no report was written; see the run log)"
+            echo
+            echo "### How to resolve a BLOCKED chapter"
+            echo "Someone changed the chapter on Pressbooks after the last publish. The diff above shows what."
+            echo
+            echo "1. Adopt the live version as the new baseline: **Actions → CI → Run workflow**, mode **accept-current**, chapters e.g. \`chapter-02.md\`. This writes nothing to Pressbooks."
+            echo "2. **To keep the Pressbooks edit:** copy it into the chapter's \`.md\` file in a pull request and merge it."
+            echo "   **If the edit was disposable:** run the workflow again with mode **publish** and the same chapter."
+            echo "Either way the chapter is then published from the \`.md\`, which stays the source of truth."
+            echo
+            echo "For a failed chapter, see the run log; nothing was written for it."
+          } > "$RUNNER_TEMP/issue.md"
+          gh issue create --title "Pressbooks publish needs attention (run #${GITHUB_RUN_NUMBER})" \
+            --body-file "$RUNNER_TEMP/issue.md"

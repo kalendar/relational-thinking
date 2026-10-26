@@ -1,0 +1,7 @@
+# Pinned so CI and a laptop render byte-identical HTML. Pygments does the
+# syntax highlighting; a different version can change the markup of every
+# code block, so upgrade it on purpose, in its own pull request.
+markdown==3.10.2
+requests==2.34.2
+python-dotenv==1.2.2
+Pygments==2.21.0

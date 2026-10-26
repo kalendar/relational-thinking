@@ -6,10 +6,12 @@ GitHub annotations, so they appear on the right line of the pull request.
 
 Checks:
   - The first line is "# Chapter N: ..." and N matches the file name.
-  - If the learning-outcomes lead-in is present, it is in the exact form the
-    publish script styles: H1, one blank line, the lead-in, one blank line,
-    then a "- " bullet list. A missing lead-in is only a warning, because WIP
-    chapters don't have one yet.
+  - Every chapter file is listed in CHAPTERS in publish_to_pressbooks.py, and
+    every listed file exists.
+  - The learning-outcomes lead-in is in the exact form the publish script
+    styles: H1, one blank line, the lead-in, one blank line, then a "- " bullet
+    list. A finalized chapter (wip=False in CHAPTERS) must have it; a WIP
+    chapter without one only gets a warning.
   - Every "Copy and paste this prompt into your AI tool:" is followed by a
     blockquote (the publish script turns that blockquote into a gray box).
   - Code fences are balanced.
@@ -18,6 +20,7 @@ Checks:
     points at a file the tools build actually produces (--site).
 """
 import argparse
+import ast
 import glob
 import os
 import re
@@ -30,6 +33,17 @@ LOCAL_IMG = re.compile(r'(?:src="|\]\()\./([^")]+)')
 
 errors = 0
 warnings = 0
+PUBLISH_SCRIPT = "publish_to_pressbooks.py"
+
+
+def load_wip_flags():
+    """{filename: wip} from CHAPTERS in the publish script, read without importing it."""
+    with open(PUBLISH_SCRIPT, encoding="utf-8") as f:
+        tree = ast.parse(f.read())
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(getattr(t, "id", "") == "CHAPTERS" for t in node.targets):
+            return {row[0]: row[5] for row in ast.literal_eval(node.value)}
+    raise RuntimeError("CHAPTERS not found in " + PUBLISH_SCRIPT)
 
 
 def report(kind, path, line, msg):
@@ -41,7 +55,7 @@ def report(kind, path, line, msg):
     print(f"::{kind} file={path},line={line}::{msg}")
 
 
-def lint(path, site):
+def lint(path, site, wip_flags):
     with open(path, encoding="utf-8") as f:
         lines = f.read().split("\n")
 
@@ -52,9 +66,15 @@ def lint(path, site):
     elif int(m.group(1)) != num:
         report("error", path, 1, f"H1 says Chapter {m.group(1)} but the file is chapter {num:02d}.")
 
+    name = os.path.basename(path)
+    if name not in wip_flags:
+        report("error", path, 1, f"{name} isn't listed in CHAPTERS in {PUBLISH_SCRIPT}, so it would never be published.")
     lead = [i for i, l in enumerate(lines) if l.strip() == LEAD_IN]
     if not lead:
-        report("warning", path, 1, "No learning-outcomes list yet (fine while the chapter is WIP; add it before finalizing).")
+        if wip_flags.get(name, True):
+            report("warning", path, 1, "No learning-outcomes list yet (fine while the chapter is WIP; add it before finalizing).")
+        else:
+            report("error", path, 1, "This chapter is finalized (wip=False) but has no learning-outcomes list.")
     else:
         i = lead[0]
         if i != 2 or lines[1].strip() != "":
@@ -96,8 +116,11 @@ def main():
     if not files:
         print("::error::No chapter files found.")
         return 1
+    wip_flags = load_wip_flags()
+    for missing in sorted(set(wip_flags) - {os.path.basename(f) for f in glob.glob("chapter-*.md")}):
+        report("error", PUBLISH_SCRIPT, 1, f"CHAPTERS lists {missing}, but that file doesn't exist.")
     for f in files:
-        lint(f, a.site)
+        lint(f, a.site, wip_flags)
     print(f"Checked {len(files)} chapters: {errors} error(s), {warnings} warning(s).")
     return 1 if errors else 0
 

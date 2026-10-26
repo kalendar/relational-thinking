@@ -80,7 +80,8 @@ This is one of the most important things to internalize about data: **every mode
 
 An **entity** is a thing – a person, place, object, event, or concept – that we want to track information about in our database. An entity is just like a noun in the old song.
 
-[Grammer - A Noun Is A Person, Place Or Thing - Schoolhouse Rock](https://www.youtube.com/watch?v=929mBQPQB3g)
+https://www.youtube.com/watch?v=929mBQPQB3g
+
 In the festival database, the entities might include:
 
 - **Artist** (the performers)
