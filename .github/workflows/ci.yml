@@ -1,0 +1,123 @@
+# Phase 1 CI/CD for Relational Thinking.
+#
+# On every pull request: check the chapters and the practice tools.
+# On every merge to master: run the same checks, then deploy the tools to
+# GitHub Pages (kalendar.github.io/relational-thinking) if anything changed.
+#
+# Chapters are still published to Pressbooks by hand; that moves here in Phase 2.
+# See ci/README.md for what each check does and how to run it locally.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  chapters:
+    name: Chapters
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ci/package-lock.json
+      - run: npm ci --prefix ci
+      - name: Build the tools site (needed to check tool links)
+        run: ci/assemble_site.sh
+      - name: Structure, images and tool links
+        run: python3 ci/lint_chapters.py --site _site
+      - name: Mermaid diagrams render
+        run: python3 ci/check_mermaid.py
+
+  tools:
+    name: Tools
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ci/package-lock.json
+      - run: npm ci --prefix ci
+      - name: Unit tests
+        run: |
+          for t in tools/*/test; do
+            echo "::group::$t"
+            node --test "$t"/*.test.js
+            echo "::endgroup::"
+          done
+      - name: Build the tools site
+        run: ci/assemble_site.sh
+      - name: Committed dist/ files match the source
+        run: |
+          if ! git diff --quiet -- 'tools/*/dist'; then
+            git diff --stat -- 'tools/*/dist'
+            echo "::error::A tool's dist/ file is out of date. Run 'node tools/<name>/build.js' and commit the result."
+            exit 1
+          fi
+      - name: Install the browser for the smoke test
+        run: npx --prefix ci playwright install --with-deps chromium
+      - name: Every page loads without errors
+        run: node ci/smoke_test.js _site
+      - name: Save the built site as a preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: tools-site-preview
+          path: _site
+          include-hidden-files: true
+          retention-days: 14
+
+  links:
+    name: External links (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 ci/check_external_links.py
+
+  deploy-tools:
+    name: Deploy tools to GitHub Pages
+    needs: [chapters, tools]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: deploy-pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the tools site
+        run: ci/assemble_site.sh
+      - name: Publish to the gh-pages branch if the site changed
+        run: |
+          git fetch --depth 1 origin gh-pages
+          git worktree add -B gh-pages "$RUNNER_TEMP/pages" origin/gh-pages
+          cd "$RUNNER_TEMP/pages"
+          git rm -rq --ignore-unmatch .          # files dropped from the site get removed
+          cp -a "$GITHUB_WORKSPACE/_site/." .
+          git add -A
+          if git diff --cached --quiet; then
+            echo "The tools site is unchanged; nothing to deploy."
+            exit 0
+          fi
+          git diff --cached --stat
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "Deploy tools from ${GITHUB_SHA::7}"
+          git push origin gh-pages

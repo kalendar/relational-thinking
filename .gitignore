@@ -19,3 +19,7 @@ mis340-import/
 .claude/
 CLAUDE.md
 .env.example
+
+# CI build output and CI-only dependencies
+_site/
+ci/node_modules/
