@@ -1,0 +1,5 @@
+# Exactly what David's Mac has published with, so CI renders identical HTML.
+# Do not add Pygments (see the note at the top of publish_to_pressbooks.py).
+markdown==3.10.2
+requests==2.34.2
+python-dotenv==1.2.2
