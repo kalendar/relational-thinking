@@ -44,6 +44,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the writing checks compare each chapter with the base branch
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -62,6 +64,21 @@ jobs:
         run: python3 ci/check_mermaid.py
       - name: Publish script tests (offline, fake Pressbooks)
         run: python3 -m unittest -v ci/test_publish.py
+      - name: Work out what to compare with
+        id: base
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "ref=origin/${{ github.base_ref }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "push" ] && [ -n "${{ github.event.before }}" ] \
+               && git cat-file -e "${{ github.event.before }}^{commit}" 2>/dev/null; then
+            echo "ref=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=HEAD~1" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Reading level of changed sections (advisory)
+        run: python3 ci/check_reading_level.py --base "${{ steps.base.outputs.ref }}" --summary "$GITHUB_STEP_SUMMARY"
+      - name: Concept order and Key Terms (blocks only when a chapter is finalized)
+        run: python3 ci/check_concept_order.py --base "${{ steps.base.outputs.ref }}" --summary "$GITHUB_STEP_SUMMARY"
 
   tools:
     name: Tools
