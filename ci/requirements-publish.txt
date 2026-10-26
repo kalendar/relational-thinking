@@ -1,5 +1,7 @@
-# Exactly what David's Mac has published with, so CI renders identical HTML.
-# Do not add Pygments (see the note at the top of publish_to_pressbooks.py).
+# Pinned so CI and a laptop render byte-identical HTML. Pygments does the
+# syntax highlighting; a different version can change the markup of every
+# code block, so upgrade it on purpose, in its own pull request.
 markdown==3.10.2
 requests==2.34.2
 python-dotenv==1.2.2
+Pygments==2.21.0

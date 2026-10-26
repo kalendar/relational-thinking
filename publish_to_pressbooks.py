@@ -52,9 +52,8 @@ changed since the last publish (or that is named with --only).
    to point at the uploaded URL — the same treatment Mermaid diagrams get,
    just for hand-placed images instead of generated ones.
 
-Requirements (pinned in ci/requirements-publish.txt so CI renders exactly what
-a laptop does — note that Pygments is deliberately NOT installed, which keeps
-code blocks unhighlighted the way they have always been published):
+Requirements (pinned in ci/requirements-publish.txt so every machine renders
+exactly the same HTML, including Pygments for syntax highlighting):
     pip install -r ci/requirements-publish.txt
 
 Pressbooks book URL: https://pressbooks.marshall.edu/mis340/
@@ -76,13 +75,6 @@ import difflib
 import subprocess
 import requests
 from dotenv import load_dotenv
-
-# Every chapter has always been published from a machine WITHOUT Pygments, so
-# code blocks come out unhighlighted. If Pygments happens to be installed (as it
-# is on some CI images), python-markdown's codehilite would start emitting
-# highlighted markup and every chapter with code would "change". Hiding it keeps
-# the output identical on every machine.
-sys.modules["pygments"] = None
 import markdown as md
 
 # ── Configuration ────────────────────────────────────────────────────────────
@@ -487,6 +479,19 @@ MARKDOWN_EXTENSIONS = [
     "sane_lists",    # better list handling
 ]
 
+# Syntax highlighting for ```sql and ```json blocks, via Pygments (pinned in
+# ci/requirements-publish.txt; without Pygments installed, code would publish
+# unhighlighted and every chapter with code would count as changed).
+#   noclasses: write the colors inline. The Pressbooks theme has no stylesheet
+#     for Pygments' class names, so class-based highlighting is invisible there
+#     (checked on chapter 9's live page, Oct 2026). Inline colors also carry into
+#     the PDF and ebook exports.
+#   guess_lang: off, so plain ``` blocks (e.g. chapter 6's crow's-foot legend)
+#     stay plain text instead of being colored as a guessed language.
+MARKDOWN_CONFIG = {
+    "codehilite": {"noclasses": True, "guess_lang": False, "pygments_style": "default"},
+}
+
 
 # Chapters 1 and 2 got their learning-objectives box and shaded activity
 # boxes from hand-added Pressbooks "textbox" markup in the web editor (see
@@ -557,7 +562,7 @@ def markdown_to_html(text: str, session, chapter_slug: str) -> str:
     # into a plain paragraph of raw pipe characters.
     text = ensure_blank_lines_around_tables(text)
 
-    converter = md.Markdown(extensions=MARKDOWN_EXTENSIONS)
+    converter = md.Markdown(extensions=MARKDOWN_EXTENSIONS, extension_configs=MARKDOWN_CONFIG)
     html = converter.convert(text)
     html = wrap_textboxes(html)
     return html
