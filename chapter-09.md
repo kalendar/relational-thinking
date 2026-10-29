@@ -602,7 +602,20 @@ For AI-assisted join and aggregation queries: describe the join path explicitly,
 
 ## Interactive Activities
 
-The activities below are designed to be completed with a generative AI tool such as Claude (claude.ai) or ChatGPT. For each activity, copy the prompt in the gray box and paste it directly into your AI tool to begin an interactive study session.
+The activities below are designed to be completed with a generative AI tool such as Claude (claude.ai) or ChatGPT. For each activity, copy the prompt in the gray box and paste it directly into your AI tool to begin an interactive study session. Activity 9.0 is the one exception: it uses an interactive tool instead of a prompt.
+
+---
+
+### Activity 9.0 — SQL Studio
+
+<blockquote>
+<div class="textbox shaded">
+
+<p>Practice reading and correcting SQL queries — SELECT, WHERE, JOIN, GROUP BY, and more — using this interactive tool. It opens with this chapter's own music streaming database (Artist, Song, User, and Stream), so you can run the examples from this chapter yourself. It also includes the data sets you used in the Query Explorer.</p>
+
+<p><a href="https://kalendar.github.io/relational-thinking/sql-studio.html">https://kalendar.github.io/relational-thinking/sql-studio.html</a></p>
+
+</div></blockquote>
 
 ---
 
