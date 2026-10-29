@@ -72,11 +72,11 @@
     "slug": "introduction-to-sql-with-ai-assistance"
   },
   "38": {
-    "commit": "4e25b29ff295457d9e16ad12dcd7b0875a0ab986",
+    "commit": "a9bb40bccc445d0533b12b11af7983b5a75f26c7",
     "file": "chapter-09.md",
-    "live_sha256": "3e3081b634d137b5bcbbcf8fb8422eeb966907e5b83bce62afcb1b082c345aea",
-    "modified_gmt": "2026-10-26T18:22:36",
-    "sent_sha256": "50a8ffb583368f34b3f77782a844c400e1bb770f40a54d3f6c5e5b977f7bf921",
+    "live_sha256": "c1d76073d7152d82539f7ba7b7ec3ba728d080f620ac2db26aafa64b28dea136",
+    "modified_gmt": "2026-10-29T15:43:57",
+    "sent_sha256": "5f429a8c15c0adb8bcab546b738d4a2066162dc31f50fb13e9075c60a733eb11",
     "slug": "joins-and-aggregation"
   },
   "40": {
