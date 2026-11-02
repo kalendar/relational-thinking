@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "chapter": 10,
+    "concept": "constraint",
+    "reason": "Section 10.4 quotes jargon-heavy wording on purpose, as an example of what not to say to a stakeholder; Chapter 11 teaches constraints"
+  },
+  {
+    "chapter": 10,
+    "concept": "transaction",
+    "reason": "Chapter 10 uses 'transaction' in its everyday business sense (a sale or purchase recorded in a table); Chapter 11 introduces database transactions and ACID"
+  }
+]
