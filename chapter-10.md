@@ -1,5 +1,13 @@
 # Chapter 10: Designing for a Business Domain
 
+By the end of this chapter, you will be able to:
+
+- **Analyze** a business description by asking what is being tracked, by whom, and for what purpose, and **extract** the entities, attributes, and relationships it implies, including junction tables for many-to-many relationships.
+- **Distinguish** stable facts from values that change over time, and **justify** storing transaction-time values such as price paid on the transaction record itself.
+- **Apply** the header-detail, users-roles-permissions, and event-log patterns to new business domains, and **decide** when a table needs audit columns.
+- **Identify** red flags in an existing schema, **classify** each as a design smell or a design failure, and **plan** a refactoring that makes additive changes before breaking ones.
+- **Explain** design decisions to non-technical stakeholders in business terms, and **choose** when an ER diagram helps a conversation and when it gets in the way.
+
 ---
 
 The previous five chapters built your conceptual toolkit: entities and attributes, relationships and keys, normalization, ER diagrams, and queries. Now it's time to put the toolkit to work on real problems.
