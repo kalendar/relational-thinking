@@ -80,11 +80,11 @@
     "slug": "joins-and-aggregation"
   },
   "40": {
-    "commit": "4e25b29ff295457d9e16ad12dcd7b0875a0ab986",
+    "commit": "b70ebc1e3757ffbed831400808dfa0abc312c262",
     "file": "chapter-10.md",
-    "live_sha256": "84f820071dbfcf93f9f409f00975da6bb3b43fd7fa24bb4384979fa7a3fca65d",
-    "modified_gmt": "2026-10-26T18:22:41",
-    "sent_sha256": "9d6d91905cbf2028068e34d2b4250177cb68b9a157d7d959ab0d0af25fce3ea3",
+    "live_sha256": "91df4ca467457912dec9ea08fc5a2723e9b38b0c77dfb3e6ab604b523f1aa622",
+    "modified_gmt": "2026-11-02T12:44:51",
+    "sent_sha256": "f1f972d226100f3853495606bda61a163220fe63e6a0b92a29d3a3c792b0e5ba",
     "slug": "designing-for-a-business-domain"
   },
   "42": {
