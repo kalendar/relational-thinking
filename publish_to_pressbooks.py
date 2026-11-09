@@ -110,7 +110,7 @@ CHAPTERS = [
     ("chapter-08.md",  36, "Introduction to SQL with AI Assistance",     "Asking Questions of Data",          2, False),
     ("chapter-09.md",  38, "Joins and Aggregation",                      "Asking Questions of Data",          3, False),
     ("chapter-10.md",  40, "Designing for a Business Domain",            "Database Design for Real Problems", 1, False),
-    ("chapter-11.md",  42, "Data Integrity and Constraints",             "Database Design for Real Problems", 2, True),
+    ("chapter-11.md",  42, "Data Integrity and Constraints",             "Database Design for Real Problems", 2, False),
     ("chapter-12.md", 114, "When Relational Isn't Enough",               "Beyond the Relational Model",       1, True),
     ("chapter-13.md",  46, "Data at Scale and the Modern Data Stack",    "Beyond the Relational Model",       2, True),
     ("chapter-14.md",  48, "Capstone and the Future of Data Work",       "Putting It Together",               1, True),
