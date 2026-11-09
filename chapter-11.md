@@ -1,5 +1,13 @@
 # Chapter 11: Data Integrity and Constraints
 
+By the end of this chapter, you will be able to:
+
+- **Translate** business rules into NOT NULL, UNIQUE, and CHECK constraints, and **decide** when NULL is a legitimate value and when it signals missing data.
+- **Explain** how foreign key constraints prevent orphaned records, and **order** inserts so parent rows exist before the child rows that reference them.
+- **Compare** ON DELETE RESTRICT, CASCADE, and SET NULL, and **choose** soft deletion when a record has history attached.
+- **Describe** what a transaction is and how COMMIT and ROLLBACK work, and **explain** each of the four ACID properties using a business example.
+- **Diagnose** integrity failures such as orphaned records and phantom totals, and **justify** enforcing rules in the database as well as in the application.
+
 ---
 
 A database without integrity controls is just a place to put data. Data can go in wrong. It can point to things that don't exist. It can contradict itself. And the system will accept it all without complaint.
@@ -370,7 +378,7 @@ Defensive design principles:
 
 **Design for the worst-case input, not the ideal input.** When you add a column, don't think "well, this will always have a valid value." Think "what's the worst value that could end up in here, and how do I prevent it?" Add NOT NULL if absence is wrong. Add CHECK if the range is constrained. Add UNIQUE if duplicates are impossible.
 
-**Be explicit about optional vs. required.** Every column should be explicitly NOT NULL or explicitly nullable, with a documented reason for the choice. A column that's nullable "just in case" but is actually always required is a future data quality problem.
+**Be explicit about optional vs. required.** Every column should be explicitly NOT NULL or explicitly nullable, with a documented reason for the choice. A column that's nullable "just in case" but is actually always required is bad data waiting to happen.
 
 **Don't rely on application-layer validation alone.** Application validation is good. Database constraints are better. Application validation shows users helpful error messages; database constraints catch *everything*, including bulk imports, developer scripts, and API calls that bypass the application.
 
