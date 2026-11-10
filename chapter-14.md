@@ -77,7 +77,7 @@ Each of those steps calls on something different from this course.
 
 **Writing the narrative** is harder than it sounds. You have to produce the kind of messy, natural-language business description that you've been learning to decode. Writing one teaches you what makes a description clear vs. ambiguous.
 
-**Designing the schema** is where the core skills show up. Entities become tables. Relationships determine where foreign keys live. Many-to-many relationships get junction tables. Attributes get data types and constraints. Grain decisions get made and documented.
+**Designing the schema** is where the core skills show up. Entities become tables. Relationships determine where foreign keys live. Many-to-many relationships get junction tables. Attributes get data types (Chapter 4) and constraints (Chapter 11). Grain decisions get made and documented.
 
 **Drawing the ER diagram** forces precision. It's easy to have a vague sense of how things connect; the diagram makes the relationships explicit and exposes gaps or inconsistencies.
 

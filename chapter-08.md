@@ -331,6 +331,8 @@ CREATE TABLE Song (
 
 Either works. The key is that the AI can see the column names and understand the foreign key relationships.
 
+The CREATE TABLE format also shows each column's data type, from Chapter 4. `INTEGER` holds whole numbers, `VARCHAR(255)` holds text up to 255 characters, `BOOLEAN` holds true or false, and `DATE` holds calendar dates. Types help the AI too. When it can see that `release_date` is a `DATE`, it knows to filter it as a date rather than as text.
+
 ### Being specific about the business question, not the SQL you expect
 
 A common mistake is to describe the SQL you think you want rather than the business question you're trying to answer. This leads to the AI confirming your syntax rather than solving your problem — and if your mental model of the query is wrong, the AI will write wrong SQL that "looks right" to you.

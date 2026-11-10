@@ -291,6 +291,8 @@ erDiagram
 
 The rendered diagram gives you something you can walk a stakeholder through in a meeting. The text notation gives you something you can type into an email, a chat window, or an AI tool. Both represent the same design - know both, use whichever fits the situation.
 
+Each attribute in the rendered diagram starts with its data type, from Chapter 4: `int` for whole numbers, `decimal` for exact amounts like `contribution_amount`, and `date` for calendar dates. Diagram tools write `string` for text. In a real database, that becomes `VARCHAR(n)`, with a length limit you choose.
+
 ---
 
 ## 6.3 From ER Diagram to Relational Schema
@@ -497,7 +499,7 @@ Here's the bottom line on design quality: every hour spent getting the initial d
 
 This is especially true in three areas:
 
-**Data types and constraints.** Storing dates as dates, numbers as numbers, and booleans as booleans from the start - and enforcing NOT NULL and UNIQUE where appropriate - prevents an entire category of data quality problems and future cleanup work.
+**Data types and constraints.** Storing dates as dates, numbers as numbers, and booleans as booleans from the start (see "Choosing a type is a business decision" in Chapter 4) - and enforcing NOT NULL and UNIQUE where appropriate - prevents an entire category of data quality problems and future cleanup work.
 
 **Normalization.** Getting to 3NF upfront means future changes to one entity don't ripple into twelve other places. If artist manager information is normalized into its own table, changing a manager is a one-row update, now and always.
 

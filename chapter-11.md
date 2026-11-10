@@ -42,6 +42,8 @@ CREATE TABLE Ticket (
 
 Every column here is NOT NULL. Every ticket must identify the student who bought it, the concert it's for, the price paid, and when the purchase happened. Without any of these facts, the ticket record is incomplete in a way that matters for the business.
 
+The middle column holds the data types from Chapter 4: `INT` for whole numbers, `DECIMAL(8,2)` for exact amounts with two decimal places, and `DATE` for calendar dates. A type is the first rule on every column. It says what *kind* of value is allowed. The constraints in this chapter narrow it further.
+
 NOT NULL sounds simple, but applying it requires judgment. The question isn't "can this column ever be empty?" — it's "is this column required to make the row meaningful?"
 
 Consider a `middle_name` column on a User table. Some people don't have middle names. NULL is a legitimate value here because NULL means "this person has no middle name" (or "we don't know their middle name"). Requiring a value would force you to store something like "N/A" or leave the column filled with a dummy value, which is worse than NULL.
