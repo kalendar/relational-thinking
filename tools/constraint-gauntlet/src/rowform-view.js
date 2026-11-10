@@ -39,6 +39,8 @@
     return f;
   }
 
+  const autoKey = (t, fields) => { const pk = CG.pkColumns(t); return pk.length === 1 ? fields[pk[0]] : null; };
+
   // Makes sure ui.form matches the current table, action, and selected row.
   function syncForm(ctx) {
     const st = ctx.session.state();
@@ -48,7 +50,16 @@
     const t = CG.findTable(st.tables, ui.form.table);
     const sel = ui.selected && ui.selected.table === t.name ? st.rows[t.name].find(r => r._rowid === ui.selected.rowid) : null;
     if (ui.form.action !== 'add' && sel && ui.form.forRowid !== sel._rowid) { ui.form.fields = fromRow(t, sel); ui.form.forRowid = sel._rowid; }
-    if (!ui.form.fields) ui.form.fields = defaults(ctx, t);
+    if (!ui.form.fields) { ui.form.fields = defaults(ctx, t); ui.form.autoId = autoKey(t, ui.form.fields); }
+    // Keep the suggested ID fresh when rows arrive some other way (SQL tab, a card, a prediction),
+    // unless the student typed their own.
+    if (ui.form.action === 'add') {
+      const pk = CG.pkColumns(t);
+      if (pk.length === 1 && ui.form.autoId !== null && ui.form.fields[pk[0]] === ui.form.autoId) {
+        const next = CG.nextId(ctx.session.game, t.name);
+        if (next !== null) { ui.form.fields[pk[0]] = String(next); ui.form.autoId = String(next); }
+      }
+    }
     return { st, names, t, sel };
   }
 

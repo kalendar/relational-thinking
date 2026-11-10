@@ -172,7 +172,11 @@
         const subjects = [...p.added, ...p.changed.map(c => c.after)];
         const legit = subjects.every(r => !RU.brokenRules(level, fixTable, r, RU.makeCtx(g, cls.kind === 'update' ? r._rowid : null)).length);
         let accepted = true;
+        g.db.run('SAVEPOINT cg_r');
         try { g.db.run(a.sql); } catch (_) { accepted = false; }
+        // A bad row that gets in is undone, so it can't make a later real row look "too strict" (by taking its ID).
+        if (!legit && accepted) g.db.run('ROLLBACK TO cg_r');
+        g.db.run('RELEASE cg_r');
         const v = verdict(legit, accepted, a.outcome === 'rejected' ? 'rejected' : 'accepted');
         rows.push({ label: subjects[0] ? keyLabel(t, subjects[0]) : a.sql, source: 'yours', before: a.outcome, after: accepted ? 'accepted' : 'rejected', ok: v.ok, verdict: v.text });
       }

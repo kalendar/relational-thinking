@@ -134,7 +134,29 @@
       });
     }
 
+    // Re-rendering rebuilds the panels, so remember which control had focus and put focus back on its match.
+    const AREAS = '.goals-strip, .input-panel, .tables-panel, .cg-result-area, .rules-panel, .top';
+    function focusKey() {
+      const el = document.activeElement;
+      if (!el || el === document.body || !el.closest || !el.closest('#app')) return null;
+      const area = el.closest(AREAS);
+      const AREA_NAMES = ['goals-strip', 'input-panel', 'tables-panel', 'cg-result-area', 'rules-panel', 'top'];
+      return { area: area ? AREA_NAMES.find(c => area.classList.contains(c)) || null : null, id: el.id || null,
+        tag: el.tagName, type: el.type || null, name: el.getAttribute('name'), value: el.type === 'radio' ? el.value : null,
+        label: el.getAttribute('aria-label'), text: (el.textContent || '').trim().slice(0, 80), cm: !!el.closest('.CodeMirror') };
+    }
+    function restoreFocus(k) {
+      if (!k || k.cm) return;
+      if (k.id) { const el = document.getElementById(k.id); if (el) { el.focus({ preventScroll: true }); return; } }
+      const scope = (k.area && document.querySelector(`.${k.area}`)) || document;
+      const all = Array.from(scope.querySelectorAll(k.tag.toLowerCase()));
+      const match = all.find(el => (k.value !== null ? el.name === k.name && el.value === k.value
+        : k.label ? el.getAttribute('aria-label') === k.label : (el.textContent || '').trim().slice(0, 80) === k.text && k.text));
+      if (match && !match.disabled) match.focus({ preventScroll: true });
+    }
+
     function render() {
+      const keep = focusKey();
       const { fresh, newlyComplete } = saveGoals();
       renderHeader();
       CG.renderGoals(layout.goals, ctx);
@@ -144,11 +166,10 @@
       CG.renderRules(layout.rules, ctx);
       if (newlyComplete) SS.announce(`Level complete! ${SS.plain(ctx.level.done)}`);
       else if (fresh.length) setTimeout(() => SS.announce(`Goal done: ${SS.plain(fresh.map(g => g.text).join('. '))}`), 400);
-      if (ctx.ui.focusAfter) {
-        const el = document.querySelector(ctx.ui.focusAfter);
-        ctx.ui.focusAfter = null;
-        if (el) el.focus({ preventScroll: true });
-      }
+      const after = ctx.ui.focusAfter && document.querySelector(ctx.ui.focusAfter);
+      ctx.ui.focusAfter = null;
+      if (after) after.focus({ preventScroll: true });
+      else if (keep && (!document.activeElement || document.activeElement === document.body)) restoreFocus(keep);
     }
 
     function actions(c) {
@@ -238,6 +259,7 @@
           const r = s.tryFix(choice);
           f.result = r.error ? { error: r.error } : r;
           f.apply = null;
+          if (r.passed) ui().focusAfter = '.cg-fix .cg-actions .btn.primary';
           SS.announce(r.error ? SS.plain(r.error) : r.passed ? 'This rule passes the test.' : 'This rule fails the test. Look at the rows marked with an X.');
           render();
         },
@@ -248,7 +270,7 @@
             ui().selected = null; ui().form = null;
             if (ui().sql) ui().sql.editor.setSchema(CG.toStudioSchema(s.game.tables));
             info(`Your new rule is on the ${r.table} table. Try a row that used to get through.`);
-          } else { SS.announce('Your table already has rows that break this rule.'); render(); }
+          } else { ui().focusAfter = '.cg-cleanup .cg-actions .btn'; SS.announce('Your table already has rows that break this rule.'); render(); }
         },
         decide(choices) {
           const r = s.decide(choices);

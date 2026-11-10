@@ -718,6 +718,8 @@ th:hover .col-opts, th:focus-within .col-opts, .col-opts[aria-expanded="true"]{o
 .cg-variant span{display:inline-flex; align-items:center; gap:6px;}
 
 /* SQL tab */
+/* CodeMirror's default bracket color (#997) is below AA contrast; SQL Studio has the same default. */
+.cm-s-studio .cm-bracket{color:var(--ink);}
 .cg-sql{display:flex; flex-direction:column; min-height:340px; height:100%;}
 .cg-sql .editor-host{min-height:280px;}
 .cg-run-row{justify-content:space-between;}
@@ -738,7 +740,7 @@ table.cg-grid tbody tr:hover{background:var(--card);}
 .cg-tag{display:inline-block; margin-right:4px; padding:1px 8px; border-radius:999px; font-size:.75rem; font-weight:700; white-space:nowrap; background:var(--card-2); color:var(--ink);}
 .cg-tag.slipped{background:var(--amber-soft); color:var(--amber-ink);}
 .cg-tag.orphan{background:var(--rose-soft); color:var(--rose-ink);}
-.cg-tag.bounced{background:var(--bad-soft); color:var(--bad);}
+.cg-tag.bounced{background:var(--surface); color:var(--bad); border:1px solid var(--bad);}
 .cg-tag.inactive{background:var(--card-2); color:var(--muted);}
 .cg-badge{font-size:.66rem; font-weight:800; padding:0 4px; border-radius:4px;}
 .cg-badge.pk{background:var(--amber-soft); color:var(--amber-ink);}
@@ -756,8 +758,8 @@ table.cg-grid tbody tr:hover{background:var(--card);}
 /* result area */
 .cg-result-area{display:flex; flex-direction:column; gap:10px;}
 .cg-result{border-radius:10px; padding:10px 14px; margin:0;}
-.cg-result .headline{margin:0; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px;}
-.cg-result .headline .icon{align-self:center;}
+.cg-result .headline{margin:0;}
+.cg-result .headline .icon{vertical-align:-3px;}
 .cg-result--idle{border:2px dashed var(--line); color:var(--muted);}
 .cg-result--idle p{margin:0;}
 .cg-result--ok{border:1px solid var(--teal); border-left:6px solid var(--teal); background:var(--teal-soft); color:var(--ink);}
@@ -774,8 +776,8 @@ table.cg-grid tbody tr:hover{background:var(--card);}
 
 /* prediction and read-the-error cards */
 .cg-predict{border:1px solid var(--indigo); border-left:6px solid var(--indigo); background:var(--indigo-soft); border-radius:10px; padding:10px 14px; color:var(--ink);}
-.cg-predict-q,.cg-predict-a{margin:0; display:flex; flex-wrap:wrap; gap:4px; align-items:baseline;}
-.cg-predict-q .icon{align-self:center;}
+.cg-predict-q,.cg-predict-a{margin:0;}
+.cg-predict-q .icon{vertical-align:-3px;}
 .cg-predict-choices{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:8px;}
 .cg-predict .cg-preview-sql{margin-top:8px; border-radius:8px; background:var(--surface); border:1px solid var(--line);}
 .cg-read{display:flex; flex-wrap:wrap; align-items:flex-end; gap:10px; margin-top:8px;}
@@ -14257,7 +14259,11 @@ window.CG_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
         const subjects = [...p.added, ...p.changed.map(c => c.after)];
         const legit = subjects.every(r => !RU.brokenRules(level, fixTable, r, RU.makeCtx(g, cls.kind === 'update' ? r._rowid : null)).length);
         let accepted = true;
+        g.db.run('SAVEPOINT cg_r');
         try { g.db.run(a.sql); } catch (_) { accepted = false; }
+        // A bad row that gets in is undone, so it can't make a later real row look "too strict" (by taking its ID).
+        if (!legit && accepted) g.db.run('ROLLBACK TO cg_r');
+        g.db.run('RELEASE cg_r');
         const v = verdict(legit, accepted, a.outcome === 'rejected' ? 'rejected' : 'accepted');
         rows.push({ label: subjects[0] ? keyLabel(t, subjects[0]) : a.sql, source: 'yours', before: a.outcome, after: accepted ? 'accepted' : 'rejected', ok: v.ok, verdict: v.text });
       }
@@ -15645,6 +15651,8 @@ window.CG_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
     return f;
   }
 
+  const autoKey = (t, fields) => { const pk = CG.pkColumns(t); return pk.length === 1 ? fields[pk[0]] : null; };
+
   // Makes sure ui.form matches the current table, action, and selected row.
   function syncForm(ctx) {
     const st = ctx.session.state();
@@ -15654,7 +15662,16 @@ window.CG_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
     const t = CG.findTable(st.tables, ui.form.table);
     const sel = ui.selected && ui.selected.table === t.name ? st.rows[t.name].find(r => r._rowid === ui.selected.rowid) : null;
     if (ui.form.action !== 'add' && sel && ui.form.forRowid !== sel._rowid) { ui.form.fields = fromRow(t, sel); ui.form.forRowid = sel._rowid; }
-    if (!ui.form.fields) ui.form.fields = defaults(ctx, t);
+    if (!ui.form.fields) { ui.form.fields = defaults(ctx, t); ui.form.autoId = autoKey(t, ui.form.fields); }
+    // Keep the suggested ID fresh when rows arrive some other way (SQL tab, a card, a prediction),
+    // unless the student typed their own.
+    if (ui.form.action === 'add') {
+      const pk = CG.pkColumns(t);
+      if (pk.length === 1 && ui.form.autoId !== null && ui.form.fields[pk[0]] === ui.form.autoId) {
+        const next = CG.nextId(ctx.session.game, t.name);
+        if (next !== null) { ui.form.fields[pk[0]] = String(next); ui.form.autoId = String(next); }
+      }
+    }
     return { st, names, t, sel };
   }
 
@@ -16653,7 +16670,29 @@ window.CG_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
       });
     }
 
+    // Re-rendering rebuilds the panels, so remember which control had focus and put focus back on its match.
+    const AREAS = '.goals-strip, .input-panel, .tables-panel, .cg-result-area, .rules-panel, .top';
+    function focusKey() {
+      const el = document.activeElement;
+      if (!el || el === document.body || !el.closest || !el.closest('#app')) return null;
+      const area = el.closest(AREAS);
+      const AREA_NAMES = ['goals-strip', 'input-panel', 'tables-panel', 'cg-result-area', 'rules-panel', 'top'];
+      return { area: area ? AREA_NAMES.find(c => area.classList.contains(c)) || null : null, id: el.id || null,
+        tag: el.tagName, type: el.type || null, name: el.getAttribute('name'), value: el.type === 'radio' ? el.value : null,
+        label: el.getAttribute('aria-label'), text: (el.textContent || '').trim().slice(0, 80), cm: !!el.closest('.CodeMirror') };
+    }
+    function restoreFocus(k) {
+      if (!k || k.cm) return;
+      if (k.id) { const el = document.getElementById(k.id); if (el) { el.focus({ preventScroll: true }); return; } }
+      const scope = (k.area && document.querySelector(`.${k.area}`)) || document;
+      const all = Array.from(scope.querySelectorAll(k.tag.toLowerCase()));
+      const match = all.find(el => (k.value !== null ? el.name === k.name && el.value === k.value
+        : k.label ? el.getAttribute('aria-label') === k.label : (el.textContent || '').trim().slice(0, 80) === k.text && k.text));
+      if (match && !match.disabled) match.focus({ preventScroll: true });
+    }
+
     function render() {
+      const keep = focusKey();
       const { fresh, newlyComplete } = saveGoals();
       renderHeader();
       CG.renderGoals(layout.goals, ctx);
@@ -16663,11 +16702,10 @@ window.CG_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
       CG.renderRules(layout.rules, ctx);
       if (newlyComplete) SS.announce(`Level complete! ${SS.plain(ctx.level.done)}`);
       else if (fresh.length) setTimeout(() => SS.announce(`Goal done: ${SS.plain(fresh.map(g => g.text).join('. '))}`), 400);
-      if (ctx.ui.focusAfter) {
-        const el = document.querySelector(ctx.ui.focusAfter);
-        ctx.ui.focusAfter = null;
-        if (el) el.focus({ preventScroll: true });
-      }
+      const after = ctx.ui.focusAfter && document.querySelector(ctx.ui.focusAfter);
+      ctx.ui.focusAfter = null;
+      if (after) after.focus({ preventScroll: true });
+      else if (keep && (!document.activeElement || document.activeElement === document.body)) restoreFocus(keep);
     }
 
     function actions(c) {
@@ -16757,6 +16795,7 @@ window.CG_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
           const r = s.tryFix(choice);
           f.result = r.error ? { error: r.error } : r;
           f.apply = null;
+          if (r.passed) ui().focusAfter = '.cg-fix .cg-actions .btn.primary';
           SS.announce(r.error ? SS.plain(r.error) : r.passed ? 'This rule passes the test.' : 'This rule fails the test. Look at the rows marked with an X.');
           render();
         },
@@ -16767,7 +16806,7 @@ window.CG_WASM_BASE64 = "AGFzbQEAAAABnwRFYAJ/fwF/YAF/AX9gA39/fwBgA39/fwF/YAF/AGA
             ui().selected = null; ui().form = null;
             if (ui().sql) ui().sql.editor.setSchema(CG.toStudioSchema(s.game.tables));
             info(`Your new rule is on the ${r.table} table. Try a row that used to get through.`);
-          } else { SS.announce('Your table already has rows that break this rule.'); render(); }
+          } else { ui().focusAfter = '.cg-cleanup .cg-actions .btn'; SS.announce('Your table already has rows that break this rule.'); render(); }
         },
         decide(choices) {
           const r = s.decide(choices);

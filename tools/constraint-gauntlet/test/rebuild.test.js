@@ -110,3 +110,19 @@ test('fixTest: right passes, too loose and too strict fail on named rows, and re
   assert.equal(r.passed, true, JSON.stringify(r.rows));
   assert.deepEqual(r.rows.filter(x => x.source === 'yours').map(x => x.verdict), ['real row still allowed', 'bad row now blocked']);
 });
+
+test('fixTest: a bad row that gets in under a wrong rule does not make a later real row look too strict', async () => {
+  const SQL = await getSQL();
+  const level = Object.assign(F.clone(F.level), {
+    rules: [{ id: 'one-person', table: 'Student', text: 'one person per email',
+      check: (row, ctx) => !ctx.query('SELECT rowid AS _rowid FROM Student WHERE lower(email) = lower(?)', [row.email]).some(r => r._rowid !== ctx.self) }],
+  });
+  level.tables = [F.student, F.concert, F.ticket];
+  const loose = RB.applyOption(F.student, { id: 'loose', change: t => { S.findColumn(t, 'email').unique = false; return t; } });
+  const log = [
+    { kind: 'insert', table: 'Student', outcome: 'rejected', sql: "INSERT INTO Student (student_id, first_name, email) VALUES (5, 'Dup', 'jlee@marshall.edu')" },
+    { kind: 'insert', table: 'Student', outcome: 'accepted', sql: "INSERT INTO Student (student_id, first_name, email) VALUES (5, 'Sam', 'sam@x.edu')" },
+  ];
+  const r = RB.fixTest(SQL, level, [loose, F.concert, F.ticket], 'Student', log);
+  assert.deepEqual(r.rows.map(x => x.verdict), ['bad row still gets in (too loose)', 'real row still allowed']);
+});
