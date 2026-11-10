@@ -6,6 +6,7 @@ By the end of this chapter, you will be able to:
 - **Translate** between the formal vocabulary of the relational model (relation, tuple, attribute, degree) and its everyday equivalents (table, row, column), and **explain** why precise terminology matters when communicating across teams.
 - **Distinguish** candidate keys, primary keys, natural keys, and surrogate keys, and **justify** why most designs favor surrogate keys for a table's identity while retaining natural identifiers as constrained attributes.
 - **Apply** the three integrity rules – entity, referential, and domain integrity – to diagnose specific data problems (a null primary key, an orphaned foreign key, an invalid value), and **explain** why a database that violates them isn't truly relational.
+- **Choose** a data type for each column (whole number, exact decimal, text, date, or true/false), and **explain** why money, ID numbers, and dates are easy to get wrong.
 
 * * *
 
@@ -247,11 +248,44 @@ Every attribute has a **domain** - the set of values it's allowed to contain. Th
 
 Domain integrity means the database enforces these restrictions. You can't store "two minutes and thirty seconds" in a duration column that expects an integer. You can't store "February 31" in a date column. You can't store "maybe" in a boolean column.
 
-### Data types, constraints, and allowed ranges
+### Data types: the first rule on every column
 
-Domain integrity is implemented through several mechanisms.
+Every column has a **data type**: the kind of value it holds. The type is the first and most basic rule on a column's domain. Before any other rule runs, the database checks that the value is the right *kind* of thing. Try storing the word "loud" in a whole-number column, and the database refuses.
 
-**Data types** are the most basic: every column has a type - integer, text, date, decimal, boolean - and the database won't accept values that don't match. Try storing a word in an integer column and the database will reject it.
+You'll see the same handful of types again and again. Here they are, with examples from a music streaming database:
+
+| Type | What it holds | Example column | Example value |
+|------|---------------|----------------|---------------|
+| `INT` (or `INTEGER`) | Whole numbers | `duration_seconds` | `237` |
+| `DECIMAL(p,s)` | Exact numbers with a fixed number of decimal places | `ticket_price DECIMAL(8,2)` | `89.50` |
+| `VARCHAR(n)` | Text, up to *n* characters | `artist_name VARCHAR(100)` | `Olivia Rodrigo` |
+| `DATE`, `TIME`, `TIMESTAMP` | A calendar date, a time of day, or both | `release_date DATE` | `2026-03-14` |
+| `BOOLEAN` | True or false | `explicit_flag BOOLEAN` | `true` |
+
+Two of these types take numbers in parentheses, and those numbers are part of the rule:
+
+- **`DECIMAL(8,2)`** means 8 digits in total, with 2 of them after the decimal point. So the largest value it can hold is 999,999.99. That's plenty for a concert ticket, but not for a stadium's yearly revenue.
+- **`VARCHAR(100)`** means text of up to 100 characters. A 101-character artist name is refused. The number is a limit, not a reservation: a 14-character name only uses the space it needs.
+
+Dates are written year first, as `YYYY-MM-DD`. So March 14, 2026 is `2026-03-14`. Each database has a few extra types, and the names vary a little: one may say `INTEGER` where another says `INT`. But the five ideas above are the same everywhere.
+
+### Choosing a type is a business decision
+
+Picking a type sounds technical, but it's really a question about the business: what is this value, and what will people do with it? Three cases trip up almost everyone.
+
+**Money needs exact decimals.** Many databases also offer `FLOAT` or `REAL` types. They're fast, but they store close approximations of numbers, not the numbers themselves. Add 0.10 and 0.20 that way, and you get 0.30000000000000004. One ticket sale won't show it. A million ticket sales will be off by real pennies, and an accountant will notice. Prices, payments, and balances belong in `DECIMAL`.
+
+**Some numbers aren't really numbers.** A ZIP code like 02134 (in Boston) looks like a number. Store it as an `INT`, and the leading zero disappears: you get 2134, which isn't a ZIP code. The same goes for phone numbers, Marshall student ID numbers, and credit card numbers. Here's a quick test: *would you ever add, subtract, or average it?* If not, it's text, so make it `VARCHAR`.
+
+**Dates belong in date columns.** It's tempting to type dates as text, like "10/15/2026." But text sorts letter by letter. So "10/15/2026" comes *before* "9/1/2026," because the character 1 comes before 9. A `DATE` column sorts in true calendar order. It can also tell you how many days apart two dates are. And it refuses "February 31" and "sometime in March."
+
+Length limits are business decisions too. A US state code is always two letters, so `VARCHAR(2)` fits it exactly. People's names are harder to predict. A limit of 20 characters will refuse a real customer someday, so give names plenty of room.
+
+A note for this book's practice tools: they run on SQLite, a small database that's unusually relaxed about types. SQLite will sometimes store text in a number column without complaint. Most databases used in business refuse. If a practice tool ever accepts something this section says a database should refuse, that's why.
+
+### Constraints and allowed ranges
+
+A data type sets the *kind* of value. Constraints narrow it further. A ticket price must be a decimal, but it also shouldn't be negative.
 
 **NOT NULL constraints** prevent a column from being empty when a value is required. If the `artist_name` column has a NOT NULL constraint, you can't insert an artist without a name.
 
@@ -279,7 +313,7 @@ The formal vocabulary maps directly to the casual terms: relation = table, tuple
 
 Keys enforce uniqueness. Every row needs a primary key: a unique, non-null identifier. Natural keys carry meaning but can change; surrogate keys are stable but opaque. Most designs use surrogate keys internally and store natural identifiers as constrained attributes.
 
-The relational model has three integrity rules. Entity integrity: no primary key can be null, because a row without an identity is meaningless. Referential integrity: every foreign key must reference a row that actually exists, preventing orphaned records. Domain integrity: every value must be valid for its attribute's domain, enforced through data types, constraints, and rules.
+The relational model has three integrity rules. Entity integrity: no primary key can be null, because a row without an identity is meaningless. Referential integrity: every foreign key must reference a row that actually exists, preventing orphaned records. Domain integrity: every value must be valid for its attribute's domain, enforced first by data types and then by constraints and rules. Choosing a type is a business decision: money needs exact decimals, ID numbers that you never do math on are text, and dates belong in date columns.
 
 These rules aren't arbitrary. They follow from the mathematics of the model, and they're what makes a relational database trustworthy. A database that violates them isn't just poorly designed - it's not truly relational.
 
@@ -288,6 +322,8 @@ These rules aren't arbitrary. They follow from the mathematics of the model, and
 ## Key Terms
 
 **Candidate key** - Any attribute or combination of attributes that could uniquely identify a tuple in a relation.
+
+**Data type** - The kind of value a column holds, such as a whole number (`INT`), an exact decimal (`DECIMAL`), text (`VARCHAR`), a date (`DATE`), or true/false (`BOOLEAN`). The first and most basic rule on a column's domain.
 
 **Declarative query** - A query that describes *what* data you want without specifying *how* to retrieve it. SQL is a declarative language.
 
@@ -323,7 +359,7 @@ The activities below are designed to be completed with a generative AI tool such
 
 **Copy and paste this prompt into your AI tool:**
 
-> I've just finished reading Chapter 4 of my Introduction to Databases textbook, which covered the relational model - including set theory, the formal vocabulary of relations and tuples, types of keys, and the three integrity rules. I want to check my understanding. Please quiz me by asking the following questions one at a time. Wait for my answer before moving on. After each answer, tell me what I got right, correct anything I misunderstood, and explain it more clearly if needed. Then ask if I'd like to go deeper before moving to the next question.
+> I've just finished reading Chapter 4 of my Introduction to Databases textbook, which covered the relational model - including set theory, the formal vocabulary of relations and tuples, types of keys, the three integrity rules, and data types. I want to check my understanding. Please quiz me by asking the following questions one at a time. Wait for my answer before moving on. After each answer, tell me what I got right, correct anything I misunderstood, and explain it more clearly if needed. Then ask if I'd like to go deeper before moving to the next question.
 >
 > Here are the questions:
 >
@@ -335,6 +371,7 @@ The activities below are designed to be completed with a generative AI tool such
 > - What is entity integrity, and why does it matter?
 > - What is referential integrity? What is an orphaned record, and how does referential integrity prevent it?
 > - What is domain integrity? Give two examples of how a database can enforce it.
+> - What is a data type? Why should a ticket price be stored as an exact DECIMAL, and a ZIP code as text?
 > - The chapter says the database should be "the last line of defense against bad data." What does that mean, and why isn't application-level validation enough on its own?
 
 * * *
@@ -416,3 +453,23 @@ The activities below are designed to be completed with a generative AI tool such
 > For each problem: (a) Which integrity rule is being violated - entity integrity, referential integrity, or domain integrity? (b) How did this probably happen? (c) What's the risk if we leave it unfixed? (d) How would you fix it?
 >
 > After we've gone through all six problems, give me a summary of the overall health of this database and your top recommendation for preventing these issues in the future.
+
+* * *
+
+### Activity 4.5 - Apply It: Pick the Type
+
+*This activity gives you practice choosing a data type for each column of a real-world table, and defending your choices. The AI plays a senior designer who reviews your choices and pushes back on the risky ones.*
+
+* * *
+
+**Copy and paste this prompt into your AI tool:**
+
+> I'm studying data types in my Introduction to Databases class. I've learned the common types: INT for whole numbers, DECIMAL(p,s) for exact numbers with a fixed number of decimal places, VARCHAR(n) for text up to n characters, DATE/TIME/TIMESTAMP for dates and times, and BOOLEAN for true or false. I also learned that money needs exact decimals, that numbers you never do math on (like ZIP codes) should be text, and that dates belong in date columns.
+>
+> Please play the role of a senior database designer reviewing my work. Give me one table at a time from the list below. For each table, ask me to choose a data type for every column, including the numbers in parentheses for DECIMAL and VARCHAR. Wait for my answer. Then tell me which choices are solid, which are risky, and why. If I choose a type that would cause a real problem, describe a specific row of data that would break it. After all three tables, tell me which kind of choice I seemed least sure about.
+>
+> Table 1: A CONCERT_TICKET table for a campus box office. Columns: ticket_id, buyer_email, seat_section (Floor, Lower, Upper, or Lawn), seat_number (like "A12"), price_paid, purchase_date, show_start_time, is_refunded.
+>
+> Table 2: A STUDENT table for a university. Columns: student_id (a 9-digit university ID that can start with 0), first_name, last_name, home_zip_code, phone_number, gpa (like 3.42), credits_completed, enrollment_date, is_international.
+>
+> Table 3: A STREAM table for a music app. Columns: stream_id, user_id, song_id, streamed_at (the exact date and time a song started), seconds_listened, skipped (whether the user skipped the song), royalty_owed (the fraction of a cent paid to the artist, like 0.0038 dollars).
