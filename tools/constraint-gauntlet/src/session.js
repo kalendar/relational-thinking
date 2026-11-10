@@ -288,12 +288,21 @@
       };
     }
 
+    // Fresh data from the seed, keeping the current rules (Level 8 policies) and all progress.
+    function resetData() {
+      const keep = game.tables;
+      const variant = game.variant;
+      CG.closeLevel(game);
+      game = CG.openLevel(SQL, level, { tables: keep, variant });
+      return state();
+    }
+
     function setFlag(name, value = true) { flags[name] = value; }
     function close() { CG.closeLevel(game); }
 
     const api = {
       level, get game() { return game; }, run, runForm, runAll, predict, switchVariant, fixList: () => fixList(level), fixFor, fixUnlocked,
-      tryFix, applyFix, decide, setPolicies, softDelete, judgePolicies, report, goals, complete, state, reset, setFlag, close,
+      tryFix, applyFix, decide, setPolicies, softDelete, judgePolicies, report, goals, complete, state, reset, resetData, setFlag, close,
     };
     return api;
   }

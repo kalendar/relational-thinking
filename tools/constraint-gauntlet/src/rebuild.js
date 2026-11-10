@@ -152,7 +152,12 @@
 
   // newTables: the full table list with the fix applied. fixTable: the table being fixed.
   function fixTest(SQL, level, newTables, fixTable, log = []) {
-    const g = D.openLevel(SQL, level, { tables: newTables });
+    let g;
+    try { g = D.openLevel(SQL, level, { tables: newTables }); } catch (e) {
+      // The level's own starting data breaks the new rule: it's too strict for real data.
+      return { passed: false, rows: [{ label: `The ${S.noun(S.findTable(newTables, fixTable))}s that are already saved`, source: 'test',
+        before: 'accepted', after: 'rejected', ok: false, verdict: 'real rows now blocked (too strict)' }] };
+    }
     const rows = [];
     try {
       const names = newTables.map(t => t.name);
