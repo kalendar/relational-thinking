@@ -22,7 +22,7 @@ This chapter covers the main types of constraints — NOT NULL, UNIQUE, CHECK, a
 
 ## 11.1 Constraints as Encoded Business Rules
 
-Every constraint in a database schema is a business rule translated into enforcement logic. "A ticket must have a price" becomes a NOT NULL constraint. "No two users can have the same email address" becomes a UNIQUE constraint. "A ticket price must be greater than zero" becomes a CHECK constraint. The rule is the same; the constraint is what makes it automatic.
+Every constraint in a database schema is a business rule translated into enforcement logic. "A ticket must have a price" becomes a NOT NULL constraint. "No two users can have the same email address" becomes a UNIQUE constraint. "A ticket price can't be negative" becomes a CHECK constraint. The rule is the same; the constraint is what makes it automatic.
 
 This framing matters because it shifts how you think about designing constraints. You're not adding technical scaffolding — you're encoding knowledge about your business domain into the database itself. That knowledge stays there even when the application layer changes, even when a new developer joins the team, even when someone bypasses the application and writes directly to the database with a script.
 
