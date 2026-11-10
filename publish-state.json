@@ -88,11 +88,11 @@
     "slug": "designing-for-a-business-domain"
   },
   "42": {
-    "commit": "84eeca508bf573fd5d8f509120e7bcceed51ceee",
+    "commit": "84353b9cbad69ebc704bc59f0fdd966f9cff55b1",
     "file": "chapter-11.md",
-    "live_sha256": "54b9686778e680524ff404f3519b8211b310bf8a4b0819cc2b5fc766e75c7278",
-    "modified_gmt": "2026-11-09T15:22:51",
-    "sent_sha256": "57968bd26b411b171ab85e3cc2d209ec73a9a32db997498f9e24e4508637e8f5",
+    "live_sha256": "845dcaf96e291d284d750eb3e67fc9bd092d09ffc62e7151a9c7b0d10baec6bd",
+    "modified_gmt": "2026-11-10T14:30:46",
+    "sent_sha256": "6dbb97c7a4d2dca3ec2e3c343e1030c95b43fdbe2c7d81ae5ec64d680ac41a18",
     "slug": "data-integrity-and-constraints"
   },
   "46": {
