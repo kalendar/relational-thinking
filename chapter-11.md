@@ -474,20 +474,7 @@ When integrity fails, the consequences include orphaned records, phantom totals,
 
 ## Interactive Activities
 
-The activities below are designed to be completed with a generative AI tool such as Claude (claude.ai) or ChatGPT. For each activity, copy the prompt in the gray box and paste it directly into your AI tool to begin an interactive study session. Activity 11.0 is the one exception: it uses an interactive tool instead of a prompt.
-
----
-
-### Activity 11.0 — Constraint Gauntlet
-
-<blockquote>
-<div class="textbox shaded">
-
-<p>Put rows into a campus ticketing database that has rules, and see what the database does. Sometimes your job is to get good data in. Sometimes it's to sneak bad data past the rules. Then you fix the rules. Play Levels 1–5 after section 11.1 and Levels 6–8 after section 11.2. When you finish a level, use <strong>Copy for homework</strong> and paste the result where your instructor asks.</p>
-
-<p><a href="https://kalendar.github.io/relational-thinking/constraint-gauntlet.html">https://kalendar.github.io/relational-thinking/constraint-gauntlet.html</a></p>
-
-</div></blockquote>
+The activities below are designed to be completed with a generative AI tool such as Claude (claude.ai) or ChatGPT. For each activity, copy the prompt in the gray box and paste it directly into your AI tool to begin an interactive study session.
 
 ---
 
